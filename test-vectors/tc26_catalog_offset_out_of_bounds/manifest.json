@@ -1,0 +1,11 @@
+{
+  "name": "tc26_catalog_offset_out_of_bounds",
+  "description": "CsrRowOffOffset points past EOF (0xFFFFFFFFFFFFFFFF)",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "7560e892bdec09dbac0bf19634447d646dc5122e83b193a6393ad7c64efe080d",
+  "expected_status": "EXPECTED_FAILURE"
+}

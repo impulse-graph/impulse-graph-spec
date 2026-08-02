@@ -1,0 +1,11 @@
+{
+  "name": "tc07_encoding_raw_uint32",
+  "description": "RAW_UINT32 uncompressed target array (0x00)",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "8da4f4c9bb990fa1dcb476a7da83c186608329bcbcbd7a76c3aa505e00404721",
+  "expected_status": "SUCCESS"
+}

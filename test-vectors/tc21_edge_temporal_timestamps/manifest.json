@@ -1,0 +1,11 @@
+{
+  "name": "tc21_edge_temporal_timestamps",
+  "description": "Per-edge uint64 creation/expiry timestamp array",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "568c5c597d59a20b466628100081c4de0cfb40e16b93b85b28aed3c1d2eb758c",
+  "expected_status": "SUCCESS"
+}

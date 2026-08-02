@@ -1,0 +1,11 @@
+{
+  "name": "tc22_section4_id_mappings",
+  "description": "Section 4 DenseID <-> BusinessKey ID Mappings",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "e2e690f4dd56af19485dfb6884af3a7e4097be9b17aecf8c05e33a347bfece34",
+  "expected_status": "SUCCESS"
+}

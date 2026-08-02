@@ -1,0 +1,11 @@
+{
+  "name": "tc05_disconnected_nodes",
+  "description": "10,000 isolated nodes with zero edges",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 10000,
+  "total_edges": 0,
+  "sha256": "500c5fb6ad6a316a032c504dcb56a26c8f0f652bb66797fc6e7d5324bad6e4f6",
+  "expected_status": "SUCCESS"
+}

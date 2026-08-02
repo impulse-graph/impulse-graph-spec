@@ -1,0 +1,11 @@
+{
+  "name": "tc14_keytype_string_utf8",
+  "description": "Section 4 UTF-8 business keys",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "4ff6b33eff96dc39cffac3a130277f8244dc23f78168d326f9ac2eb28b1b8296",
+  "expected_status": "SUCCESS"
+}

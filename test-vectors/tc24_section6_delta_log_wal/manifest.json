@@ -1,0 +1,11 @@
+{
+  "name": "tc24_section6_delta_log_wal",
+  "description": "Section 6 live mutation Write-Ahead Log Delta Log",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "b05e99a3417a20daf9de6ba6faf560f29c1a848b0c5e0e57c94433cb69cd9315",
+  "expected_status": "SUCCESS"
+}

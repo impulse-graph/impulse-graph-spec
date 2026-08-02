@@ -1,0 +1,11 @@
+{
+  "name": "tc30_unaligned_section_offset",
+  "description": "CsrRowOffOffset not aligned to 64-byte boundary",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "c49f2d1945962828ecc082369d6265cb6d519f2ff043f28762b2f7f346a5e379",
+  "expected_status": "EXPECTED_FAILURE"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "tc27_col_idx_offset_out_of_bounds",
+  "description": "CsrColIdxOffset points past EOF",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "03c7fa7cacb089f96881b2c83f56c985fcf156b605310472d70e29a752c3d960",
+  "expected_status": "EXPECTED_FAILURE"
+}

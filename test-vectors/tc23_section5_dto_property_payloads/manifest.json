@@ -1,0 +1,11 @@
+{
+  "name": "tc23_section5_dto_property_payloads",
+  "description": "Section 5 DTO entity property lookup payload table",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "e3dded770de109a37b262d66ff1e42b33b09974c315504e773c1c4b9ff4b26d2",
+  "expected_status": "SUCCESS"
+}

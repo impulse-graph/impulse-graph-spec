@@ -1,0 +1,11 @@
+{
+  "name": "tc10_encoding_hybrid_16_32",
+  "description": "HYBRID_UINT16_UINT32 partitioned target array (0x03)",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "91e66e3236c8fe98410d3e415136e7d5bcf52ac264b69732cafb01ba77fa27b6",
+  "expected_status": "SUCCESS"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "tc29_malformed_domain_name_len",
+  "description": "Domain NameLen set to 65535 exceeding file size",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "6bda391a77a5fcc624e0148cce00a64fa42de995a0e9186017a7872dc45789ff",
+  "expected_status": "EXPECTED_FAILURE"
+}

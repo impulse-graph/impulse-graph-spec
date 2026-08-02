@@ -1,0 +1,11 @@
+{
+  "name": "tc03_empty_snapshot",
+  "description": "Empty graph snapshot with 0 domains and 0 relations",
+  "spec_version": "2.4.0",
+  "domain_count": 0,
+  "relation_count": 0,
+  "total_nodes": 0,
+  "total_edges": 0,
+  "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "expected_status": "SUCCESS"
+}

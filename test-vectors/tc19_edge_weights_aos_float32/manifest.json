@@ -1,0 +1,11 @@
+{
+  "name": "tc19_edge_weights_aos_float32",
+  "description": "Array-of-Structures 32-bit float edge weight array",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "e09528b39fe33446b8831ce1f40934b818424e3951a9e384a52ffdc47b5448fb",
+  "expected_status": "SUCCESS"
+}

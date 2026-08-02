@@ -1,0 +1,11 @@
+{
+  "name": "tc15_keytype_int64",
+  "description": "Section 4 64-bit integer keys",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "6cd74a51ade75bc297b8a1aa4de57b022a13b0fc50660697acdba5266cbc250d",
+  "expected_status": "SUCCESS"
+}

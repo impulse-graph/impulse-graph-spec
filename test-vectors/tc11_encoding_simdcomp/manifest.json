@@ -1,0 +1,11 @@
+{
+  "name": "tc11_encoding_simdcomp",
+  "description": "SIMDComp / PFOR-Delta bit-packed stream (0x04)",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "2939f1c3334b92160e2ec8ff88c41909f31fd0062bfaafa5019a56dbf5ccc0b8",
+  "expected_status": "SUCCESS"
+}

@@ -1,0 +1,11 @@
+{
+  "name": "tc28_truncated_file_payload",
+  "description": "File truncated midway through Section 3 CSR payload",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "c16fff2aa62107388dd7d6ee4c25b4326a21d2cce8b2b959d443e20882e03c3b",
+  "expected_status": "EXPECTED_FAILURE"
+}

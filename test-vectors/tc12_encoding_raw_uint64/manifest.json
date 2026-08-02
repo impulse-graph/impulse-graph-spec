@@ -1,0 +1,11 @@
+{
+  "name": "tc12_encoding_raw_uint64",
+  "description": "RAW_UINT64 8-byte target array (0x07)",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "318e0b608ead34aea5525f528b02a433479dadf4155c16837145208beca145b4",
+  "expected_status": "SUCCESS"
+}

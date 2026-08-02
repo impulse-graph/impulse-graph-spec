@@ -1,0 +1,11 @@
+{
+  "name": "tc01_domain_catalog_stress",
+  "description": "Stresses domain catalog with 30,000 node types and 10,000 sparse relations",
+  "spec_version": "2.4.0",
+  "domain_count": 30000,
+  "relation_count": 10000,
+  "total_nodes": 10000,
+  "total_edges": 10000,
+  "sha256": "2faca9612b5f17b8189a848ebf8c61f8eeec944a540e156e46e0debd457bf9d9",
+  "expected_status": "SUCCESS"
+}

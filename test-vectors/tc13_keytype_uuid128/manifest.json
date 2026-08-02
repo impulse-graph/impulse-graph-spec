@@ -1,0 +1,11 @@
+{
+  "name": "tc13_keytype_uuid128",
+  "description": "Section 4 RFC 4122 UUID keys",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "fb28ffcadf22e975774e97a31a1dd971596f5668f1b5c7aa21ff5d9d36c0bda3",
+  "expected_status": "SUCCESS"
+}

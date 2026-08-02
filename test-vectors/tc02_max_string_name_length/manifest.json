@@ -1,0 +1,11 @@
+{
+  "name": "tc02_max_string_name_length",
+  "description": "Stresses UTF-8 domain name parser with 2000-byte string name",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "1db0056a071bb07adf74764674b2abec6446564493cb9dda170bfac3132be3d1",
+  "expected_status": "SUCCESS"
+}

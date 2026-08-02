@@ -1,0 +1,11 @@
+{
+  "name": "tc08_encoding_delta_vbyte",
+  "description": "DELTA_VBYTE varint stream encoding (0x01)",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 2,
+  "sha256": "88041ac542b12469ff96d395b7c70cf1162a6a40d38f47fd0bfa657b12ededfa",
+  "expected_status": "SUCCESS"
+}

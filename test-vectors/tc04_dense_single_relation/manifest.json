@@ -1,0 +1,11 @@
+{
+  "name": "tc04_dense_single_relation",
+  "description": "Single node with 100,000 outgoing edges in a single CSR row",
+  "spec_version": "2.4.0",
+  "domain_count": 2,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 100000,
+  "sha256": "facb1303afd9e0b542a7b814624313678f9c05a2ec03b865598421d4be3aa39a",
+  "expected_status": "SUCCESS"
+}
