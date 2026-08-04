@@ -6,6 +6,6 @@
   "relation_count": 1,
   "total_nodes": 10000,
   "total_edges": 10000,
-  "sha256": "bcacf690f73622c55a9ef004b94ceb9094f2ca882e546088d3a2ea731cd8f878",
+  "sha256": "c55d986c8d267fea4293285b721604ea0b4701010bad604fbdfbda7c7a4a8350",
   "expected_status": "SUCCESS"
 }

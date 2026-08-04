@@ -125,9 +125,9 @@ Begins immediately after Domain Catalog Array, aligned to a 128-byte boundary. C
 
 Each relation directory entry is followed immediately by `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.4).
 
-### 3.4 Attribute Descriptor Structure (Fixed 40 Bytes)
+### 3.4 Attribute Descriptor Structure (Fixed 44 Bytes)
 
-Every node attribute and edge attribute is defined by a fixed 40-byte POD struct:
+Every node attribute and edge attribute is defined by a fixed 44-byte POD struct:
 
 | Byte Offset | Field Name | C-ABI Type | Size | Description |
 | :--- | :--- | :--- | :--- | :--- |

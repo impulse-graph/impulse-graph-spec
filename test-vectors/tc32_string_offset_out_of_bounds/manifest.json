@@ -1,0 +1,11 @@
+{
+  "name": "tc32_string_offset_out_of_bounds",
+  "description": "Corrupt snapshot with domain name_offset 0xFFFFFFFF pointing past string pool boundary",
+  "spec_version": "0.9.0",
+  "domain_count": 1,
+  "relation_count": 0,
+  "total_nodes": 0,
+  "total_edges": 0,
+  "sha256": "494e15f0c26682469e9f46ffb8012ef67d5a4e0bd6205e263e23b316702cddf1",
+  "expected_status": "REJECT_STRING_OFFSET_OUT_OF_BOUNDS"
+}

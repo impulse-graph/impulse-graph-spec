@@ -1,0 +1,11 @@
+{
+  "name": "tc31_custom_metadata",
+  "description": "Section 1 Header-Embedded and Section 7 Custom Metadata Stream",
+  "spec_version": "2.4.0",
+  "domain_count": 1,
+  "relation_count": 1,
+  "total_nodes": 1,
+  "total_edges": 1,
+  "sha256": "5b7a0fe4e5b54523f4444f9465ae1693de75b53a5f95bb2e1e49d570ebc86963",
+  "expected_status": "SUCCESS"
+}

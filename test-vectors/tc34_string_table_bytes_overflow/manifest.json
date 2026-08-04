@@ -1,0 +1,11 @@
+{
+  "name": "tc34_string_table_bytes_overflow",
+  "description": "Corrupt string_table_bytes set to 0xFFFFFFFF (4GB) exceeding file size",
+  "spec_version": "0.9.0",
+  "domain_count": 1,
+  "relation_count": 0,
+  "total_nodes": 0,
+  "total_edges": 0,
+  "sha256": "80dab954b2f9fed233a67a96f849f4c240fd72e04cf00adb1164b74c5414cdce",
+  "expected_status": "REJECT_STRING_TABLE_OVERFLOW"
+}

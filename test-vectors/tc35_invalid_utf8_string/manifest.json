@@ -1,0 +1,11 @@
+{
+  "name": "tc35_invalid_utf8_string",
+  "description": "Corrupt string pool containing invalid UTF-8 byte sequence (0xFF 0xFE 0xFD 0xFC)",
+  "spec_version": "0.9.0",
+  "domain_count": 1,
+  "relation_count": 0,
+  "total_nodes": 0,
+  "total_edges": 0,
+  "sha256": "acc7ca4fc5e16c094460dcca95ec15c21df0ac2fae8923f044e7ce9c152863fe",
+  "expected_status": "REJECT_INVALID_UTF8_STRING"
+}

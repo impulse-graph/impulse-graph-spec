@@ -1,0 +1,11 @@
+{
+  "name": "tc36_empty_string_pool_no_null_byte",
+  "description": "Corrupt string pool with 0 bytes missing mandatory leading null byte at offset 0",
+  "spec_version": "0.9.0",
+  "domain_count": 1,
+  "relation_count": 0,
+  "total_nodes": 0,
+  "total_edges": 0,
+  "sha256": "24533f92ed6cc1ecdc62914b6f2b0e37f460878bf8cd3764619d41259c45a071",
+  "expected_status": "REJECT_EMPTY_STRING_POOL"
+}

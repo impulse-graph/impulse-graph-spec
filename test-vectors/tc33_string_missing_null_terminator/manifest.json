@@ -1,0 +1,11 @@
+{
+  "name": "tc33_string_missing_null_terminator",
+  "description": "Corrupt string pool with missing null-terminator byte at EOF",
+  "spec_version": "0.9.0",
+  "domain_count": 1,
+  "relation_count": 0,
+  "total_nodes": 0,
+  "total_edges": 0,
+  "sha256": "771cecbaf84cf566716f3c1c3be1fb49128765f412b9c204e5cae49b995a6ce7",
+  "expected_status": "REJECT_STRING_UNTERMINATED"
+}
