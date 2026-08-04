@@ -22,9 +22,10 @@ The format is organized into **4KB OS page-aligned physical blocks**, structured
 │   ├── Magic ("IMPS"), Version (0x0009), DataOffset (4096)                          │
 │   └── GlobalRequiredFeatures, SnapshotUUID, HeaderChecksum                        │
 ├───────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 2: Catalog & Relation Directory Table (4KB Page 1, Offset 0x1000)         │
-│   ├── Domain Catalog (Node Types + Node Attribute Descriptors)                     │
-│   └── Sorted Relation Directory Table (Matrix Descriptors + Edge Attr Descriptors) │
+│ SECTION 2: Catalog & Directory Directory Table (4KB Page 1, Offset 0x1000)         │
+│   ├── 1. String Table (Shared Null-Terminated UTF-8 String Pool Blob)              │
+│   ├── 2. Domain Catalog Array (Fixed 16-Byte POD Structs)                         │
+│   └── 3. Sorted Relation Directory Table (Fixed 128B Entries + 40B Attr Descriptors) │
 ├───────────────────────────────────────────────────────────────────────────────────┤
 │ RELATION BLOCK 1 [MANDATORY, 4KB Aligned]                                         │
 │   ├── csrRowOffsets Array (128B Aligned, uint32/uint64)                           │
@@ -73,60 +74,72 @@ The snapshot header occupies byte offset `0x00000000` (Page 0). It contains a **
 
 ---
 
-## 3. Section 2: Catalog & Directory Directory Table
+## 3. Section 2: Catalog, String Table & Directory Table Layout
 
-Begins at byte offset `DataOffset` (byte 4096). Contains node domain definitions, node attribute descriptors, and the **Relation Directory Table**.
+Begins at byte offset `DataOffset` (byte 4096). Contains the **Shared String Table**, node domain definitions, and the **Relation Directory Table**.
 
-### 3.1 Domain Catalog (Node Types & Node Attributes)
-Contains `DomainCount` sequential domain records:
-* `DomainID` (`uint16_t`, 2B): Zero-indexed domain identifier (`0`..`DomainCount - 1`).
-* `KeyType` (`uint8_t`, 1B): Domain business key primitive type enum (`0x01` = INT8..`0x0A` = FIXED_BYTES).
-* `Reserved` (`uint8_t`, 1B): `0x00` padding.
-* `NameLen` (`uint16_t`, 2B): Byte length of domain name string.
-* `Name` (`byte[NameLen]`): UTF-8 string (e.g. `"User"`, `"Group"`).
-* `NodeCount` (`uint64_t`, 8B): Total number of nodes $N$ in this domain.
-* `AttrCount` (`uint16_t`, 2B): Number of node attributes defined for this domain.
-* **Node Attribute Descriptors**: `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.3) followed by attribute name strings.
+### 3.1 Shared String Table (String Pool Heap)
+Begins at byte offset `DataOffset` (4096):
+* `StringTableBytes` (`uint32_t`, 4B): Total byte size of string pool blob.
+* `StringPool` (`byte[StringTableBytes]`): Contiguous null-terminated UTF-8 byte stream starting with `\0` at offset `0`.
+  - String offset `0` corresponds to empty string `""`.
+  - All domain names, relation names, and attribute names store a 32-bit `name_offset` pointing directly to their null-terminated UTF-8 byte stream in this pool.
 
-### 3.2 Relation Directory Table (Matrix Descriptors & Edge Attributes)
-Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID` and secondary by `TgtDomainID`** to enable $O(\log R)$ binary search lookups:
-
-| Field Name | Type | Size | Description |
-| :--- | :--- | :--- | :--- |
-| `RelationID` | `uint16_t` | 2B | Zero-indexed relation identifier (`0`..`RelationCount - 1`). |
-| `SrcDomainID` | `uint16_t` | 2B | Domain ID of source nodes. |
-| `TgtDomainID` | `uint16_t` | 2B | Domain ID of target nodes. |
-| `EncodingID` | `uint8_t` | 1B | Topology encoding enum (`0x00` = `ENCODING_RAW` uncompressed, `0x01` = `ZSTD`, `0x80`..`0xFF` = Registered plugins). |
-| `NodeIDWidth` | `uint8_t` | 1B | Byte width of target node IDs (`0x02` = `uint16_t`, `0x04` = `uint32_t`, `0x08` = `uint64_t`). |
-| `EdgeIndexWidth` | `uint8_t` | 1B | Byte width of CSR row offsets (`0x04` = `uint32_t`, `0x08` = `uint64_t`). |
-| `NodeCount` | `uint64_t` | 8B | Number of source nodes ($N$) in relation matrix (up to $1.84 \times 10^{19}$). |
-| `EdgeCount` | `uint64_t` | 8B | Total number of directed edges ($E$) in relation matrix. |
-| `SectionFeatures` | `uint64_t` | 8B | Per-relation feature bitmask (e.g., bit 0 = CSC present, bit 1 = weighted edges). |
-| `CsrRowOffOffset` | `uint64_t` | 8B | Absolute file offset to `csrRowOffsets` array (128B aligned). |
-| `CsrRowOffBytes` | `uint64_t` | 8B | Byte size of `csrRowOffsets` array ($= (N + 1) \times \text{EdgeIndexWidth}$). |
-| `CsrColIdxOffset` | `uint64_t` | 8B | Absolute file offset to `csrColumnIndices` array (128B aligned). |
-| `CsrColIdxBytes` | `uint64_t` | 8B | Byte size of `csrColumnIndices` array ($= E \times \text{NodeIDWidth}$). |
-| `CscRowOffOffset` | `uint64_t` | 8B | Absolute file offset to optional `cscRowOffsets` array (`0` if omitted). |
-| `CscRowOffBytes` | `uint64_t` | 8B | Byte size of `cscRowOffsets` array (`0` if omitted). |
-| `CscColIdxOffset` | `uint64_t` | 8B | Absolute file offset to optional `cscColumnIndices` array (`0` if omitted). |
-| `CscColIdxBytes` | `uint64_t` | 8B | Byte size of `cscColumnIndices` array (`0` if omitted). |
-| `AttrCount` | `uint16_t` | 2B | Number of edge attributes defined for this relation. |
-| **Edge Attribute Descriptors** | Struct | $40 \times \text{AttrCount}$ | `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.3) followed by UTF-8 attribute name strings. |
-
-### 3.3 Attribute Descriptor Structure (Packed 40 Bytes)
-
-Every node attribute and edge attribute is formally defined by a 40-byte descriptor in the directory table:
+### 3.2 Domain Catalog Array (Fixed 16 Bytes per Domain)
+Begins immediately after String Table, aligned to a 128-byte boundary. Contains `DomainCount` fixed-size 16-byte records:
 
 | Byte Offset | Field Name | C-ABI Type | Size | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `0x0000` – `0x0001` | `NameLen` | `uint16_t` | 2 Bytes | Byte length of attribute name string. |
-| `0x0002` | `TypeCode` | `uint8_t` | 1 Byte | Base Primitive Type (`Bits 0..6`) + `0x80` Nullability Flag (`Bit 7`). |
+| `0x0000` – `0x0001` | `DomainID` | `uint16_t` | 2 Bytes | Zero-indexed domain identifier (`0`..`DomainCount - 1`). |
+| `0x0002` | `KeyType` | `uint8_t` | 1 Byte | Domain key primitive type enum (`0x01` = INT8..`0x0B` = VAR_STRING). |
 | `0x0003` | `Reserved` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
-| `0x0004` – `0x0007` | `Dimension` | `uint32_t` | 4 Bytes | Element dimension $D$ ($1$ for scalar, $D \ge 1$ for fixed vectors, $0$ for variable-length). |
-| `0x0008` – `0x000F` | `DataOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to attribute data array / payload blob. |
-| `0x0010` – `0x0017` | `DataBytes` | `uint64_t` | 8 Bytes | Total byte size of attribute data array / payload blob. |
-| `0x0018` – `0x001F` | `OffsetsOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to `uint32_t offsets[]` array (`0` for fixed-width). |
-| `0x0020` – `0x0027` | `OffsetsBytes` | `uint64_t` | 8 Bytes | Total byte size of `uint32_t offsets[]` array ($= (K + 1) \times 4$; `0` for fixed-width). |
+| `0x0004` – `0x0007` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (points to null-terminated string, e.g., `"User\0"`). |
+| `0x0008` – `0x000F` | `NodeCount` | `uint64_t` | 8 Bytes | Total number of nodes $N$ in this domain. |
+
+### 3.3 Relation Directory Table (Fixed 128 Bytes per Relation)
+Begins immediately after Domain Catalog Array, aligned to a 128-byte boundary. Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID` and secondary by `TgtDomainID`**:
+
+| Byte Offset | Field Name | C-ABI Type | Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0000` – `0x0001` | `RelationID` | `uint16_t` | 2 Bytes | Zero-indexed relation identifier (`0`..`RelationCount - 1`). |
+| `0x0002` – `0x0003` | `SrcDomainID` | `uint16_t` | 2 Bytes | Domain ID of source nodes. |
+| `0x0004` – `0x0005` | `TgtDomainID` | `uint16_t` | 2 Bytes | Domain ID of target nodes. |
+| `0x0006` | `EncodingID` | `uint8_t` | 1 Byte | Topology encoding enum (`0x00` = `ENCODING_RAW`, `0x01` = `ZSTD`). |
+| `0x0007` | `NodeIDWidth` | `uint8_t` | 1 Byte | Byte width of target node IDs (`0x02` = `uint16_t`, `0x04` = `uint32_t`, `0x08` = `uint64_t`). |
+| `0x0008` | `EdgeIndexWidth` | `uint8_t` | 1 Byte | Byte width of CSR row offsets (`0x04` = `uint32_t`, `0x08` = `uint64_t`). |
+| `0x0009` – `0x000B` | `Reserved1` | `uint8_t[3]` | 3 Bytes | `0x00` alignment padding. |
+| `0x000C` – `0x000F` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (points to null-terminated string, e.g., `"FOLLOWS\0"`). |
+| `0x0010` – `0x0017` | `NodeCount` | `uint64_t` | 8 Bytes | Number of source nodes ($N$) in relation matrix. |
+| `0x0018` – `0x001F` | `EdgeCount` | `uint64_t` | 8 Bytes | Total number of directed edges ($E$) in relation matrix. |
+| `0x0020` – `0x0027` | `SectionFeatures` | `uint64_t` | 8 Bytes | Per-relation feature bitmask (bit 0 = CSC present, bit 1 = weighted edges). |
+| `0x0028` – `0x002F` | `CsrRowOffOffset` | `uint64_t` | 8 Bytes | Absolute file offset to `csrRowOffsets` array (128B aligned). |
+| `0x0030` – `0x0037` | `CsrRowOffBytes` | `uint64_t` | 8 Bytes | Byte size of `csrRowOffsets` array ($= (N + 1) \times \text{EdgeIndexWidth}$). |
+| `0x0038` – `0x003F` | `CsrColIdxOffset` | `uint64_t` | 8 Bytes | Absolute file offset to `csrColumnIndices` array (128B aligned). |
+| `0x0040` – `0x0047` | `CsrColIdxBytes` | `uint64_t` | 8 Bytes | Byte size of `csrColumnIndices` array ($= E \times \text{NodeIDWidth}$). |
+| `0x0048` – `0x004F` | `CscRowOffOffset` | `uint64_t` | 8 Bytes | Absolute file offset to optional `cscRowOffsets` array (`0` if omitted). |
+| `0x0050` – `0x0057` | `CscRowOffBytes` | `uint64_t` | 8 Bytes | Byte size of `cscRowOffsets` array (`0` if omitted). |
+| `0x0058` – `0x005F` | `CscColIdxOffset` | `uint64_t` | 8 Bytes | Absolute file offset to optional `cscColumnIndices` array (`0` if omitted). |
+| `0x0060` – `0x0067` | `CscColIdxBytes` | `uint64_t` | 8 Bytes | Byte size of `cscColumnIndices` array (`0` if omitted). |
+| `0x0068` – `0x0069` | `AttrCount` | `uint16_t` | 2 Bytes | Number of edge attributes defined for this relation. |
+| `0x006A` – `0x007F` | `Reserved2` | `uint8_t[22]` | 22 Bytes | `0x00` alignment padding (Pads struct to exactly 128 Bytes). |
+
+Each relation directory entry is followed immediately by `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.4).
+
+### 3.4 Attribute Descriptor Structure (Fixed 40 Bytes)
+
+Every node attribute and edge attribute is defined by a fixed 40-byte POD struct:
+
+| Byte Offset | Field Name | C-ABI Type | Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0000` – `0x0003` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (points to null-terminated string, e.g., `"weight\0"`). |
+| `0x0004` | `TypeCode` | `uint8_t` | 1 Byte | Base Primitive Type (`Bits 0..6`) + `0x80` Nullability Flag (`Bit 7`). |
+| `0x0005` | `Reserved1` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
+| `0x0006` – `0x0007` | `Reserved2` | `uint16_t` | 2 Bytes | `0x00` alignment padding. |
+| `0x0008` – `0x000B` | `Dimension` | `uint32_t` | 4 Bytes | Element dimension $D$ ($1$ for scalar, $D \ge 1$ for fixed vectors, $0$ for variable-length). |
+| `0x000C` – `0x0013` | `DataOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to attribute data array / payload blob. |
+| `0x0014` – `0x001B` | `DataBytes` | `uint64_t` | 8 Bytes | Total byte size of attribute data array / payload blob. |
+| `0x001C` – `0x0023` | `OffsetsOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to `uint32_t offsets[]` array (`0` for fixed-width). |
+| `0x0024` – `0x002B` | `OffsetsBytes` | `uint64_t` | 8 Bytes | Total byte size of `uint32_t offsets[]` array ($= (K + 1) \times 4$; `0` for fixed-width). |
 
 ---
 
@@ -184,31 +197,18 @@ Attribute storage layout depends on whether the attribute is fixed-width (scalar
 * **Offset & Alignment**: Data array begins at absolute file offset `DataOffset`, aligned to a 128-byte boundary.
 * **Element Indexing**: Element $i$ ($0 \le i < K$, where $K = E$ for edges or $K = N$ for nodes) starts at byte offset:
   $$\text{ByteOffset}(i) = \text{DataOffset} + (i \times D \times \text{sizeof(BaseType)})$$
-* **Vector Support ($D > 1$)**: For float/int vectors (e.g. $D=128$ for GNN embeddings), all $D$ vector dimensions for element $i$ are stored contiguously in memory, enabling direct zero-copy tensor slicing into PyTorch / NumPy.
 
 #### 2. Variable-Length String & Binary Attributes (`VAR_STRING` 0x0B, `VAR_BYTES` 0x0C)
 * **Offsets Array**: Stored at 128B-aligned `OffsetsOffset` containing an array of $K + 1$ 32-bit unsigned integers (`uint32_t offsets[K + 1]`), where `offsets[0] = 0`.
 * **Data Payload Blob**: Stored at 128B-aligned `DataOffset` containing the raw concatenated UTF-8 text or binary bytes.
 * **Slice Extraction**: Payload bytes for element $i$ are extracted from `DataOffset + offsets[i]` with byte length `offsets[i + 1] - offsets[i]`.
 
-#### 3. Node Domain Attributes & Node Domain Blocks
-* Node attributes for domain $d$ (with $N$ nodes) are stored in a 4KB page-aligned **Node Domain Block**.
-* Node attribute descriptors in Section 3.1 contain `DataOffset` and `OffsetsOffset` pointing directly to these 128B-aligned node property arrays.
-
 ---
 
 ## 5. Footer Block & S3 Streaming Upload Specification
 
 ### 5.1 Single-Pass S3 Ingestion
-For unseekable S3 multi-part uploads, signatures, SHA-256 digests, and catalog directories are serialized into the **Footer Block at EOF**:
-
-1. Part 1: Upload Page 0 Header (`GLOBAL_FEAT_FOOTER_DIRECTORY = 1`).
-2. Parts 2..N: Stream Relation and Node Blocks, tracking running counts in RAM.
-3. Final Part: Upload Footer Block containing:
-   - Unified UTF-8 Key/Value Metadata Stream.
-   - Final Catalog & Relation Directory Table Copy.
-   - SHA-256 Payload Digest & Ed25519 Signature Block.
-   - **16-Byte Footer Trailer** (at `EOF - 16`).
+For unseekable S3 multi-part uploads, signatures, SHA-256 digests, and catalog directories are serialized into the **Footer Block at EOF**.
 
 ### 5.2 16-Byte Footer Trailer Specification
 Every compliant v0.9.0 snapshot MUST terminate with exactly 16 bytes at EOF:
@@ -224,9 +224,6 @@ typedef struct impulse_footer_trailer {
 ---
 
 ## 6. Hardware Alignment & C-ABI Macros
-
-* **128-Byte Array Alignment**: All sub-arrays (`csrRowOffsets`, `csrColumnIndices`, `cscRowOffsets`, `cscColumnIndices`, SoA arrays) MUST be aligned to 128-byte boundaries.
-* **4KB Page Block Alignment**: Every Relation Block, Node Domain Block, and Footer Block MUST begin on a 4096-byte OS page boundary.
 
 ```c
 // 128-Byte Alignment for AVX-512 SIMD & GPU Warp Coalescing
