@@ -1,303 +1,193 @@
 # Formal Specification: Impulse-Graph C-ABI Binary Snapshot Format
 
-* **Specification Version**: 2.4.0
+* **Specification Version**: 0.9.0 (SemVer, pre-1.0 stabilization release)
 * **Document Status**: Standard Reference Specification
 * **Byte Order**: Little-Endian (`LE`, IEEE 754 & x86-64 / ARM64 Native)
-* **Memory Alignment**: 64-Byte Cache-Line / SIMD Boundary (`(len + 63) & ~63`) & 4KB OS Page Boundary
-* **Integrity Validation**: SHA-256 (32 Bytes, calculated over `data[DataOffset .. EOF]`)
+* **Memory Alignment**: 128-Byte SIMD / GPU Boundary (`(len + 127) & ~127`) & 4KB OS Page Boundary (`(offset + 4095) & ~4095`)
+* **Integrity Validation**: SHA-256 Checksum (32 Bytes, calculated over payload) & Ed25519 Cryptographic Signature Block
 
 ---
 
 ## 1. Specification Overview & Modular Design Principles
 
-This document defines the formal binary protocol specification for the **Impulse-Graph C-ABI Binary Snapshot Format (Version 2.4)**. 
+This document defines the formal binary protocol specification for the **Impulse-Graph C-ABI Binary Snapshot Format (Version 0.9.0)**.
 
-The format is organized into **Mandatory** and **Optional** sections positioned sequentially at 4KB OS page-aligned boundaries (`DataOffset = 4096`). This modular layout allows lightweight microservices (such as high-speed authorization query pods) to read the mandatory header and relation metadata at the start of the file and **selectively memory-map (`mmap`) only the specific CSR topology sections required**, completely bypassing gigabytes of string key mappings, entity metadata payloads, or dynamic delta logs.
+The format is organized into **4KB OS page-aligned physical blocks**, structured to support **single-pass S3/cloud streaming uploads**, **$O(1)$ zero-copy `mmap` range loading**, and **AVX-512 / GPU SIMD vectorization**.
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│ SECTION 1 [MANDATORY]: Snapshot Header (SnapshotHeader, Size = DataOffset = 4096 Bytes) │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 2 [MANDATORY]: Relation Metadata & Section Offset Directory                    │
+### Physical File Layout Overview
+
+```text
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│ SECTION 1: Snapshot Header (4KB Page 0, Offset 0x0000)                             │
+│   ├── Magic ("IMPS"), Version (0x0009), DataOffset (4096)                          │
+│   └── GlobalRequiredFeatures, SnapshotUUID, HeaderChecksum                        │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 2: Catalog & Relation Directory Table (4KB Page 1, Offset 0x1000)         │
 │   ├── Domain Catalog (Node Types)                                                      │
-│   └── Relation Directory Table (Offsets to CSR, ID Mappings, DTO Lookups, & Deltas)    │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 3 [MANDATORY/CSR]: Relation CSR Topology (RowOffsets & ColumnIndices)          │
-│   ├── RowOffsets Array (uint32[] / uint64[])                                           │
-│   └── ColumnIndices Array (Encoded Stream)                                             │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 4 [OPTIONAL]: ID Mapping Section (DenseID <-> BusinessKey Mappings)            │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 5 [OPTIONAL]: DTO & Entity Property Lookup Payload                              │
-├────────────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 6 [OPTIONAL]: Delta Log Section (Live Edge Mutations / WAL Sinking)             │
-└────────────────────────────────────────────────────────────────────────────────────────┘
+│   └── Sorted Relation Directory Table (Sorted by SrcDomainID, TgtDomainID)          │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ RELATION BLOCK 1 [MANDATORY, 4KB Aligned]                                         │
+│   ├── csrRowOffsets Array (128B Aligned, uint32/uint64)                           │
+│   ├── csrColumnIndices Stream (128B Aligned, RAW 0x00 Encoding)                   │
+│   ├── cscRowOffsets / cscColumnIndices Arrays (Optional Transpose, 128B Aligned)  │
+│   ├── Edge Fixed-width SoA Attribute Arrays (128B Aligned: weights, timestamps...)│
+│   └── Edge Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ RELATION BLOCK 2 [MANDATORY, 4KB Aligned]                                         │
+│   └── (Contiguous 128B aligned topology & attribute array sequence)               │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ NODE DOMAIN BLOCK 1 [OPTIONAL, 4KB Aligned]                                       │
+│   ├── Node Fixed-width SoA Attribute Arrays (128B Aligned)                        │
+│   └── Node Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ FOOTER BLOCK [EOF, 4KB Aligned]                                                   │
+│   ├── Unified UTF-8 Key/Value Custom Metadata Stream (Unlimited multi-map)         │
+│   ├── Final Catalog & Relation Directory Table Copy (S3 Cloud Range Reader Copy)  │
+│   ├── SHA-256 Payload Checksum & Ed25519 Cryptographic Signature Block            │
+│   └── 16-Byte Footer Trailer (footer_length [u64] + version [u32] + "IMPS" [u32]) │
+└───────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Section 1: Snapshot Header Layout (Fixed 4KB Page Baseline)
+## 2. Section 1: Snapshot Header Layout (Fixed 4KB Page 0 Baseline)
 
-The header occupies byte offset `0x00000000`. In Version 2.4, the baseline header occupies **4096 bytes** (`DataOffset = 4096`, `0x00001000`) to enforce 4KB OS page alignment across all memory-mapped sections.
+The snapshot header occupies byte offset `0x00000000` (Page 0). It contains a **64-byte active baseline** aligned to a single CPU cache line, inside a fixed 4096-byte page (`DataOffset = 4096`).
 
-### Header Extensibility Protocol & Compatibility Mandate
-* **Variable Header Size**: The header size is variable and defined dynamically by `DataOffset`.
-* **Parser Mandate**: All compliant parsers MUST read `DataOffset` from byte offset `0x06..0x09` and seek directly to byte `DataOffset` to begin unpacking Section 2.
-* **Feature Compatibility Check**: All compliant parsers MUST check `(GlobalRequiredFeatures & ~SUPPORTED_GLOBAL_FEATURES) != 0` immediately upon opening Section 1 to fail fast if an unsupported global feature is present.
+### Header Byte Offset Table
 
-### Byte Offset Table
-
-| Offset (Bytes) | Field Name | Type | Size | Default / Constant | Description |
+| Byte Offset | Field Name | C-ABI Type | Size | Default / Constant | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| `0x00` – `0x03` | `Magic` | `uint32` | 4B | `0x494D5053` (`"IMPS"`) | Magic constant identifying Impulse-Graph binary file |
-| `0x04` – `0x05` | `Version` | `uint16` | 2B | `2` (`0x0002`) | Protocol major version number (Version 2.4) |
-| `0x06` – `0x09` | `DataOffset` | `uint32` | 4B | `4096` (`0x00001000`) | Byte offset where Section 2 (Payload) begins |
-| `0x0A` – `0x0B` | `DomainCount` | `uint16` | 2B | Variable | Total number of domains in catalog |
-| `0x0C` – `0x0D` | `RelationCount` | `uint16` | 2B | Variable | Total number of relations in matrix |
-| `0x0E` – `0x15` | `KafkaOffset` | `uint64` | 8B | Variable | Kafka Write-Ahead Log (WAL) offset |
-| `0x16` – `0x1D` | `TimestampMs` | `uint64` | 8B | Variable | Unix epoch timestamp (milliseconds) when created |
-| `0x1E` – `0x3D` | `SHA256` | `byte[32]` | 32B | Variable | Cryptographic SHA-256 checksum over `data[DataOffset..EOF]` |
-| `0x3E` – `0x3F` | `Reserved` | `byte[2]` | 2B | `0x00 0x00` | Reserved baseline alignment padding |
-| `0x40` – `0x47` | `GlobalRequiredFeatures` | `uint64` | 8B | Bitmask | **Global Feature-in-Use Bitmask** (64-byte aligned boundary) |
-| `0x48` – `0x0447` | `SignatureBlock` | `struct` | 1024B | `impulse_snapshot_signature_block_t` | **Cryptographic Signature Block** (Algorithm, Flags, Fingerprint, Signature, Public Key) |
-| `0x0448` – `0x0FFF` | `HeaderPadding` | `byte[3000]` | 3000B | `0x00 ...` | Header padding to enforce 4KB OS page alignment |
+| `0x0000` – `0x0003` | `Magic` | `uint32_t` | 4 Bytes | `0x494D5053` (`"IMPS"`) | Magic constant identifying Impulse-Graph binary snapshot file. |
+| `0x0004` – `0x0005` | `Version` | `uint16_t` | 2 Bytes | `0x0009` (`9`) | Protocol specification version number (v0.9.0 packed `0x0009`). |
+| `0x0006` – `0x0009` | `DataOffset` | `uint32_t` | 4 Bytes | `4096` (`0x00001000`) | Fixed constant (`4096`). Section 2 always starts at byte 4096 (Page 1). |
+| `0x000A` – `0x000B` | `DomainCount` | `uint16_t` | 2 Bytes | Variable | Total number of node domains in the catalog (up to 65,536). |
+| `0x000C` – `0x000D` | `RelationCount` | `uint16_t` | 2 Bytes | Variable | Total number of relations in the matrix (up to 65,536). |
+| `0x000E` – `0x0015` | `TimestampMs` | `uint64_t` | 8 Bytes | Epoch Milliseconds | Unix epoch timestamp (milliseconds) when snapshot was created. |
+| `0x0016` – `0x001D` | `GlobalRequiredFeatures` | `uint64_t` | 8 Bytes | Bitmask | **Global Feature-in-Use Bitmask** (64-bit feature flags). |
+| `0x001E` – `0x0025` | `FooterDirectoryOffset` | `uint64_t` | 8 Bytes | Absolute File Offset | File offset to Footer Directory Table (`0` if Page 1 directory is used). |
+| `0x0026` – `0x002D` | `FooterDirectoryBytes` | `uint64_t` | 8 Bytes | Byte Size | Byte size of Footer Directory Table (`0` if omitted). |
+| `0x002E` – `0x003D` | `SnapshotUUID` | `uint8_t[16]` | 16 Bytes | Random Binary UUID | Unique 128-bit Binary UUID for this snapshot build artifact. |
+| `0x003E` – `0x003F` | `HeaderChecksum` | `uint16_t` | 2 Bytes | CRC-16-CCITT | Fast CRC-16 checksum calculated over bytes `0x0000..0x003D`. |
+| `0x0040` – `0x0FFF` | `ReservedPadding` | `uint8_t[4032]` | 4032 Bytes | `0x00 ...` | **Reserved Header Expansion Padding** (Aligns Header to 4KB boundary). |
 
 ---
 
-## 3. Section 2 [MANDATORY]: Relation Metadata & Section Directory Table
+## 3. Section 2: Catalog & Directory Directory Table
 
-Begins at byte offset `DataOffset` (byte 4096). Contains node type definitions (domains) and the **Section Directory Table** containing file byte offsets for selective `mmap` range loading.
+Begins at byte offset `DataOffset` (byte 4096). Contains node domain definitions and the **Relation Directory Table**.
 
-### Part A: Domain Catalog (Node Types)
+### 3.1 Domain Catalog (Node Types)
 Contains `DomainCount` sequential domain records:
-* `DomainID` (`uint16`, 2B): Zero-indexed domain identifier.
-* `KeyType` (`uint8`, 1B): Key type (`0x00=INT16`, `0x01=INT32`, `0x02=INT64`, `0x03=UUID`, `0x04=STRING`).
-* `NameLen` (`uint16`, 2B): Length of domain name.
-* `Name` (`byte[NameLen]`): UTF-8 string (e.g. `"user"`, `"group"`).
+* `DomainID` (`uint16_t`, 2B): Zero-indexed domain identifier (`0`..`DomainCount - 1`).
+* `NameLen` (`uint16_t`, 2B): Length of domain name string.
+* `Name` (`byte[NameLen]`): UTF-8 string (e.g. `"User"`, `"Group"`).
 
-### Part B: Relation Directory Table (Section Byte Pointers)
-Contains `RelationCount` relation metadata descriptors. Each descriptor is exactly **109 bytes packed** (`impulse_relation_directory_entry_t`) and explicitly specifies absolute file offsets to allow clients to `mmap` specific sections independently:
-
-> [!NOTE]
-> **Normative Rule for Generator Tooling**: `EncodingType` (`uint8_t`) specifies the primary CSR matrix decoder enum (`0x00`..`0x08`). Generator tooling MUST also set Bit `EncodingType` (`1ULL << EncodingType`) in `SectionFeatures` to ensure instant bitwise feature compatibility checking (`(SectionFeatures & ~supported_flags) != 0`).
+### 3.2 Relation Directory Table (Matrix Descriptors)
+Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID` and secondary by `TgtDomainID`** to enable $O(\log R)$ binary search lookups:
 
 | Field Name | Type | Size | Description |
 | :--- | :--- | :--- | :--- |
-| `SrcDomainID` | `uint16` | 2B | Domain ID of source nodes |
-| `TgtDomainID` | `uint16` | 2B | Domain ID of target nodes |
-| `EncodingType` | `uint8` | 1B | Relation compression encoding flag (`0x00`..`0x0A`) |
-| `NodeCount` | `uint64` | 8B | Number of source nodes ($N$) in relation matrix (supports $> 4.29\text{B}$ nodes) |
-| `EdgeCount` | `uint64` | 8B | Total number of directed edges ($E$) in relation matrix (up to $9.22 \times 10^{18}$ edges) |
-| `SectionFeatures` | `uint64` | 8B | **Per-Section Feature-in-Use Bitmask** (Encodings & Annotations) |
-| `CsrRowOffOffset` | `uint64` | 8B | **Absolute File Offset** to `RowOffsets` array |
-| `CsrRowOffBytes` | `uint64` | 8B | Byte size of `RowOffsets` array ($= (N + 2) \times \text{width}$) |
-| `CsrColIdxOffset` | `uint64` | 8B | **Absolute File Offset** to `ColumnIndices` array |
-| `CsrColIdxBytes` | `uint64` | 8B | Byte size of `ColumnIndices` stream |
-| `IdMapOffset` | `uint64` | 8B | **Absolute File Offset** to Section 4 (ID Mappings, `0` if omitted) |
-| `IdMapBytes` | `uint64` | 8B | Byte size of Section 4 (ID Mappings, `0` if omitted) |
-| `DtoLookupOffset` | `uint64` | 8B | **Absolute File Offset** to Section 5 (DTO Entity Data, `0` if omitted) |
-| `DtoLookupBytes` | `uint64` | 8B | Byte size of Section 5 (DTO Entity Data, `0` if omitted) |
-| `DeltaLogOffset` | `uint64` | 8B | **Absolute File Offset** to Section 6 (Delta Log, `0` if omitted) |
-| `DeltaLogBytes` | `uint64` | 8B | Byte size of Section 6 (Delta Log, `0` if omitted) |
+| `RelationID` | `uint16_t` | 2B | Zero-indexed relation identifier (`0`..`RelationCount - 1`). |
+| `SrcDomainID` | `uint16_t` | 2B | Domain ID of source nodes. |
+| `TgtDomainID` | `uint16_t` | 2B | Domain ID of target nodes. |
+| `EncodingID` | `uint8_t` | 1B | Topology encoding enum (`0x00` = `ENCODING_RAW` uncompressed, `0x01` = `ZSTD`, `0x80`..`0xFF` = Registered plugins). |
+| `NodeIDWidth` | `uint8_t` | 1B | Byte width of target node IDs (`0x02` = `uint16_t`, `0x04` = `uint32_t`, `0x08` = `uint64_t`). |
+| `EdgeIndexWidth` | `uint8_t` | 1B | Byte width of CSR row offsets (`0x04` = `uint32_t`, `0x08` = `uint64_t`). |
+| `NodeCount` | `uint64_t` | 8B | Number of source nodes ($N$) in relation matrix (up to $1.84 \times 10^{19}$). |
+| `EdgeCount` | `uint64_t` | 8B | Total number of directed edges ($E$) in relation matrix. |
+| `SectionFeatures` | `uint64_t` | 8B | Per-relation feature bitmask (e.g., bit 0 = CSC present, bit 1 = weighted edges). |
+| `CsrRowOffOffset` | `uint64_t` | 8B | Absolute file offset to `csrRowOffsets` array (128B aligned). |
+| `CsrRowOffBytes` | `uint64_t` | 8B | Byte size of `csrRowOffsets` array ($= (N + 1) \times \text{EdgeIndexWidth}$). |
+| `CsrColIdxOffset` | `uint64_t` | 8B | Absolute file offset to `csrColumnIndices` array (128B aligned). |
+| `CsrColIdxBytes` | `uint64_t` | 8B | Byte size of `csrColumnIndices` array ($= E \times \text{NodeIDWidth}$). |
+| `CscRowOffOffset` | `uint64_t` | 8B | Absolute file offset to optional `cscRowOffsets` array (`0` if omitted). |
+| `CscRowOffBytes` | `uint64_t` | 8B | Byte size of `cscRowOffsets` array (`0` if omitted). |
+| `CscColIdxOffset` | `uint64_t` | 8B | Absolute file offset to optional `cscColumnIndices` array (`0` if omitted). |
+| `CscColIdxBytes` | `uint64_t` | 8B | Byte size of `cscColumnIndices` array (`0` if omitted). |
 
 ---
 
-## 4. Feature-in-Use Bitmasks Specification (`uint64_t` Bitfields)
+## 4. Topology & Attribute Specification
 
-Compliant parsers MUST evaluate `(file_features & ~tool_supported_features) != 0`. If true, the tool MUST reject processing with an explicit unsupported feature diagnostic error.
+### 4.1 Topology Mechanics (Always CSR, Optional CSC)
+* **Standard CSR**: Topology is **always standard CSR** (`csrRowOffsets` + `csrColumnIndices`).
+* **Direct Array Indexing**: Targets are indexed directly via uncompressed arrays (`ENCODING_RAW = 0x00`). `columnIndices` for node $i$'s $k$-th neighbor is read at `csrColumnIndices[csrRowOffsets[i] + k]`.
+* **Optional CSC Transpose**: An incoming transpose index (`cscRowOffsets` + `cscColumnIndices`) may be included for bidirectional traversals.
+* **Explicit Reverse Relations**: Reverse relations (e.g. `MEMBER_OF_REVERSE`) are represented explicitly as first-class catalog relations.
 
-### 4.1 Global Feature Flags (`GlobalRequiredFeatures` — Header `0x40..0x47`)
+### 4.2 Attribute Storage Architecture (Structure of Arrays)
 
-| Bit Position | Hex Value | Constant Name | Description |
-| :--- | :--- | :--- | :--- |
-| Bit 0 | `0x0000000000000001ULL` | `GLOBAL_FEAT_64BIT_NODES` | Trillion-node scale graph ($> 4.29\text{B}$ nodes) |
-| Bit 1 | `0x0000000000000002ULL` | `GLOBAL_FEAT_ZSTD_DICT_EMBEDDED` | Embedded 64KB Zstd dictionary at `DictionaryOffset` |
-| Bit 2 | `0x0000000000000004ULL` | `GLOBAL_FEAT_DELTA_LOG_PRESENT` | Live WAL edge mutations present in Section 6 |
-| Bit 3 | `0x0000000000000008ULL` | `GLOBAL_FEAT_4KB_PAGE_ALIGNED` | Enforces explicit 4KB page alignment across all sections |
-| Bit 4 | `0x0000000000000010ULL` | `GLOBAL_FEAT_CRYPTO_SIGNED` | Cryptographic signature block present in Section 1 header |
+Attributes are partitioned into fixed-length primitives and variable-length payloads stored in **Structure of Arrays (SoA)** layout.
 
----
+#### Bitwise Nullability Flag & Base Type Mask
+Attribute data types are encoded in an 8-bit field (`uint8_t type_code`):
 
-### 4.2 Section 3 Relation Feature Flags (`SectionFeatures` in Directory Entry)
+```c
+#define IMPULSE_TYPE_MASK     0x7F  // Bits 0..6: Base Primitive Type (Up to 128 base types)
+#define IMPULSE_NULLABLE_FLAG 0x80  // Bit 7: Nullability Flag (1 = Nullable with Validity Bitmap, 0 = Non-Null)
 
-#### Category A: Topology Encodings (Bits 0..8)
-| Bit Position | Hex Value | Constant Name | Description |
-| :--- | :--- | :--- | :--- |
-| Bit 0 | `0x0000000000000001ULL` | `RELATION_FEAT_ENC_RAW_UINT32` | Uncompressed 4-byte `uint32` target node array |
-| Bit 1 | `0x0000000000000002ULL` | `RELATION_FEAT_ENC_DELTA_VBYTE` | Delta-VByte stream compression |
-| Bit 2 | `0x0000000000000004ULL` | `RELATION_FEAT_ENC_RAW_UINT16` | Uncompressed 2-byte `uint16` target node array |
-| Bit 3 | `0x0000000000000008ULL` | `RELATION_FEAT_ENC_HYBRID_16_32` | Partitioned hot (`uint16`) / cold (`uint32`) target array |
-| Bit 4 | `0x0000000000000010ULL` | `RELATION_FEAT_ENC_SIMDCOMP` | SIMDComp / PFOR-Delta bit-packed integer stream |
-| Bit 5 | `0x0000000000000020ULL` | `RELATION_FEAT_ENC_SLICED_ELLPACK` | GPU Sliced ELLPACK format for warp-coalesced access |
-| Bit 6 | `0x0000000000000040ULL` | `RELATION_FEAT_ENC_TPU_BCOO` | TPU Tile Blocked COO format |
-| Bit 7 | `0x0000000000000080ULL` | `RELATION_FEAT_ENC_RAW_UINT64` | Uncompressed 8-byte `uint64` target node array |
-| Bit 8 | `0x0000000000000100ULL` | `RELATION_FEAT_ENC_ROARING_BITMAP` | Roaring Bitmap compressed adjacency sets |
+// Bitwise evaluation in C-ABI parsers
+uint8_t base_type   = descriptor->type_code & IMPULSE_TYPE_MASK;
+bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
+```
 
-#### Category B: Encoding Reserved Gap (Bits 9..15)
-* `Bits 9..15`: Reserved for future matrix/topology encodings.
+* **Non-Nullable (`is_nullable == false`, Bit 7 = 0)**: Zero validity bitmap overhead. 100% of memory is allocated to contiguous data values.
+* **Nullable (`is_nullable == true`, Bit 7 = 1)**: A 128-byte aligned **Validity Bitmap** (`uint64_t validity_bitmap[(N + 63) / 64]`) is placed immediately before the data array ($1\text{ bit per entity}$, Bit $i=1 \rightarrow$ valid, Bit $i=0 \rightarrow$ null).
 
-#### Category C: Relation Features & Annotations (Bits 16..31)
-| Bit Position | Hex Value | Constant Name | Description |
-| :--- | :--- | :--- | :--- |
-| Bit 16 | `0x0000000000010000ULL` | `RELATION_FEAT_WEIGHTED_EDGES` | Float32/Float64/Int32 edge weight payload array |
-| Bit 17 | `0x0000000000020000ULL` | `RELATION_FEAT_KV_LABELS` | Key-value edge attribute labels |
-| Bit 18 | `0x0000000000040000ULL` | `RELATION_FEAT_DTO_EDGE_ANNOTATIONS` | Structured JSON / MessagePack / FlatBuffers edge payloads |
-| Bit 19 | `0x0000000000080000ULL` | `RELATION_FEAT_TEMPORAL_TIMESTAMPS` | Per-edge uint64 creation/expiry timestamp array |
-| Bit 20 | `0x0000000000100000ULL` | `RELATION_FEAT_PER_SECTION_ZSTD` | Independent RFC 8878 Zstd frame compressed stream |
-| Bit 21 | `0x0000000000200000ULL` | `RELATION_FEAT_INCOMING_CSR_INDEX` | Transpose CSR index for bidirectional traversal |
-
-#### Category D: Extension Reserved Gap (Bits 22..63)
-* `Bits 22..63`: Reserved for future core spec and custom vendor extensions.
+#### Base Data Type Table (`0x00` .. `0x7F` Base Codes):
+| Base Code (`0x7F`) | Base Type Name | Non-Null Code | Nullable Code (`0x80`) | Dimension (`dim`) | Memory Layout |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `0x01` | `INT8` | `0x01` | `0x81` | $\ge 1$ | $1 \times \text{dim}$ Bytes (`int8_t` / `uint8_t`) |
+| `0x02` | `INT16` | `0x02` | `0x82` | $\ge 1$ | $2 \times \text{dim}$ Bytes (`int16_t` / `uint16_t`) |
+| `0x03` | `INT32` | `0x03` | `0x83` | $\ge 1$ | $4 \times \text{dim}$ Bytes (`int32_t` / `uint32_t`) |
+| `0x04` | `INT64` | `0x04` | `0x84` | $\ge 1$ | $8 \times \text{dim}$ Bytes (`int64_t` / `uint64_t`) |
+| `0x05` | `FLOAT16` | `0x05` | `0x85` | $\ge 1$ | $2 \times \text{dim}$ Bytes (bfloat16 / fp16) |
+| `0x06` | `FLOAT32` | `0x06` | `0x86` | $\ge 1$ | $4 \times \text{dim}$ Bytes (IEEE 754 float, **edge weights**) |
+| `0x07` | `FLOAT64` | `0x07` | `0x87` | $\ge 1$ | $8 \times \text{dim}$ Bytes (IEEE 754 double, high precision) |
+| `0x08` | `TIMESTAMP_MS` | `0x08` | `0x88` | $\ge 1$ | $8 \times \text{dim}$ Bytes (uint64 epoch ms) |
+| `0x09` | `TIMESTAMP_NS` | `0x09` | `0x89` | $\ge 1$ | $8 \times \text{dim}$ Bytes (uint64 epoch ns) |
+| `0x0A` | `FIXED_BYTES` | `0x0A` | `0x8A` | $\ge 1$ | $\text{dim}$ Bytes (dim=16 for UUID, dim=32 for SHA-256) |
+| `0x0B` | `VAR_STRING` | `0x0B` | `0x8B` | Ignored (`0`) | Variable UTF-8 (`uint32_t offsets[]` + Data Blob) |
+| `0x0C` | `VAR_BYTES` | `0x0C` | `0x8C` | Ignored (`0`) | Variable Binary (`uint32_t offsets[]` + Data Blob) |
 
 ---
 
-### 4.3 Section 4 ID Mapping Feature Flags (`SectionFeatures`)
+## 5. Footer Block & S3 Streaming Upload Specification
 
-| Bit Position | Hex Value | Constant Name | Description |
-| :--- | :--- | :--- | :--- |
-| Bit 0 | `0x0000000000000001ULL` | `MAPPING_FEAT_ZSTD_COMPRESSION` | Zstd dictionary string compression |
-| Bit 1 | `0x0000000000000002ULL` | `MAPPING_FEAT_HUFFMAN_PREFIX` | Front-coded prefix string compression |
-| Bit 2 | `0x0000000000000004ULL` | `MAPPING_FEAT_UUID128_BINARY` | Raw 16-byte fixed binary UUID keys |
+### 5.1 Single-Pass S3 Ingestion
+For unseekable S3 multi-part uploads, signatures, SHA-256 digests, and catalog directories are serialized into the **Footer Block at EOF**:
 
----
+1. Part 1: Upload Page 0 Header (`GLOBAL_FEAT_FOOTER_DIRECTORY = 1`).
+2. Parts 2..N: Stream Relation and Node Blocks, tracking running counts in RAM.
+3. Final Part: Upload Footer Block containing:
+   - Unified UTF-8 Key/Value Metadata Stream.
+   - Final Catalog & Relation Directory Table Copy.
+   - SHA-256 Payload Digest & Ed25519 Signature Block.
+   - **16-Byte Footer Trailer** (at `EOF - 16`).
 
-## 5. Section 3 [CSR TOPOLOGY]: Relation CSR Arrays
+### 5.2 16-Byte Footer Trailer Specification
+Every compliant v0.9.0 snapshot MUST terminate with exactly 16 bytes at EOF:
 
-Contains the core CSR matrix arrays (`RowOffsets` and `ColumnIndices`) positioned at 64-byte and 4KB-aligned file offsets as defined in the Section Directory Table.
-
----
-
-## 6. Section 4 [OPTIONAL]: ID Mapping Section
-
-Contains DenseID $\leftrightarrow$ BusinessKey mappings. Located at `IdMapOffset`.
-
----
-
-## 7. Section 5 [OPTIONAL]: DTO & Entity Property Lookup Data
-
-Contains structured JSON / MessagePack / FlatBuffers entity properties. Located at `DtoLookupOffset`.
+```c
+typedef struct impulse_footer_trailer {
+    uint64_t footer_length;    // 8 Bytes: Byte size of Footer Block
+    uint32_t spec_version;     // 4 Bytes: Protocol version (0x0009)
+    uint32_t footer_magic;     // 4 Bytes: "IMPS" (0x494D5053)
+} impulse_footer_trailer_t;     // Exactly 16 Bytes at EOF
+```
 
 ---
 
-## 8. Section 6 [OPTIONAL]: Delta Log Section (Live Edge Mutations / WAL Sinking)
+## 6. Hardware Alignment & C-ABI Macros
 
-Located at `DeltaLogOffset` (byte size `DeltaLogBytes`). Set to `0` for fully compacted static snapshots.
+* **128-Byte Array Alignment**: All sub-arrays (`csrRowOffsets`, `csrColumnIndices`, `cscRowOffsets`, `cscColumnIndices`, SoA arrays) MUST be aligned to 128-byte boundaries.
+* **4KB Page Block Alignment**: Every Relation Block, Node Domain Block, and Footer Block MUST begin on a 4096-byte OS page boundary.
 
----
+```c
+// 128-Byte Alignment for AVX-512 SIMD & GPU Warp Coalescing
+#define IMPULSE_ALIGN_128(offset) (((offset) + 127ULL) & ~127ULL)
 
-## 9. Standard Kaitai Struct (.ksy) Declarative Schema
-
-```yaml
-meta:
-  id: impulse_graph_snapshot
-  title: Impulse-Graph C-ABI Binary Snapshot Format
-  file-extension: bin
-  endian: le
-  license: Apache-2.0
-
-seq:
-  - id: header
-    type: snapshot_header
-  - id: metadata_section
-    type: metadata_section
-  - id: relation_data_section
-    type: relation_data_section
-
-types:
-  snapshot_header:
-    seq:
-      - id: magic
-        contents: [0x53, 0x50, 0x4d, 0x49] # "IMPS" Little-Endian
-      - id: version
-        type: u2
-      - id: data_offset
-        type: u4
-      - id: domain_count
-        type: u2
-      - id: relation_count
-        type: u2
-      - id: kafka_offset
-        type: u8
-      - id: timestamp_ms
-        type: u8
-      - id: sha256_checksum
-        size: 32
-      - id: reserved
-        size: 2
-      - id: global_required_features
-        type: u8
-      - id: header_padding
-        size: 4024
-
-  metadata_section:
-    seq:
-      - id: domains
-        type: domain_catalog_entry
-        repeat: expr
-        repeat-expr: _root.header.domain_count
-      - id: relation_directory
-        type: relation_directory_entry
-        repeat: expr
-        repeat-expr: _root.header.relation_count
-
-  domain_catalog_entry:
-    seq:
-      - id: domain_id
-        type: u2
-      - id: key_type
-        type: u1
-      - id: name_len
-        type: u2
-      - id: name
-        type: str
-        size: name_len
-        encoding: UTF-8
-
-  relation_directory_entry:
-    seq:
-      - id: src_domain_id
-        type: u2
-      - id: tgt_domain_id
-        type: u2
-      - id: encoding_type
-        type: u1
-        enum: relation_encoding
-      - id: node_count
-        type: u4
-      - id: edge_count
-        type: u8
-      - id: section_features
-        type: u8
-      - id: csr_row_off_offset
-        type: u8
-      - id: csr_row_off_bytes
-        type: u8
-      - id: csr_col_idx_offset
-        type: u8
-      - id: csr_col_idx_bytes
-        type: u8
-      - id: id_map_offset
-        type: u8
-      - id: id_map_bytes
-        type: u8
-      - id: dto_lookup_offset
-        type: u8
-      - id: dto_lookup_bytes
-        type: u8
-      - id: delta_log_offset
-        type: u8
-      - id: delta_log_bytes
-        type: u8
-
-enums:
-  relation_encoding:
-    0: raw_uint32
-    1: delta_vbyte
-    2: raw_uint16
-    3: hybrid_uint16_uint32
-    4: simdcomp_bitpacked
-    5: sliced_ellpack
-    6: tpu_tile_bcoo
-    7: raw_uint64
-    8: roaring_bitmap
+// 4KB Page Alignment for OS Virtual Memory Area (VMA) Isolation
+#define IMPULSE_ALIGN_4K(offset)  (((offset) + 4095ULL) & ~4095ULL)
 ```
