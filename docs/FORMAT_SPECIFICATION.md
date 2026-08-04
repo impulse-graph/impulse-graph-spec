@@ -23,8 +23,8 @@ The format is organized into **4KB OS page-aligned physical blocks**, structured
 │   └── GlobalRequiredFeatures, SnapshotUUID, HeaderChecksum                        │
 ├───────────────────────────────────────────────────────────────────────────────────┤
 │ SECTION 2: Catalog & Relation Directory Table (4KB Page 1, Offset 0x1000)         │
-│   ├── Domain Catalog (Node Types)                                                      │
-│   └── Sorted Relation Directory Table (Sorted by SrcDomainID, TgtDomainID)          │
+│   ├── Domain Catalog (Node Types + Node Attribute Descriptors)                     │
+│   └── Sorted Relation Directory Table (Matrix Descriptors + Edge Attr Descriptors) │
 ├───────────────────────────────────────────────────────────────────────────────────┤
 │ RELATION BLOCK 1 [MANDATORY, 4KB Aligned]                                         │
 │   ├── csrRowOffsets Array (128B Aligned, uint32/uint64)                           │
@@ -75,15 +75,20 @@ The snapshot header occupies byte offset `0x00000000` (Page 0). It contains a **
 
 ## 3. Section 2: Catalog & Directory Directory Table
 
-Begins at byte offset `DataOffset` (byte 4096). Contains node domain definitions and the **Relation Directory Table**.
+Begins at byte offset `DataOffset` (byte 4096). Contains node domain definitions, node attribute descriptors, and the **Relation Directory Table**.
 
-### 3.1 Domain Catalog (Node Types)
+### 3.1 Domain Catalog (Node Types & Node Attributes)
 Contains `DomainCount` sequential domain records:
 * `DomainID` (`uint16_t`, 2B): Zero-indexed domain identifier (`0`..`DomainCount - 1`).
-* `NameLen` (`uint16_t`, 2B): Length of domain name string.
+* `KeyType` (`uint8_t`, 1B): Domain business key primitive type enum (`0x01` = INT8..`0x0A` = FIXED_BYTES).
+* `Reserved` (`uint8_t`, 1B): `0x00` padding.
+* `NameLen` (`uint16_t`, 2B): Byte length of domain name string.
 * `Name` (`byte[NameLen]`): UTF-8 string (e.g. `"User"`, `"Group"`).
+* `NodeCount` (`uint64_t`, 8B): Total number of nodes $N$ in this domain.
+* `AttrCount` (`uint16_t`, 2B): Number of node attributes defined for this domain.
+* **Node Attribute Descriptors**: `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.3) followed by attribute name strings.
 
-### 3.2 Relation Directory Table (Matrix Descriptors)
+### 3.2 Relation Directory Table (Matrix Descriptors & Edge Attributes)
 Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID` and secondary by `TgtDomainID`** to enable $O(\log R)$ binary search lookups:
 
 | Field Name | Type | Size | Description |
@@ -105,6 +110,23 @@ Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID`
 | `CscRowOffBytes` | `uint64_t` | 8B | Byte size of `cscRowOffsets` array (`0` if omitted). |
 | `CscColIdxOffset` | `uint64_t` | 8B | Absolute file offset to optional `cscColumnIndices` array (`0` if omitted). |
 | `CscColIdxBytes` | `uint64_t` | 8B | Byte size of `cscColumnIndices` array (`0` if omitted). |
+| `AttrCount` | `uint16_t` | 2B | Number of edge attributes defined for this relation. |
+| **Edge Attribute Descriptors** | Struct | $40 \times \text{AttrCount}$ | `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.3) followed by UTF-8 attribute name strings. |
+
+### 3.3 Attribute Descriptor Structure (Packed 40 Bytes)
+
+Every node attribute and edge attribute is formally defined by a 40-byte descriptor in the directory table:
+
+| Byte Offset | Field Name | C-ABI Type | Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0000` – `0x0001` | `NameLen` | `uint16_t` | 2 Bytes | Byte length of attribute name string. |
+| `0x0002` | `TypeCode` | `uint8_t` | 1 Byte | Base Primitive Type (`Bits 0..6`) + `0x80` Nullability Flag (`Bit 7`). |
+| `0x0003` | `Reserved` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
+| `0x0004` – `0x0007` | `Dimension` | `uint32_t` | 4 Bytes | Element dimension $D$ ($1$ for scalar, $D \ge 1$ for fixed vectors, $0$ for variable-length). |
+| `0x0008` – `0x000F` | `DataOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to attribute data array / payload blob. |
+| `0x0010` – `0x0017` | `DataBytes` | `uint64_t` | 8 Bytes | Total byte size of attribute data array / payload blob. |
+| `0x0018` – `0x001F` | `OffsetsOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to `uint32_t offsets[]` array (`0` for fixed-width). |
+| `0x0020` – `0x0027` | `OffsetsBytes` | `uint64_t` | 8 Bytes | Total byte size of `uint32_t offsets[]` array ($= (K + 1) \times 4$; `0` for fixed-width). |
 
 ---
 
@@ -118,7 +140,7 @@ Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID`
 
 ### 4.2 Attribute Storage Architecture (Structure of Arrays)
 
-Attributes are partitioned into fixed-length primitives and variable-length payloads stored in **Structure of Arrays (SoA)** layout.
+Attributes are partitioned into fixed-length primitives, fixed-width vectors, and variable-length payloads stored in **Structure of Arrays (SoA)** layout.
 
 #### Bitwise Nullability Flag & Base Type Mask
 Attribute data types are encoded in an 8-bit field (`uint8_t type_code`):
@@ -133,7 +155,7 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 ```
 
 * **Non-Nullable (`is_nullable == false`, Bit 7 = 0)**: Zero validity bitmap overhead. 100% of memory is allocated to contiguous data values.
-* **Nullable (`is_nullable == true`, Bit 7 = 1)**: A 128-byte aligned **Validity Bitmap** (`uint64_t validity_bitmap[(N + 63) / 64]`) is placed immediately before the data array ($1\text{ bit per entity}$, Bit $i=1 \rightarrow$ valid, Bit $i=0 \rightarrow$ null).
+* **Nullable (`is_nullable == true`, Bit 7 = 1)**: A 128-byte aligned **Validity Bitmap** (`uint64_t validity_bitmap[(K + 63) / 64]`) is placed at `DataOffset` immediately preceding the data array ($1\text{ bit per entity}$, Bit $i=1 \rightarrow$ valid value, Bit $i=0 \rightarrow$ null).
 
 #### Base Data Type Table (`0x00` .. `0x7F` Base Codes):
 | Base Code (`0x7F`) | Base Type Name | Non-Null Code | Nullable Code (`0x80`) | Dimension (`dim`) | Memory Layout |
@@ -150,6 +172,28 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 | `0x0A` | `FIXED_BYTES` | `0x0A` | `0x8A` | $\ge 1$ | $\text{dim}$ Bytes (dim=16 for UUID, dim=32 for SHA-256) |
 | `0x0B` | `VAR_STRING` | `0x0B` | `0x8B` | Ignored (`0`) | Variable UTF-8 (`uint32_t offsets[]` + Data Blob) |
 | `0x0C` | `VAR_BYTES` | `0x0C` | `0x8C` | Ignored (`0`) | Variable Binary (`uint32_t offsets[]` + Data Blob) |
+
+---
+
+### 4.3 Detailed Physical Storage Rules for Attributes
+
+Attribute storage layout depends on whether the attribute is fixed-width (scalar / vector) or variable-length.
+
+#### 1. Fixed-Width Primitives & Vector Attributes ($D \ge 1$)
+* **Location**: Edge attributes sit in the **Relation Block** immediately following topology arrays; Node attributes sit in **Node Domain Blocks**.
+* **Offset & Alignment**: Data array begins at absolute file offset `DataOffset`, aligned to a 128-byte boundary.
+* **Element Indexing**: Element $i$ ($0 \le i < K$, where $K = E$ for edges or $K = N$ for nodes) starts at byte offset:
+  $$\text{ByteOffset}(i) = \text{DataOffset} + (i \times D \times \text{sizeof(BaseType)})$$
+* **Vector Support ($D > 1$)**: For float/int vectors (e.g. $D=128$ for GNN embeddings), all $D$ vector dimensions for element $i$ are stored contiguously in memory, enabling direct zero-copy tensor slicing into PyTorch / NumPy.
+
+#### 2. Variable-Length String & Binary Attributes (`VAR_STRING` 0x0B, `VAR_BYTES` 0x0C)
+* **Offsets Array**: Stored at 128B-aligned `OffsetsOffset` containing an array of $K + 1$ 32-bit unsigned integers (`uint32_t offsets[K + 1]`), where `offsets[0] = 0`.
+* **Data Payload Blob**: Stored at 128B-aligned `DataOffset` containing the raw concatenated UTF-8 text or binary bytes.
+* **Slice Extraction**: Payload bytes for element $i$ are extracted from `DataOffset + offsets[i]` with byte length `offsets[i + 1] - offsets[i]`.
+
+#### 3. Node Domain Attributes & Node Domain Blocks
+* Node attributes for domain $d$ (with $N$ nodes) are stored in a 4KB page-aligned **Node Domain Block**.
+* Node attribute descriptors in Section 3.1 contain `DataOffset` and `OffsetsOffset` pointing directly to these 128B-aligned node property arrays.
 
 ---
 
