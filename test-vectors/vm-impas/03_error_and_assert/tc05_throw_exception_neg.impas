@@ -1,0 +1,9 @@
+; ====================================================================
+; TC05: User Error Exception Throw (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_USER_THROW}
+; {EXPECT: THROW_CODE = 404}
+
+.text
+0x00: OP_LOAD_CONST_INT   R0, 10
+0x01: OP_THROW            R0, 404

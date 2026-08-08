@@ -1,0 +1,20 @@
+; ====================================================================
+; TC01: Scalar Operations & Indirect Loads (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 42}
+; {EXPECT: R1 = 100}
+; {EXPECT: R3 = 42}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_LOAD_CONST_INT   R0, 42
+0x01: OP_LOAD_CONST_INT   R1, 100
+0x02: OP_LOAD_CONST_FLOAT R5, 3.14159
+0x03: OP_LOAD_CONST_STR_PREFIX R6, 0x414243
+0x04: OP_MOV              R7, R0
+0x05: OP_LOAD_CONST_INT   R8, 0
+0x06: OP_LOAD_INDIRECT    R3, R8, 0, 0
+0x07: OP_CLEAR_REG        R8
+0x08: OP_ASSERT           R0, 42
+0x09: OP_HALT

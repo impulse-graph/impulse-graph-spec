@@ -1,0 +1,12 @@
+; ====================================================================
+; TC00: VM Initialization & Single OP_HALT State Baseline (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 0}
+; {EXPECT: R1 = 0}
+; {EXPECT: R2 = 0}
+; {EXPECT: R3 = 0}
+; {EXPECT: R63 = 0}
+
+.text
+0x00: OP_HALT

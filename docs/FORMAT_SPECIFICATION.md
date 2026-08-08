@@ -111,19 +111,57 @@ Begins immediately after Domain Catalog Array, aligned to a 128-byte boundary. C
 | `0x000C` – `0x000F` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (points to null-terminated string, e.g., `"FOLLOWS\0"`). |
 | `0x0010` – `0x0017` | `NodeCount` | `uint64_t` | 8 Bytes | Number of source nodes ($N$) in relation matrix. |
 | `0x0018` – `0x001F` | `EdgeCount` | `uint64_t` | 8 Bytes | Total number of directed edges ($E$) in relation matrix. |
-| `0x0020` – `0x0027` | `SectionFeatures` | `uint64_t` | 8 Bytes | Per-relation feature bitmask (bit 0 = CSC present, bit 1 = weighted edges). |
-| `0x0028` – `0x002F` | `CsrRowOffOffset` | `uint64_t` | 8 Bytes | Absolute file offset to `csrRowOffsets` array (128B aligned). |
-| `0x0030` – `0x0037` | `CsrRowOffBytes` | `uint64_t` | 8 Bytes | Byte size of `csrRowOffsets` array ($= (N + 1) \times \text{EdgeIndexWidth}$). |
-| `0x0038` – `0x003F` | `CsrColIdxOffset` | `uint64_t` | 8 Bytes | Absolute file offset to `csrColumnIndices` array (128B aligned). |
-| `0x0040` – `0x0047` | `CsrColIdxBytes` | `uint64_t` | 8 Bytes | Byte size of `csrColumnIndices` array ($= E \times \text{NodeIDWidth}$). |
-| `0x0048` – `0x004F` | `CscRowOffOffset` | `uint64_t` | 8 Bytes | Absolute file offset to optional `cscRowOffsets` array (`0` if omitted). |
-| `0x0050` – `0x0057` | `CscRowOffBytes` | `uint64_t` | 8 Bytes | Byte size of `cscRowOffsets` array (`0` if omitted). |
-| `0x0058` – `0x005F` | `CscColIdxOffset` | `uint64_t` | 8 Bytes | Absolute file offset to optional `cscColumnIndices` array (`0` if omitted). |
-| `0x0060` – `0x0067` | `CscColIdxBytes` | `uint64_t` | 8 Bytes | Byte size of `cscColumnIndices` array (`0` if omitted). |
-| `0x0068` – `0x0069` | `AttrCount` | `uint16_t` | 2 Bytes | Number of edge attributes defined for this relation. |
-| `0x006A` – `0x007F` | `Reserved2` | `uint8_t[22]` | 22 Bytes | `0x00` alignment padding (Pads struct to exactly 128 Bytes). |
+| `0x0020` – `0x0027` | `SectionFeatures` | `uint64_t` | 8 Bytes | Per-relation feature bitmask (bit 0 = CSC, bit 1 = weighted, bit 2 = virtual relation, bits 3..4 = multiplicity). |
+| `0x0028` – `0x002F` | `CsrRowOffOffset` | `uint64_t` | 8 Bytes | Absolute file offset to `csrRowOffsets` array (128B aligned; `0` if Virtual or `M:1`/`1:1`). |
+| `0x0030` – `0x0037` | `CsrRowOffBytes` | `uint64_t` | 8 Bytes | Byte size of `csrRowOffsets` array ($= (N + 1) \times \text{EdgeIndexWidth}$; `0` if Virtual or `M:1`/`1:1`). |
+| `0x0038` – `0x003F` | `CsrColIdxOffset` | `uint64_t` | 8 Bytes | Absolute file offset to `csrColumnIndices` array (128B aligned; `0` if Virtual). |
+| `0x0040` – `0x0047` | `CsrColIdxBytes` | `uint64_t` | 8 Bytes | Byte size of `csrColumnIndices` array ($= E \times \text{NodeIDWidth}$; `0` if Virtual). |
+| `0x0048` – `0x004F` | `CscRowOffOffset` | `uint64_t` | 8 Bytes | Absolute file offset to optional `cscRowOffsets` array (`0` if omitted, Virtual, or `1:M`/`1:1`). |
+| `0x0050` – `0x0057` | `CscRowOffBytes` | `uint64_t` | 8 Bytes | Byte size of `cscRowOffsets` array (`0` if omitted, Virtual, or `1:M`/`1:1`). |
+| `0x0058` – `0x005F` | `CscColIdxOffset` | `uint64_t` | 8 Bytes | Absolute file offset to optional `cscColumnIndices` array (`0` if omitted or Virtual). |
+| `0x0060` – `0x0067` | `CscColIdxBytes` | `uint64_t` | 8 Bytes | Byte size of `cscColumnIndices` array (`0` if omitted or Virtual). |
+| `0x0068` – `0x0069` | `AttrCount` | `uint16_t` | 2 Bytes | Number of edge attributes defined for this relation (`0` if Virtual). |
 
-Each relation directory entry is followed immediately by `AttrCount` sequential **Attribute Descriptors** (40 Bytes each, see §3.4).
+#### 3.3.2 Virtual Super-Relation C-ABI Payload (`Reserved2` Overload & Overflow Rules)
+
+When `IMP_REL_FEATURE_VIRTUAL` (`Bit 2`) is enabled in `SectionFeatures`:
+* **Inline Fast Path ($1 \le \text{component\_count} \le 10$)**:
+  Bytes `0x006A` – `0x007F` (22 bytes) in the `RelationDirectoryEntry` are overloaded to store the constituent relation payload directly inside the fixed 128-byte entry (zero extra file reads or memory allocations):
+
+```c
+struct ImpulseVirtualRelationPayload {
+    uint16_t component_count;    // Number of constituent physical relation IDs (1 <= C <= 10)
+    uint16_t component_ids[10];  // Inline array of constituent physical RelationIDs (padded with 0x0000)
+};
+```
+
+* **Overflow Extended Path ($\text{component\_count} > 10$, up to 65,536)**:
+  For large virtual relations composed of more than 10 physical relations:
+  1. `component_ids[0]` is set to `0xFFFF` (Overflow Sentinel Flag).
+  2. `CsrColIdxOffset` (8-byte `uint64_t`) stores a 128B-aligned absolute file offset to an off-heap array of `uint16_t component_ids[component_count]`.
+  3. `CsrColIdxBytes` stores the byte size ($= \text{component\_count} \times 2$).
+* **Maximum Theoretical Capacity**: Up to **65,536 physical relations** per virtual super-relation (matching the overall `.imps` relation limit).
+
+---
+
+#### 3.3.3 Per-Relation Feature Bitmask (`SectionFeatures` 64-bit Layout)
+
+The `SectionFeatures` field defines C-ABI flags and structural contracts for topology storage:
+
+```c
+#define IMP_REL_FEATURE_CSC          (1ULL << 0) // Bit 0: CSC Transpose Index Present
+#define IMP_REL_FEATURE_WEIGHTED     (1ULL << 1) // Bit 1: Edge Weights Present
+#define IMP_REL_FEATURE_VIRTUAL      (1ULL << 2) // Bit 2: Virtual Super-Relation (No physical arrays on disk)
+
+// Multiplicity Bitmask (Bits 3..4)
+#define IMP_REL_CARDINALITY_MASK     (3ULL << 3) // Bitmask for relation multiplicity (Bits 3..4)
+#define IMP_REL_CARDINALITY_M_N      (0ULL << 3) // Many-to-Many (Default full CSR/CSC layout)
+#define IMP_REL_CARDINALITY_M_1      (1ULL << 3) // Many-to-One  (Flat target array, CsrRowOffBytes = 0)
+#define IMP_REL_CARDINALITY_1_M      (2ULL << 3) // One-to-Many  (Forward CSR, reverse flat CSC array)
+#define IMP_REL_CARDINALITY_1_1      (3ULL << 3) // One-to-One   (Flat bi-directional direct arrays)
+```
+
+---
 
 ### 3.4 Attribute Descriptor Structure (Fixed 44 Bytes)
 
@@ -145,9 +183,13 @@ Every node attribute and edge attribute is defined by a fixed 44-byte POD struct
 
 ## 4. Topology & Attribute Specification
 
-### 4.1 Topology Mechanics (Always CSR, Optional CSC)
-* **Standard CSR**: Topology is **always standard CSR** (`csrRowOffsets` + `csrColumnIndices`).
-* **Direct Array Indexing**: Targets are indexed directly via uncompressed arrays (`ENCODING_RAW = 0x00`). `columnIndices` for node $i$'s $k$-th neighbor is read at `csrColumnIndices[csrRowOffsets[i] + k]`.
+### 4.1 Topology Mechanics & Multiplicity Optimizations
+
+* **Many-to-Many (`IMP_REL_CARDINALITY_M_N`)**: Topology is standard CSR (`csrRowOffsets` + `csrColumnIndices`). Target $k$ of node $i$ is read at `csrColumnIndices[csrRowOffsets[i] + k]`.
+* **Many-to-One (`IMP_REL_CARDINALITY_M_1`)**: Every source node has at most 1 target node. `csrRowOffsets` is omitted (`CsrRowOffBytes = 0`). `csrColumnIndices` becomes a flat direct array of length $N$. Target node ID for source node $i$ is read directly at `csrColumnIndices[i]` (where `MAX_UINT` indicates no edge).
+* **One-to-Many (`IMP_REL_CARDINALITY_1_M`)**: Forward CSR is standard (`csrRowOffsets` + `csrColumnIndices`). Reverse CSC transpose omits `cscRowOffsets` (`CscRowOffBytes = 0`), storing a flat direct source node ID array in `cscColumnIndices`.
+* **One-to-One (`IMP_REL_CARDINALITY_1_1`)**: Both `csrRowOffsets` and `cscRowOffsets` are omitted. Forward and reverse traversals use flat direct arrays in $O(1)$ single-hop dereferences.
+* **Virtual Super-Relations (`IMP_REL_FEATURE_VIRTUAL`)**: Contains no physical topology arrays. `ImpulseVM` resolves the relation by expanding traversals over `component_ids[0 .. component_count - 1]` and unioning intermediate bitsets via `OP_SET_UNION` or `OP_CSC_WALK_MULTI`.
 * **Optional CSC Transpose**: An incoming transpose index (`cscRowOffsets` + `cscColumnIndices`) may be included for bidirectional traversals.
 * **Explicit Reverse Relations**: Reverse relations (e.g. `MEMBER_OF_REVERSE`) are represented explicitly as first-class catalog relations.
 

@@ -1,0 +1,25 @@
+; ====================================================================
+; TC22: Relation Multiplicity M:N (Many-to-Many) Traversal & Reductions
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 22}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.rel REL_USER_FOLLOWER = 0, multiplicity = many_to_many
+
+.csr_inline MN_GRAPH = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, MN_GRAPH
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_CSR_WALK            R2, R1, REL_USER_FOLLOWER
+0x03: OP_CSC_WALK            R3, R2, REL_USER_FOLLOWER
+0x04: OP_CSR_DEGREE          R4, R1, REL_USER_FOLLOWER
+0x05: OP_LOAD_CONST_INT      R0, 22
+0x06: OP_ASSERT              R0, 22
+0x07: OP_HALT

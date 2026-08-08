@@ -1,0 +1,33 @@
+; ====================================================================
+; TC21: Edge Attribute Projections across Relation Multiplicities (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 400}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.rel REL_USER_DEPT     = 0, multiplicity = many_to_one
+.rel REL_DEPT_MEMBER   = 1, multiplicity = one_to_many
+.rel REL_USER_KEY      = 2, multiplicity = one_to_one
+.rel REL_USER_GROUP    = 3, multiplicity = many_to_many
+
+.array_float ATTR_SCORES = [0.5, 0.8, 1.2, 2.0]
+
+.csr_inline MOCK_GRAPH_PROJ = {
+    0: [1, 2],
+    1: [2],
+    2: [3]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, MOCK_GRAPH_PROJ
+0x01: OP_LOAD_INLINE_ARRAY   R1, ATTR_SCORES
+0x02: OP_INIT_INPUT_NODE     R2, 0
+0x03: OP_CSR_WALK            R3, R2, REL_USER_DEPT
+0x04: OP_VECTOR_MUL_ATTR     R4, R3, R1
+0x05: OP_FLOAT_VECTOR_SCALE  R5, R4
+0x06: OP_MXV                 R6, R1, R0, SEMIRING_PLUS_TIMES
+0x07: OP_VXM                 R7, R1, R0, SEMIRING_MIN_PLUS
+0x08: OP_LOAD_CONST_INT      R0, 400
+0x09: OP_ASSERT              R0, 400
+0x0A: OP_HALT

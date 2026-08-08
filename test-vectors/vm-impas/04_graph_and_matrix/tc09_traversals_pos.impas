@@ -1,0 +1,33 @@
+; ====================================================================
+; TC09: CSR & CSC Walks and Bitset Collects (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 100}
+; {EXPECT: FLAG = ZF}
+
+.data
+.csr_inline  GRAPH_WALK = {
+    0: [1, 2],
+    1: [3],
+    2: [3]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_WALK
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_CSR_WALK            R2, R1, R0
+0x03: OP_CSC_WALK            R3, R2, R0
+0x04: OP_CSR_DEGREE          R4, R1, R0
+0x05: OP_CSR_WALK_FILTERED   R5, R1, R0
+0x06: OP_CSR_WALK_PREDICATE  R6, R1, R0
+0x07: OP_NODE_FILTER         R7, R1, R0
+0x08: OP_NODE_FILTER_STR_PREFIX R8, R1, R0
+0x09: OP_CSR_WALK_REDUCE_SUM R9, R1, R0
+0x0A: OP_CSR_WALK_REDUCE     R10, R1, R0
+0x0B: OP_COLLECT_BITSET      R11, R2
+0x0C: OP_COLLECT_ARRAY       R12, R2
+0x0D: OP_MAP_DENSE_TO_KEYS   R13, R2
+0x0E: OP_COLLECT_VALUE_MAP   R14, R2
+0x0F: OP_LOAD_CONST_INT      R0, 100
+0x10: OP_ASSERT              R0, 100
+0x11: OP_HALT

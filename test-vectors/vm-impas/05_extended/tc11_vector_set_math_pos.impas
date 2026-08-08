@@ -1,0 +1,27 @@
+; ====================================================================
+; TC11: Vector & Set Arithmetic Operations (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 300}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_INIT_INPUT_SET      R1, 0
+0x01: OP_INIT_INPUT_SET      R2, 1
+0x02: OP_SET_UNION           R3, R1, R2
+0x03: OP_SET_INTERSECT       R4, R1, R2
+0x04: OP_SET_DIFFERENCE      R5, R1, R2
+0x05: OP_SET_CARDINALITY     R6, R3
+0x06: OP_VECTOR_MUL_ATTR     R7, R1
+0x07: OP_VECTOR_REDUCE_SUM   R8, R7
+0x08: OP_VECTOR_DIV          R9, R7
+0x09: OP_VECTOR_STR_CONCAT   R10, R1
+0x0A: OP_FLOAT_VECTOR_SCALE  R11, R7
+0x0B: OP_L1_NORM_DIFF        R12, R7
+0x0C: OP_EWISE_ADD           R13, R1, R2
+0x0D: OP_EWISE_MULT          R14, R1, R2
+0x0E: OP_STABLE_CHECK        0x01
+0x0F: OP_NOP
+0x10: OP_LOAD_CONST_INT      R0, 300
+0x11: OP_ASSERT              R0, 300
+0x12: OP_HALT

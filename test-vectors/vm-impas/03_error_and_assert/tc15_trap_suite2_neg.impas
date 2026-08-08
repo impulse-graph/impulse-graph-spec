@@ -1,0 +1,9 @@
+; ====================================================================
+; TC15: Signal Trap Suite 2 for Multi-File Opcode Coverage (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_TRAP}
+
+.text
+0x00: OP_LOAD_CONST_INT   R0, 100
+0x01: OP_ASSERT           R0, 100
+0x02: OP_TRAP             0

@@ -1,0 +1,23 @@
+; ====================================================================
+; TC24: Relation Multiplicity 1:M (One-to-Many Reverse Flat CSC Array)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 24}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.rel REL_DEPT_EMP = 0, multiplicity = one_to_many
+
+.csr_inline ONEM_GRAPH = {
+    0: [10, 11],
+    1: [12]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, ONEM_GRAPH
+0x01: OP_INIT_INPUT_NODE     R1, 10
+0x02: OP_CSC_WALK            R2, R1, REL_DEPT_EMP
+0x03: OP_COLLECT_BITSET      R3, R2
+0x04: OP_LOAD_CONST_INT      R0, 24
+0x05: OP_ASSERT              R0, 24
+0x06: OP_HALT

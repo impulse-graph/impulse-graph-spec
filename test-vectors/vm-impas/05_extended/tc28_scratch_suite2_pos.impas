@@ -1,0 +1,13 @@
+; ====================================================================
+; TC28: Multi-File Threshold Suite for Scratch Opcodes (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 280}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_ALLOC_SCRATCH        R2, 4096                  ; Request 4KB scratch
+0x01: OP_ASSERT_SCRATCH_BYTES R2, 4096                  ; Assert allocated scratch >= 4KB
+0x02: OP_LOAD_CONST_INT       R0, 280
+0x03: OP_ASSERT               R0, 280
+0x04: OP_HALT

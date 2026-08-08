@@ -1,0 +1,23 @@
+; ====================================================================
+; TC02: Inline Data & Mock Graph Binding (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 42}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.array_float WEIGHTS = [10.5, 20.5, 30.5, 40.5]
+.csr_inline  TEST_GRAPH = {
+    0: [1, 2],
+    1: [2],
+    2: [3]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, TEST_GRAPH
+0x01: OP_LOAD_INLINE_ARRAY   R1, WEIGHTS
+0x02: OP_LOAD_CONST_INT      R2, 2
+0x03: OP_LOAD_INDIRECT       R3, R1, R2, 1
+0x04: OP_LOAD_CONST_INT      R0, 42
+0x05: OP_ASSERT              R0, 42
+0x06: OP_HALT

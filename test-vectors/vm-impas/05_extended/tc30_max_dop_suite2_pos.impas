@@ -1,0 +1,12 @@
+; ====================================================================
+; TC30: Multi-File Threshold Suite for OP_SET_MAX_DOP (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 300}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_SET_MAX_DOP          R2, 4                     ; Request max_dop = 4
+0x01: OP_LOAD_CONST_INT       R0, 300
+0x02: OP_ASSERT               R0, 300
+0x03: OP_HALT

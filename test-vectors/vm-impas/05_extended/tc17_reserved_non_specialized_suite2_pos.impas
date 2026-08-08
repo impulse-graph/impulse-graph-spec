@@ -1,0 +1,30 @@
+; ====================================================================
+; TC17: Reserved Non-Specialized Opcodes Suite 2 (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 100}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.array_float FLOAT_VALS = [5.0, 15.0, 25.0]
+.csr_inline  GRAPH_SUITE2 = {
+    0: [1],
+    1: [2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R7, GRAPH_SUITE2
+0x01: OP_LOAD_INLINE_ARRAY       R1, FLOAT_VALS
+0x02: OP_FLOAT_VECTOR_SCALE      R1, 0.5
+0x03: OP_L1_NORM_DIFF            R2, R1, R1
+0x04: OP_INIT_INPUT_NODE         R3, 0
+0x05: OP_CSR_WALK_FILTERED       R4, R3, R7
+0x06: OP_CSR_WALK_PREDICATE      R5, R3, R7
+0x07: OP_ROARING_BITMAP_AND      R6, R4, R5
+0x08: OP_READ_EDGE_WEIGHT        R8, R3, R3, R7
+0x09: OP_LOAD_CONST_STR_PREFIX   R9, 0x58595A
+0x0A: OP_NODE_FILTER_STR_PREFIX  R10, R3, R9, 0, R7
+0x0B: OP_VECTOR_STR_CONCAT       R11, R10, R10
+0x0C: OP_LOAD_CONST_INT          R0, 100
+0x0D: OP_ASSERT                  R0, 100
+0x0E: OP_HALT

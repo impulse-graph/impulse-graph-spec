@@ -1,0 +1,13 @@
+; ====================================================================
+; TC26: Off-Heap Scratch Memory Allocation & Bounds Assert (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 260}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_ALLOC_SCRATCH        R1, 31744                 ; Request 31KB scratch (31,744 bytes)
+0x01: OP_ASSERT_SCRATCH_BYTES R1, 31744                 ; Assert allocated scratch >= 31,744 bytes
+0x02: OP_LOAD_CONST_INT       R0, 260
+0x03: OP_ASSERT               R0, 260
+0x04: OP_HALT

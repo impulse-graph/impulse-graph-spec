@@ -1,0 +1,34 @@
+; ====================================================================
+; TC20: Edge Attribute Reductions across Relation Multiplicities (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 300}
+; {EXPECT: FLAG = ZF}
+
+.data
+.rel REL_EMPLOYEE_DEPT = 0, multiplicity = many_to_one
+.rel REL_DEPT_DIV     = 1, multiplicity = many_to_one
+.rel REL_DEPT_TEAM    = 2, multiplicity = one_to_many
+.rel REL_EMP_BADGE    = 3, multiplicity = one_to_one
+.rel REL_EMP_PROJECT  = 4, multiplicity = many_to_many
+
+.array_float EDGE_WEIGHTS_0 = [1.5, 2.5, 3.5]
+.array_float EDGE_WEIGHTS_1 = [10.0, 20.0, 30.0]
+
+.csr_inline MOCK_GRAPH_REDUCE = {
+    0: [10],
+    1: [20],
+    2: [30]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, MOCK_GRAPH_REDUCE
+0x01: OP_LOAD_INLINE_ARRAY   R1, EDGE_WEIGHTS_0
+0x02: OP_INIT_INPUT_NODE     R2, 0
+0x03: OP_CSR_WALK_REDUCE_SUM R3, R2, REL_EMPLOYEE_DEPT
+0x04: OP_CSR_WALK_REDUCE     R4, R2, REL_DEPT_DIV
+0x05: OP_READ_EDGE_WEIGHT    R5, R2, REL_EMP_BADGE
+0x06: OP_CSR_WALK_REDUCE_SUM R6, R2, REL_EMP_PROJECT
+0x07: OP_LOAD_CONST_INT      R0, 300
+0x08: OP_ASSERT              R0, 300
+0x09: OP_HALT

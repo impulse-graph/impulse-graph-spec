@@ -1,0 +1,8 @@
+; ====================================================================
+; TC27: Scratch Memory Overflow Assert Failure (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}
+
+.text
+0x00: OP_ASSERT_SCRATCH_BYTES R1, 1073741824            ; Assert 1 GB scratch when limit is smaller
+0x01: OP_HALT

@@ -1,0 +1,24 @@
+; ====================================================================
+; TC08: GraphBLAS Matrix Vector & Semiring (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 42}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.array_float WEIGHTS = [1.0, 2.0, 3.0, 4.0]
+.csr_inline  GRAPH_0 = {
+    0: [1, 2],
+    1: [2],
+    2: [3]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_0
+0x01: OP_LOAD_INLINE_ARRAY   R1, WEIGHTS
+0x02: OP_MXV                 R2, R1, R0, SEMIRING_PLUS_TIMES
+0x03: OP_VXM                 R3, R1, R0, SEMIRING_MIN_PLUS
+0x04: OP_REDUCE              R4, R2, BINARY_OP_ADD
+0x05: OP_LOAD_CONST_INT      R0, 42
+0x06: OP_ASSERT              R0, 42
+0x07: OP_HALT

@@ -1,0 +1,7 @@
+; ====================================================================
+; TC13: Register Bounds Error (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_MOV              R64, R0   ; Register R64 is out of bounds (0..63 allowed)

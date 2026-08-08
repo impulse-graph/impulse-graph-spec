@@ -1,0 +1,33 @@
+; ====================================================================
+; TC19: Virtual Super-Relation Multi-Walk & Union (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 200}
+; {EXPECT: FLAG = ZF}
+
+.data
+.rel REL_USER_POSTS_POST    = 0, multiplicity = many_to_many
+.rel REL_USER_LIKES_POST    = 1, multiplicity = many_to_many
+.rel REL_USER_COMMENTS_POST = 2, multiplicity = many_to_many
+
+; Define virtual super-relation combining all 3 physical edge types
+.vrel VREL_USER_TO_POST     = [REL_USER_POSTS_POST, REL_USER_LIKES_POST, REL_USER_COMMENTS_POST]
+
+.csr_inline POSTS_GRAPH = {
+    0: [100],
+    1: [100],
+    2: [100]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, POSTS_GRAPH
+0x01: OP_INIT_INPUT_NODE     R1, 100                     ; Post Node ID 100
+0x02: OP_CSC_WALK            R2, R1, REL_USER_POSTS_POST  ; Bitset R2 of posters
+0x03: OP_CSC_WALK            R3, R1, REL_USER_LIKES_POST  ; Bitset R3 of likers
+0x04: OP_CSC_WALK            R4, R1, REL_USER_COMMENTS_POST ; Bitset R4 of commenters
+0x05: OP_SET_UNION           R5, R2, R3                  ; R5 = R2 | R3
+0x06: OP_SET_UNION           R6, R5, R4                  ; R6 = R5 | R4 (All connected users)
+0x07: OP_COLLECT_BITSET      R7, R6
+0x08: OP_LOAD_CONST_INT      R0, 200
+0x09: OP_ASSERT              R0, 200
+0x0A: OP_HALT

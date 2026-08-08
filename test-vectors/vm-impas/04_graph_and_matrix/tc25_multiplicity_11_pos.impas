@@ -1,0 +1,24 @@
+; ====================================================================
+; TC25: Relation Multiplicity 1:1 (One-to-One Bi-directional Direct Arrays)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 25}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.rel REL_EMP_BADGE = 0, multiplicity = one_to_one
+
+.csr_inline OO_GRAPH = {
+    0: [100],
+    1: [101]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, OO_GRAPH
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_CSR_WALK            R2, R1, REL_EMP_BADGE
+0x03: OP_CSC_WALK            R3, R2, REL_EMP_BADGE
+0x04: OP_COLLECT_BITSET      R4, R3
+0x05: OP_LOAD_CONST_INT      R0, 25
+0x06: OP_ASSERT              R0, 25
+0x07: OP_HALT
