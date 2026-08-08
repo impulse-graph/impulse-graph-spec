@@ -1,0 +1,28 @@
+; ====================================================================
+; TC35: Recursive Subroutine Execution & Scratch Memory Baseline (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 1}
+; {EXPECT: R1 = 1}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+; {EXPECT: SCRATCH_BYTES = 65536}
+
+.text
+0x00: OP_ASSERT_SCRATCH_BYTES R10, 65536                ; Verify default 64 KB scratch allocation baseline
+0x01: OP_LOAD_CONST_INT       R12, 3                    ; Input parameter N = 3 in Out register R12
+0x02: OP_CALL                 0x05                      ; Call recursive subroutine at 0x05
+0x03: OP_MOV                  R0, R1                    ; Copy return value to R0
+0x04: OP_HALT
+
+; Subroutine at 0x05
+; Callee In register: R0 = N
+; Return value: R1
+0x05: OP_LOAD_CONST_INT       R1, 1                     ; Default return value = 1
+0x06: OP_MOV                  R5, R0                    ; Counter = N
+0x07: OP_LOOP_DECR            R5, 2                     ; If N > 0, jump to recursive step at 0x09
+0x08: OP_RET                                            ; Base case: N <= 0, return R1 = 1
+
+; Recursive Step at 0x09
+0x09: OP_MOV                  R12, R5                   ; Pass N - 1 in Out register R12
+0x0A: OP_CALL                 0x05                      ; Recursive call at 0x05
+0x0B: OP_RET

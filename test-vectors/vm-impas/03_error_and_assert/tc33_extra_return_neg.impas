@@ -1,0 +1,8 @@
+; ====================================================================
+; TC33: Extra OP_RET Call Stack Underflow (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_STACK_UNDERFLOW}
+
+.text
+0x00: OP_RET                                            ; Execute OP_RET at root level (depth 0)
+0x01: OP_HALT

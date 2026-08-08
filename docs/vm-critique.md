@@ -58,6 +58,21 @@ While ImpulseVM excels at zero-copy off-heap sub-microsecond vector traversals a
 
 ---
 
+## 4. Off-Heap Scratch Memory & Register Windowing Sizing
+
+### 4.1 Default Scratch Buffer Allocation (64 KB Baseline)
+* **Design Decision**: ImpulseVM establishes a **64 KB (`65,536` bytes)** default baseline for off-heap scratch memory allocation in `VmQueryContext`.
+* **Hardware Cache Line Justification**: 
+  * 64 KB fits 100% inside CPU **L2 Data Cache** (~512 KB to 1 MB per core on modern x86-64 and ARM64 processors), preventing DRAM latency penalties during query execution.
+  * At 96 bytes per 12-register window stride, 64 KB supports up to **680 recursive call steps** out of the box with zero runtime allocations in the hot path.
+* **Deep Query Scaling**: Queries requiring deeper recursion (e.g. 10,000-step Depth-First Search) explicitly declare required scratch capacity in their `.impas` assembly header using `.scratch_bytes 1048576` (1 MB), which is pre-allocated upfront before query execution begins.
+
+### 4.2 HotSpot C2 JIT & Native Machine Code Impact
+* **Register Allocation**: Constant window offsets (`window_ptr + reg_idx`) enable HotSpot C2 and GCC/Clang compilers to map logical VM registers (`R0`..`R15`) directly into physical CPU registers (`RAX`, `RBX`, `R8`–`R15`).
+* **Subroutine Inlining**: Inlining hot subroutines via `OP_CALL` eliminates the window pointer shift entirely at compile time (`window_ptr += 12` is optimized away).
+
+---
+
 ## Summary Action Plan
 
 | Target Milestone | Action Item | Priority |

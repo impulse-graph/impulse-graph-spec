@@ -1,0 +1,8 @@
+; ====================================================================
+; TC32: Infinite Recursion & Call Stack Overflow (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_STACK_OVERFLOW}
+
+.text
+0x00: OP_CALL                 0x00                      ; Recursive call to 0x00 until stack overflow
+0x01: OP_HALT

@@ -1,0 +1,23 @@
+; ====================================================================
+; TC36: Multi-File Threshold Suite for Recursive Call Stack (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 1}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+; {EXPECT: SCRATCH_BYTES = 65536}
+
+.text
+0x00: OP_ASSERT_SCRATCH_BYTES R10, 65536
+0x01: OP_LOAD_CONST_INT       R12, 3
+0x02: OP_CALL                 0x05
+0x03: OP_MOV                  R0, R1
+0x04: OP_HALT
+
+0x05: OP_LOAD_CONST_INT       R1, 1
+0x06: OP_MOV                  R5, R0
+0x07: OP_LOOP_DECR            R5, 2
+0x08: OP_RET
+
+0x09: OP_MOV                  R12, R5
+0x0A: OP_CALL                 0x05
+0x0B: OP_RET

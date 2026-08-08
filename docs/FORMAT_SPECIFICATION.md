@@ -299,6 +299,20 @@ Future specification iterations explore allowing single queries (`ImpulseVM` exe
    - **String Pool Base Pointer Isolation**: Scope variable-length UTF-8 string offsets (`VAR_STRING`) to their originating snapshot's string pool pointer (`string_table_base_A` vs `string_table_base_B`) to avoid cross-snapshot memory corruption in attribute filter opcodes (`OP_FILTER_ATTR_STR`).
    - **Attribute Schema Unification**: Standardize bitwise primitive types across snapshots to ensure vector operations (`OP_MXV`) run without runtime alignment or type-coercion overhead.
 
+### 7.2 ImpulseVM Register Windowing & 64 KB Off-Heap Scratch Baseline
+
+`ImpulseVM` query execution contexts (`VmQueryContext` / `impulse_vm_context_t`) establish a **64 KB (`65,536` bytes)** default baseline off-heap scratch memory allocation.
+
+#### Specification Constraints & Directives:
+1. **64 KB Default Off-Heap Scratch Baseline**:
+   - Every `VmQueryContext` instance pre-allocates 64 KB of 64-byte aligned off-heap scratch memory upon initialization.
+   - 64 KB is guaranteed to fit 100% inside CPU **L2 Data Cache** (~512 KB to 1 MB per core on x86-64 and ARM64 processors), eliminating DRAM latency during query execution.
+2. **Register Windowing Stride**:
+   - Subroutine calls (`OP_CALL`) shift register windows forward (increasing memory offsets) by a stride of 12 registers (96 bytes per frame step).
+   - The 64 KB default scratch allocation supports up to **680 recursive call steps** out of the box with **zero off-heap dynamic memory allocations** during query execution.
+3. **Upfront Capacity Assertion (`.scratch_bytes`)**:
+   - Queries requiring deeper recursion (e.g. 10,000-step Depth-First Search or complex recursive graph traversals) declare their required capacity upfront in assembly headers via `.scratch_bytes 1048576` (1 MB) or using `OP_ALLOC_SCRATCH R_DST, BYTES` (`0x73`).
+
 4. **Multi-Snapshot Lifecycle & Execution Safety**:
    - **Atomic Ref-Counting & Thread Safety**: Extend `VmQueryContext` to maintain atomic read-locks and reference counts across all participant snapshot `mmap` handles to prevent OS page faults (`SIGBUS`) during dynamic snapshot unmapping or hot-swapping.
 
