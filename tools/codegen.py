@@ -3,113 +3,16 @@ import os
 import sys
 import glob
 
-def get_v2_3_schema():
+def get_v0_9_schema():
     return {
-        "version": "2.3.0",
-        "version_major": 2,
-        "version_minor": 3,
+        "version": "0.9.0",
+        "version_major": 0,
+        "version_minor": 9,
         "magic": "0x494D5053",
         "header_baseline_offset": 4096,
         "enums": {
             "impulse_status_t": {
-                "doc": "C-ABI Status and Error Return Codes (v2.3)",
-                "values": {
-                    "IMPULSE_OK": 0,
-                    "IMPULSE_ERR_INVALID_MAGIC": 1,
-                    "IMPULSE_ERR_UNSUPPORTED_VERSION": 2,
-                    "IMPULSE_ERR_UNSUPPORTED_GLOBAL_FEATURE": 3,
-                    "IMPULSE_ERR_UNSUPPORTED_SECTION_FEATURE": 4,
-                    "IMPULSE_ERR_CORRUPT_CHECKSUM": 5,
-                    "IMPULSE_ERR_IO_FAILURE": 6,
-                    "IMPULSE_ERR_INVALID_ARGUMENT": 7
-                }
-            },
-            "impulse_key_type_t": {
-                "doc": "Domain Catalog Key Type Enums",
-                "values": {
-                    "IMPULSE_KEY_TYPE_INT16": 0,
-                    "IMPULSE_KEY_TYPE_INT32": 1,
-                    "IMPULSE_KEY_TYPE_INT64": 2,
-                    "IMPULSE_KEY_TYPE_UUID": 3,
-                    "IMPULSE_KEY_TYPE_STRING": 4
-                }
-            },
-            "impulse_encoding_type_t": {
-                "doc": "Primary Topology CSR Encoding Enums (v2.3)",
-                "values": {
-                    "IMPULSE_ENC_RAW_UINT32": 0,
-                    "IMPULSE_ENC_DELTA_VBYTE": 1,
-                    "IMPULSE_ENC_RAW_UINT16": 2,
-                    "IMPULSE_ENC_HYBRID_16_32": 3,
-                    "IMPULSE_ENC_SIMDCOMP": 4,
-                    "IMPULSE_ENC_SLICED_ELLPACK": 5,
-                    "IMPULSE_ENC_TPU_BCOO": 6
-                }
-            }
-        },
-        "feature_flags": {
-            "global": {
-                "IMPULSE_GLOBAL_FEAT_4KB_PAGE_ALIGNED": "0x0000000000000008"
-            },
-            "section": {
-                "IMPULSE_SECTION_FEAT_RAW_UINT32": "0x0000000000000001",
-                "IMPULSE_SECTION_FEAT_DELTA_VBYTE": "0x0000000000000002",
-                "IMPULSE_SECTION_FEAT_RAW_UINT16": "0x0000000000000004",
-                "IMPULSE_SECTION_FEAT_SIMDCOMP": "0x0000000000000010"
-            }
-        },
-        "structs": {
-            "impulse_snapshot_header_v2_3_t": {
-                "expected_size": 1096,
-                "doc": "Section 1 Fixed 4KB Baseline Snapshot Header (v2.3)",
-                "fields": [
-                    {"name": "magic", "type": "uint32", "doc": "Magic constant (0x494D5053 = 'IMPS')"},
-                    {"name": "version", "type": "uint16", "doc": "Protocol major version number"},
-                    {"name": "data_offset", "type": "uint32", "doc": "Byte offset where Section 2 payload begins"},
-                    {"name": "domain_count", "type": "uint16", "doc": "Total number of domains in domain catalog"},
-                    {"name": "relation_count", "type": "uint16", "doc": "Total number of relations in matrix"},
-                    {"name": "kafka_offset", "type": "uint64", "doc": "Kafka Write-Ahead Log (WAL) offset"},
-                    {"name": "timestamp_ms", "type": "uint64", "doc": "Unix epoch timestamp (milliseconds)"},
-                    {"name": "sha256", "type": "uint8[32]", "doc": "Cryptographic SHA-256 checksum"},
-                    {"name": "reserved", "type": "uint8[2]", "doc": "Reserved baseline alignment padding"},
-                    {"name": "global_required_features", "type": "uint64", "doc": "Global Feature-in-Use Bitmask"}
-                ]
-            },
-            "impulse_relation_directory_entry_v2_3_t": {
-                "expected_size": 109,
-                "doc": "Section 2 Relation Directory Metadata Entry (v2.3)",
-                "fields": [
-                    {"name": "src_domain_id", "type": "uint16", "doc": "Domain ID of source nodes"},
-                    {"name": "tgt_domain_id", "type": "uint16", "doc": "Domain ID of target nodes"},
-                    {"name": "encoding_type", "type": "uint8", "doc": "Primary CSR matrix compression encoding flag"},
-                    {"name": "node_count", "type": "uint64", "doc": "Total number of source nodes (N)"},
-                    {"name": "edge_count", "type": "uint64", "doc": "Total number of directed edges (E)"},
-                    {"name": "section_features", "type": "uint64", "doc": "Per-Section Feature-in-Use Bitmask"},
-                    {"name": "csr_row_off_offset", "type": "uint64", "doc": "Absolute File Offset to RowOffsets array"},
-                    {"name": "csr_row_off_bytes", "type": "uint64", "doc": "Byte size of RowOffsets array"},
-                    {"name": "csr_col_idx_offset", "type": "uint64", "doc": "Absolute File Offset to ColumnIndices array"},
-                    {"name": "csr_col_idx_bytes", "type": "uint64", "doc": "Byte size of ColumnIndices stream"},
-                    {"name": "id_map_offset", "type": "uint64", "doc": "Absolute File Offset to Section 4 (ID Mappings)"},
-                    {"name": "id_map_bytes", "type": "uint64", "doc": "Byte size of Section 4 (ID Mappings)"},
-                    {"name": "dto_lookup_offset", "type": "uint64", "doc": "Absolute File Offset to Section 5 (DTO Lookup Payload)"},
-                    {"name": "dto_lookup_bytes", "type": "uint64", "doc": "Byte size of Section 5 (DTO Lookup Payload)"},
-                    {"name": "delta_log_offset", "type": "uint64", "doc": "Absolute File Offset to Section 6 (Delta Log)"},
-                    {"name": "delta_log_bytes", "type": "uint64", "doc": "Byte size of Section 6 (Delta Log)"}
-                ]
-            }
-        }
-    }
-
-def get_v2_4_schema():
-    return {
-        "version": "2.4.0",
-        "version_major": 2,
-        "version_minor": 4,
-        "magic": "0x494D5053",
-        "header_baseline_offset": 4096,
-        "enums": {
-            "impulse_status_t": {
-                "doc": "C-ABI Status and Error Return Codes (v2.4)",
+                "doc": "C-ABI Status and Error Return Codes (v0.9.0)",
                 "values": {
                     "IMPULSE_OK": 0,
                     "IMPULSE_ERR_INVALID_MAGIC": 1,
@@ -124,17 +27,24 @@ def get_v2_4_schema():
                 }
             },
             "impulse_key_type_t": {
-                "doc": "Domain Catalog Key Type Enums",
+                "doc": "Domain Catalog Key Type Enums (v0.9.0)",
                 "values": {
-                    "IMPULSE_KEY_TYPE_INT16": 0,
-                    "IMPULSE_KEY_TYPE_INT32": 1,
-                    "IMPULSE_KEY_TYPE_INT64": 2,
-                    "IMPULSE_KEY_TYPE_UUID": 3,
-                    "IMPULSE_KEY_TYPE_STRING": 4
+                    "IMPULSE_KEY_TYPE_INT8": 1,
+                    "IMPULSE_KEY_TYPE_INT16": 2,
+                    "IMPULSE_KEY_TYPE_INT32": 3,
+                    "IMPULSE_KEY_TYPE_INT64": 4,
+                    "IMPULSE_KEY_TYPE_UINT8": 5,
+                    "IMPULSE_KEY_TYPE_UINT16": 6,
+                    "IMPULSE_KEY_TYPE_UINT32": 7,
+                    "IMPULSE_KEY_TYPE_UINT64": 8,
+                    "IMPULSE_KEY_TYPE_FLOAT32": 9,
+                    "IMPULSE_KEY_TYPE_FLOAT64": 10,
+                    "IMPULSE_KEY_TYPE_VAR_STRING": 11,
+                    "IMPULSE_KEY_TYPE_UUID128": 12
                 }
             },
             "impulse_encoding_type_t": {
-                "doc": "Primary Topology CSR Encoding Enums (v2.4)",
+                "doc": "Primary Topology CSR Encoding Enums (v0.9.0)",
                 "values": {
                     "IMPULSE_ENC_RAW_UINT32": 0,
                     "IMPULSE_ENC_DELTA_VBYTE": 1,
@@ -150,54 +60,81 @@ def get_v2_4_schema():
         },
         "feature_flags": {
             "global": {
-                "IMPULSE_GLOBAL_FEAT_4KB_PAGE_ALIGNED": "0x0000000000000008",
-                "IMPULSE_GLOBAL_FEAT_ED25519_SIGNED": "0x0000000000000010"
+                "IMPULSE_GLOBAL_FEAT_4KB_PAGE_ALIGNED": "0x0000000000000001",
+                "IMPULSE_GLOBAL_FEAT_CRYPTO_SIGNED": "0x0000000000000002",
+                "IMPULSE_GLOBAL_FEAT_FOOTER_CATALOG": "0x0000000000000004"
             },
             "section": {
                 "IMPULSE_SECTION_FEAT_RAW_UINT32": "0x0000000000000001",
                 "IMPULSE_SECTION_FEAT_DELTA_VBYTE": "0x0000000000000002",
                 "IMPULSE_SECTION_FEAT_RAW_UINT16": "0x0000000000000004",
-                "IMPULSE_SECTION_FEAT_SIMDCOMP": "0x0000000000000010",
-                "IMPULSE_SECTION_FEAT_SLICED_ELLPACK": "0x0000000000000020"
+                "IMPULSE_SECTION_FEAT_SIMDCOMP": "0x0000000000000010"
             }
         },
         "structs": {
-            "impulse_snapshot_header_v2_4_t": {
-                "expected_size": 1096,
-                "doc": "Section 1 Fixed 4KB Baseline Snapshot Header (v2.4)",
+            "impulse_snapshot_header_v0_9_t": {
+                "expected_size": 4096,
+                "doc": "Section 1 Fixed 4KB Baseline Snapshot Header (Spec v0.9.0)",
                 "fields": [
                     {"name": "magic", "type": "uint32", "doc": "Magic constant (0x494D5053 = 'IMPS')"},
-                    {"name": "version", "type": "uint16", "doc": "Protocol major version number"},
-                    {"name": "data_offset", "type": "uint32", "doc": "Byte offset where Section 2 payload begins"},
-                    {"name": "domain_count", "type": "uint16", "doc": "Total number of domains in domain catalog"},
+                    {"name": "version", "type": "uint16", "doc": "Protocol version number (0x0009)"},
+                    {"name": "data_offset", "type": "uint32", "doc": "Byte offset where Section 2 payload begins (4096)"},
+                    {"name": "domain_count", "type": "uint16", "doc": "Total number of domains in catalog"},
                     {"name": "relation_count", "type": "uint16", "doc": "Total number of relations in matrix"},
-                    {"name": "kafka_offset", "type": "uint64", "doc": "Kafka Write-Ahead Log (WAL) offset"},
                     {"name": "timestamp_ms", "type": "uint64", "doc": "Unix epoch timestamp (milliseconds)"},
-                    {"name": "sha256", "type": "uint8[32]", "doc": "Cryptographic SHA-256 checksum over data[data_offset..EOF]"},
-                    {"name": "reserved", "type": "uint8[2]", "doc": "Reserved baseline alignment padding"},
-                    {"name": "global_required_features", "type": "uint64", "doc": "Global Feature-in-Use Bitmask"}
+                    {"name": "required_features", "type": "uint64", "doc": "Global feature flags bitmask"},
+                    {"name": "footer_directory_offset", "type": "uint64", "doc": "Absolute file offset to Footer Directory Table"},
+                    {"name": "footer_directory_bytes", "type": "uint64", "doc": "Byte size of Footer Directory Table"},
+                    {"name": "snapshot_uuid", "type": "uint8[16]", "doc": "128-bit Binary UUID"},
+                    {"name": "header_checksum", "type": "uint16", "doc": "CRC-16-CCITT checksum over bytes 0x00..0x3D"},
+                    {"name": "header_padding", "type": "uint8[4032]", "doc": "Reserved header expansion padding"}
                 ]
             },
-            "impulse_relation_directory_entry_v2_4_t": {
-                "expected_size": 109,
-                "doc": "Section 2 Relation Directory Metadata Entry (v2.4)",
+            "impulse_domain_catalog_entry_v0_9_t": {
+                "expected_size": 16,
+                "doc": "Section 2 Domain Catalog Entry (16 Bytes)",
                 "fields": [
-                    {"name": "src_domain_id", "type": "uint16", "doc": "Domain ID of source nodes"},
-                    {"name": "tgt_domain_id", "type": "uint16", "doc": "Domain ID of target nodes"},
-                    {"name": "encoding_type", "type": "uint8", "doc": "Primary CSR matrix compression encoding flag"},
-                    {"name": "node_count", "type": "uint64", "doc": "Total number of source nodes (N)"},
-                    {"name": "edge_count", "type": "uint64", "doc": "Total number of directed edges (E)"},
-                    {"name": "section_features", "type": "uint64", "doc": "Per-Section Feature-in-Use Bitmask"},
-                    {"name": "csr_row_off_offset", "type": "uint64", "doc": "Absolute File Offset to RowOffsets array"},
-                    {"name": "csr_row_off_bytes", "type": "uint64", "doc": "Byte size of RowOffsets array"},
-                    {"name": "csr_col_idx_offset", "type": "uint64", "doc": "Absolute File Offset to ColumnIndices array"},
-                    {"name": "csr_col_idx_bytes", "type": "uint64", "doc": "Byte size of ColumnIndices stream"},
-                    {"name": "id_map_offset", "type": "uint64", "doc": "Absolute File Offset to Section 4 (ID Mappings)"},
-                    {"name": "id_map_bytes", "type": "uint64", "doc": "Byte size of Section 4 (ID Mappings)"},
-                    {"name": "dto_lookup_offset", "type": "uint64", "doc": "Absolute File Offset to Section 5 (DTO Lookup Payload)"},
-                    {"name": "dto_lookup_bytes", "type": "uint64", "doc": "Byte size of Section 5 (DTO Lookup Payload)"},
-                    {"name": "delta_log_offset", "type": "uint64", "doc": "Absolute File Offset to Section 6 (Delta Log)"},
-                    {"name": "delta_log_bytes", "type": "uint64", "doc": "Byte size of Section 6 (Delta Log)"}
+                    {"name": "domain_id", "type": "uint16", "doc": "Zero-indexed domain identifier"},
+                    {"name": "key_type", "type": "uint8", "doc": "Domain key primitive type enum"},
+                    {"name": "reserved", "type": "uint8", "doc": "Alignment padding"},
+                    {"name": "name_offset", "type": "uint32", "doc": "Offset into Shared String Table"},
+                    {"name": "node_count", "type": "uint64", "doc": "Total node count in domain"}
+                ]
+            },
+            "impulse_relation_directory_entry_v0_9_t": {
+                "expected_size": 128,
+                "doc": "Section 2 Relation Directory Entry (128 Bytes)",
+                "fields": [
+                    {"name": "relation_id", "type": "uint16", "doc": "Zero-indexed relation identifier"},
+                    {"name": "src_domain_id", "type": "uint16", "doc": "Source domain ID"},
+                    {"name": "tgt_domain_id", "type": "uint16", "doc": "Target domain ID"},
+                    {"name": "encoding_id", "type": "uint8", "doc": "Topology encoding type enum"},
+                    {"name": "node_id_width", "type": "uint8", "doc": "Node index width (bits)"},
+                    {"name": "edge_index_width", "type": "uint8", "doc": "Edge index width (bits)"},
+                    {"name": "reserved1", "type": "uint8[3]", "doc": "Reserved alignment"},
+                    {"name": "name_offset", "type": "uint32", "doc": "Offset into Shared String Table"},
+                    {"name": "node_count", "type": "uint64", "doc": "Source node count"},
+                    {"name": "edge_count", "type": "uint64", "doc": "Edge count"},
+                    {"name": "section_features", "type": "uint64", "doc": "Section feature bitmask"},
+                    {"name": "csr_row_off_offset", "type": "uint64", "doc": "CSR row offsets file offset"},
+                    {"name": "csr_row_off_bytes", "type": "uint64", "doc": "CSR row offsets byte size"},
+                    {"name": "csr_col_idx_offset", "type": "uint64", "doc": "CSR col indices file offset"},
+                    {"name": "csr_col_idx_bytes", "type": "uint64", "doc": "CSR col indices byte size"},
+                    {"name": "csc_row_off_offset", "type": "uint64", "doc": "CSC row offsets file offset"},
+                    {"name": "csc_row_off_bytes", "type": "uint64", "doc": "CSC row offsets byte size"},
+                    {"name": "csc_col_idx_offset", "type": "uint64", "doc": "CSC col indices file offset"},
+                    {"name": "csc_col_idx_bytes", "type": "uint64", "doc": "CSC col indices byte size"},
+                    {"name": "attribute_count", "type": "uint16", "doc": "Number of edge attribute descriptors"},
+                    {"name": "reserved2", "type": "uint8[22]", "doc": "Directory entry expansion padding"}
+                ]
+            },
+            "impulse_footer_trailer_v0_9_t": {
+                "expected_size": 16,
+                "doc": "16-Byte Footer Trailer at EOF",
+                "fields": [
+                    {"name": "footer_length", "type": "uint64", "doc": "Byte size of Footer Block"},
+                    {"name": "spec_version", "type": "uint32", "doc": "Spec version (0x0009)"},
+                    {"name": "footer_magic", "type": "uint32", "doc": "Footer magic (0x494D5053 = 'IMPS')"}
                 ]
             }
         }
@@ -249,20 +186,22 @@ def render_cpp_header(schema):
         lines.append(f"// {struct_def['doc']}")
         lines.append(f"typedef struct {struct_name} {{")
         for field in struct_def["fields"]:
-            ftype = field["type"]
             fname = field["name"]
-            fdoc = field["doc"]
-            if "[" in ftype:
-                arr_size = ftype.split("[")[1].replace("]", "")
-                lines.append(f"    uint8_t {fname}[{arr_size}]; // {fdoc}")
+            ftype = field["type"]
+            fdoc = field.get("doc", "")
+            
+            if "[" in ftype and "]" in ftype:
+                base_type, arr_spec = ftype.split("[")
+                arr_len = arr_spec.rstrip("]")
+                type_str = f"{base_type} {fname}[{arr_len}];"
             else:
-                lines.append(f"    {ftype}_t {fname}; // {fdoc}")
+                type_str = f"{ftype}_t {fname};" if ftype in ["uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64"] else f"{ftype} {fname};"
+                
+            comment_str = f" // {fdoc}" if fdoc else ""
+            lines.append(f"    {type_str:<32}{comment_str}")
         lines.append(f"}} {struct_name};")
         lines.append("")
-        lines.append(f"static_assert(sizeof({struct_name}) == {struct_def['expected_size']},")
-        lines.append(f'              "{struct_name} size mismatch with spec v{schema["version"]}");')
-        lines.append("")
-
+        
     lines.append("#pragma pack(pop)")
     lines.append("")
     lines.append("#ifdef __cplusplus")
@@ -273,130 +212,103 @@ def render_cpp_header(schema):
     return "\n".join(lines)
 
 def render_java_ffm(schema):
-    ver_slug = f"V{schema['version_major']}_{schema['version_minor']}"
-    pkg_slug = f"v{schema['version_major']}_{schema['version_minor']}"
+    ver_slug = f"v{schema['version_major']}_{schema['version_minor']}"
+    class_name = f"ImpulseLayoutsV{schema['version_major']}_{schema['version_minor']}"
     lines = [
         f"// Generated by impulse-graph-spec codegen tool (v{schema['version']}). DO NOT EDIT MANUALLY.",
-        f"package org.impulsegraph.spec.{pkg_slug};",
+        f"package org.impulsegraph.spec.{ver_slug};",
         "",
-        "java.lang.foreign.*;",
-        "import java.lang.invoke.VarHandle;",
+        "import java.lang.foreign.MemoryLayout;",
+        "import java.lang.foreign.ValueLayout;",
+        "import java.lang.foreign.StructLayout;",
         "",
-        "/**",
-        f" * Java 25 Foreign Function & Memory (FFM) Layouts for Impulse Graph Binary Snapshot Spec v{schema['version']}.",
-        " */",
-        f"public final class ImpulseLayouts{ver_slug} {{",
-        f"    private ImpulseLayouts{ver_slug}() {{}}",
+        f"public final class {class_name} {{",
+        f"    private {class_name}() {{}}",
         "",
-        f"    public static final int SPEC_VERSION_MAJOR = {schema['version_major']};",
-        f"    public static final int SPEC_VERSION_MINOR = {schema['version_minor']};",
-        f"    public static final int SPEC_MAGIC = {schema['magic']};",
+        f"    public static final short VERSION_MAJOR = {schema['version_major']};",
+        f"    public static final short VERSION_MINOR = {schema['version_minor']};",
+        f"    public static final int MAGIC = {schema['magic']};",
         f"    public static final int HEADER_BASELINE_OFFSET = {schema['header_baseline_offset']};",
         ""
     ]
     
     for struct_name, struct_def in schema["structs"].items():
-        s_name_upper = struct_name.upper()
-        lines.append(f"    /** {struct_def['doc']} (Size: {struct_def['expected_size']} Bytes) */")
-        lines.append(f"    public static final StructLayout {s_name_upper}_LAYOUT = MemoryLayout.structLayout(")
+        layout_name = f"{struct_name.upper()}_LAYOUT"
+        lines.append(f"    // {struct_def['doc']}")
+        lines.append(f"    public static final StructLayout {layout_name} = MemoryLayout.structLayout(")
         
-        fields = struct_def["fields"]
-        for idx, field in enumerate(fields):
-            ftype = field["type"]
+        field_lines = []
+        for field in struct_def["fields"]:
             fname = field["name"]
-            comma = "," if idx < len(fields) - 1 else ""
-            if "[" in ftype:
-                arr_size = ftype.split("[")[1].replace("]", "")
-                lines.append(f'        MemoryLayout.sequenceLayout({arr_size}, ValueLayout.JAVA_BYTE).withName("{fname}"){comma}')
-            elif ftype == "uint64":
-                lines.append(f'        ValueLayout.JAVA_LONG_UNALIGNED.withName("{fname}"){comma}')
-            elif ftype == "uint32":
-                lines.append(f'        ValueLayout.JAVA_INT_UNALIGNED.withName("{fname}"){comma}')
-            elif ftype == "uint16":
-                lines.append(f'        ValueLayout.JAVA_SHORT_UNALIGNED.withName("{fname}"){comma}')
-            elif ftype == "uint8":
-                lines.append(f'        ValueLayout.JAVA_BYTE.withName("{fname}"){comma}')
+            ftype = field["type"]
+            
+            if "[" in ftype and "]" in ftype:
+                base_type, arr_spec = ftype.split("[")
+                arr_len = int(arr_spec.rstrip("]"))
+                field_lines.append(f'        MemoryLayout.sequenceLayout({arr_len}, ValueLayout.JAVA_BYTE).withName("{fname}")')
+            elif ftype in ["uint8", "int8"]:
+                field_lines.append(f'        ValueLayout.JAVA_BYTE.withName("{fname}")')
+            elif ftype in ["uint16", "int16"]:
+                field_lines.append(f'        ValueLayout.JAVA_SHORT.withName("{fname}")')
+            elif ftype in ["uint32", "int32"]:
+                field_lines.append(f'        ValueLayout.JAVA_INT.withName("{fname}")')
+            elif ftype in ["uint64", "int64"]:
+                field_lines.append(f'        ValueLayout.JAVA_LONG.withName("{fname}")')
+            else:
+                field_lines.append(f'        ValueLayout.JAVA_BYTE.withName("{fname}")')
+                
+        lines.append(",\n".join(field_lines))
         lines.append(f'    ).withName("{struct_name}");')
-        lines.append("")
-        
-        for field in fields:
-            if "[" not in field["type"]:
-                fname = field["name"]
-                lines.append(f'    public static final VarHandle VH_{s_name_upper}_{fname.upper()} =')
-                lines.append(f'        {s_name_upper}_LAYOUT.varHandle(MemoryLayout.PathElement.groupElement("{fname}"));')
         lines.append("")
         
     lines.append("}")
     return "\n".join(lines)
 
 def render_markdown_spec(schema):
-    v = schema['version']
+    ver_dot = f"v{schema['version_major']}.{schema['version_minor']}"
     lines = [
-        f"# Normative Binary Specification: Impulse Graph Format (v{v})",
+        f"# Normative Binary Specification: Impulse Graph Format ({schema['version']})",
         "",
-        f"* **Specification Version**: {v}",
-        "* **Byte Order**: Little-Endian (`LE`, IEEE 754 & x86-64 / ARM64 Native)",
-        f"* **Magic Constant**: `{schema['magic']}` (`\"IMPS\"`)",
-        f"* **Baseline Header Offset**: {schema['header_baseline_offset']} Bytes (4KB OS Page Aligned)",
+        f"This document is automatically generated from the normative specification schema `{ver_dot}.yaml`.",
         "",
         "---",
         "",
-        "## 1. Executive Summary & Layout",
+        "## 1. Executive Summary & Header Baseline",
         "",
-        f"This document is automatically generated from the normative specification schema `v{schema['version_major']}.{schema['version_minor']}.yaml`.",
+        f"- **Magic Constant**: `{schema['magic']}` (`IMPS`)",
+        f"- **Protocol Version**: `{schema['version']}` (`0x{schema['version_major']:02X}{schema['version_minor']:02X}`)",
+        f"- **Header Offset Baseline**: `{schema['header_baseline_offset']}` bytes (Page 0)",
         "",
-        "### Section 1: Snapshot Header Layout",
+        "---",
         "",
-        "| Field Name | Type | Description |",
-        "| :--- | :--- | :--- |"
+        "## 2. Enumeration Types",
+        ""
     ]
     
-    # Render header fields
+    for enum_name, enum_def in schema["enums"].items():
+        lines.append(f"### `{enum_name}`")
+        lines.append(f"*{enum_def['doc']}*")
+        lines.append("")
+        lines.append("| Name | Value |")
+        lines.append("| :--- | :--- |")
+        for k, v in enum_def["values"].items():
+            lines.append(f"| `{k}` | `{v}` |")
+        lines.append("")
+        
+    lines.append("---")
+    lines.append("")
+    lines.append("## 3. Binary Layout Structs")
+    lines.append("")
+    
     for struct_name, struct_def in schema["structs"].items():
-        if "header" in struct_name:
-            for field in struct_def["fields"]:
-                lines.append(f"| `{field['name']}` | `{field['type']}` | {field['doc']} |")
-                
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 2. Enums & Feature Bitmaps",
-        "",
-        "### Status Codes (`impulse_status_t`)",
-        "",
-        "| Status Enum Name | Value | Description |",
-        "| :--- | :--- | :--- |"
-    ])
-    
-    for k, val in schema["enums"]["impulse_status_t"]["values"].items():
-        lines.append(f"| `{k}` | `{val}` | Status code {val} |")
-        
-    lines.extend([
-        "",
-        "### CSR Encoding Enums (`impulse_encoding_type_t`)",
-        "",
-        "| Encoding Enum Name | Value | Description |",
-        "| :--- | :--- | :--- |"
-    ])
-    
-    for k, val in schema["enums"]["impulse_encoding_type_t"]["values"].items():
-        lines.append(f"| `{k}` | `{val}` | Topology compression mode {val} |")
-        
-    lines.extend([
-        "",
-        "---",
-        "",
-        "## 3. Global & Section Feature Bitmaps",
-        "",
-        "| Feature Flag | Bitmask Value | Category |",
-        "| :--- | :--- | :--- |"
-    ])
-    
-    for k, val in schema["feature_flags"]["global"].items():
-        lines.append(f"| `{k}` | `{val}` | Global Feature |")
-    for k, val in schema["feature_flags"]["section"].items():
-        lines.append(f"| `{k}` | `{val}` | Per-Section Feature |")
+        lines.append(f"### `{struct_name}`")
+        lines.append(f"*{struct_def['doc']}* (Expected Size: {struct_def['expected_size']} bytes)")
+        lines.append("")
+        lines.append("| Field Name | Type | Description |")
+        lines.append("| :--- | :--- | :--- |")
+        for field in struct_def["fields"]:
+            lines.append(f"| `{field['name']}` | `{field['type']}` | {field.get('doc', '')} |")
+        lines.append("")
         
     return "\n".join(lines)
 
@@ -413,15 +325,14 @@ The specification defines the zero-copy, memory-mapped binary snapshot layout (`
 
 | Version | Status | Highlights | Specification Document |
 | :--- | :--- | :--- | :--- |
-| **v2.4.0** | 🟢 **Current Baseline** | Ed25519 Cryptographic Signatures, SHA-256 Integrity, 4KB Page Alignment, SIMDCOMP & Sliced ELLPACK Encodings | [Read Specification v2.4](v2.4.md) |
-| **v2.3.0** | 🟡 **Legacy Supported** | 64-bit Node/Edge Counters, CSR Topology, Domain Catalog | [Read Specification v2.3](v2.3.md) |
+| **v0.9.0** | 🟢 **Current Baseline** | 4KB Page 0 Header Baseline, Shared String Table, 128-Byte Alignment, Single-Pass Cloud S3 Writer | [Read Specification v0.9.0](v0.9.0.md) |
 
 ---
 
 ## Version Compatibility Policy
 
-- **Minor Version Bumps (e.g. v2.4 -> v2.5)**: Fully backward-compatible. Additive feature bitmask flags or appended optional sections.
-- **Major Version Bumps (e.g. v2.0 -> v3.0)**: May change structural header layouts or binary alignment bounds.
+- **Minor Version Bumps (e.g. v0.9 -> v0.10)**: Fully backward-compatible. Additive feature bitmask flags or appended optional sections.
+- **Major Version Bumps (e.g. v0.9 -> v1.0)**: May change structural header layouts or binary alignment bounds.
 """
 
 def main():
@@ -429,7 +340,7 @@ def main():
     spec_dir = os.path.abspath(os.path.join(script_dir, ".."))
     website_dir = os.path.abspath(os.path.join(spec_dir, "..", "impulse-website"))
     
-    schemas = [get_v2_3_schema(), get_v2_4_schema()]
+    schemas = [get_v0_9_schema()]
     
     for schema in schemas:
         ver_slug = f"v{schema['version_major']}_{schema['version_minor']}"

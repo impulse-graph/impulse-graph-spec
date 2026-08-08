@@ -1,5 +1,5 @@
 {
-  "name": "tc16_4kb_page_aligned_v2_4",
+  "name": "tc16_4kb_page_aligned",
   "description": "Strict 4KB OS page aligned header baseline",
   "spec_version": "2.4.0",
   "domain_count": 1,
