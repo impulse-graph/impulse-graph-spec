@@ -124,8 +124,23 @@ def get_v0_9_schema():
                     {"name": "csc_row_off_bytes", "type": "uint64", "doc": "CSC row offsets byte size"},
                     {"name": "csc_col_idx_offset", "type": "uint64", "doc": "CSC col indices file offset"},
                     {"name": "csc_col_idx_bytes", "type": "uint64", "doc": "CSC col indices byte size"},
-                    {"name": "attribute_count", "type": "uint16", "doc": "Number of edge attribute descriptors"},
+                    {"name": "attr_count", "type": "uint16", "doc": "Number of edge attribute descriptors"},
                     {"name": "reserved2", "type": "uint8[22]", "doc": "Directory entry expansion padding"}
+                ]
+            },
+            "impulse_attribute_descriptor_v0_9_t": {
+                "expected_size": 44,
+                "doc": "Section 2 Edge Attribute Descriptor Entry (44 Bytes)",
+                "fields": [
+                    {"name": "name_offset", "type": "uint32", "doc": "Offset into Shared String Table"},
+                    {"name": "type_code", "type": "uint8", "doc": "Attribute primitive type enum"},
+                    {"name": "reserved1", "type": "uint8", "doc": "Alignment padding"},
+                    {"name": "reserved2", "type": "uint16", "doc": "Alignment padding"},
+                    {"name": "dimension", "type": "uint32", "doc": "Vector dimension (1 for scalar)"},
+                    {"name": "data_offset", "type": "uint64", "doc": "Absolute file offset to attribute payload"},
+                    {"name": "data_bytes", "type": "uint64", "doc": "Byte size of attribute payload"},
+                    {"name": "offsets_offset", "type": "uint64", "doc": "Absolute file offset to var-string offsets array"},
+                    {"name": "offsets_bytes", "type": "uint64", "doc": "Byte size of var-string offsets array"}
                 ]
             },
             "impulse_footer_trailer_v0_9_t": {
@@ -159,6 +174,12 @@ def render_cpp_header(schema):
         f"#define IMPULSE_SPEC_VERSION_MINOR_{ver_slug.upper()} {schema['version_minor']}",
         f"#define IMPULSE_SPEC_MAGIC_{ver_slug.upper()} {schema['magic']}",
         f"#define IMPULSE_SPEC_HEADER_BASELINE_OFFSET_{ver_slug.upper()} {schema['header_baseline_offset']}",
+        "",
+        f"#ifndef IMPULSE_SPEC_VERSION_PACKED",
+        f"#define IMPULSE_SPEC_VERSION_PACKED 9",
+        f"#define IMPULSE_SPEC_VERSION_MAJOR 0",
+        f"#define IMPULSE_SPEC_VERSION_MINOR 9",
+        f"#endif",
         ""
     ]
     
@@ -170,13 +191,14 @@ def render_cpp_header(schema):
     lines.append("")
     
     for enum_name, enum_def in schema["enums"].items():
+        enum_v_name = f"{enum_name}_v0_9"
         lines.append(f"// {enum_def['doc']}")
-        lines.append(f"typedef enum {enum_name} {{")
+        lines.append(f"typedef enum {enum_v_name} {{")
         items = list(enum_def["values"].items())
         for idx, (k, v) in enumerate(items):
             comma = "," if idx < len(items) - 1 else ""
-            lines.append(f"    {k} = {v}{comma}")
-        lines.append(f"}} {enum_name};")
+            lines.append(f"    {k}_V0_9 = {v}{comma}")
+        lines.append(f"}} {enum_v_name}_t;")
         lines.append("")
         
     lines.append("#pragma pack(push, 1)")
@@ -193,7 +215,7 @@ def render_cpp_header(schema):
             if "[" in ftype and "]" in ftype:
                 base_type, arr_spec = ftype.split("[")
                 arr_len = arr_spec.rstrip("]")
-                type_str = f"{base_type} {fname}[{arr_len}];"
+                type_str = f"{base_type}_t {fname}[{arr_len}];" if base_type in ["uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64"] else f"{base_type} {fname}[{arr_len}];"
             else:
                 type_str = f"{ftype}_t {fname};" if ftype in ["uint8", "uint16", "uint32", "uint64", "int8", "int16", "int32", "int64"] else f"{ftype} {fname};"
                 

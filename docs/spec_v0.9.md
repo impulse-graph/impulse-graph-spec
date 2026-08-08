@@ -120,8 +120,23 @@ This document is automatically generated from the normative specification schema
 | `csc_row_off_bytes` | `uint64` | CSC row offsets byte size |
 | `csc_col_idx_offset` | `uint64` | CSC col indices file offset |
 | `csc_col_idx_bytes` | `uint64` | CSC col indices byte size |
-| `attribute_count` | `uint16` | Number of edge attribute descriptors |
+| `attr_count` | `uint16` | Number of edge attribute descriptors |
 | `reserved2` | `uint8[22]` | Directory entry expansion padding |
+
+### `impulse_attribute_descriptor_v0_9_t`
+*Section 2 Edge Attribute Descriptor Entry (44 Bytes)* (Expected Size: 44 bytes)
+
+| Field Name | Type | Description |
+| :--- | :--- | :--- |
+| `name_offset` | `uint32` | Offset into Shared String Table |
+| `type_code` | `uint8` | Attribute primitive type enum |
+| `reserved1` | `uint8` | Alignment padding |
+| `reserved2` | `uint16` | Alignment padding |
+| `dimension` | `uint32` | Vector dimension (1 for scalar) |
+| `data_offset` | `uint64` | Absolute file offset to attribute payload |
+| `data_bytes` | `uint64` | Byte size of attribute payload |
+| `offsets_offset` | `uint64` | Absolute file offset to var-string offsets array |
+| `offsets_bytes` | `uint64` | Byte size of var-string offsets array |
 
 ### `impulse_footer_trailer_v0_9_t`
 *16-Byte Footer Trailer at EOF* (Expected Size: 16 bytes)

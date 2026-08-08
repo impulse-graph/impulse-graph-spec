@@ -189,12 +189,45 @@ structs:
       - name: csc_col_idx_bytes
         type: uint64
         doc: "CSC col indices byte size"
-      - name: attribute_count
+      - name: attr_count
         type: uint16
         doc: "Number of edge attribute descriptors"
       - name: reserved2
         type: "uint8[22]"
         doc: "Directory entry expansion padding"
+
+  impulse_attribute_descriptor_v0_9_t:
+    packed: true
+    expected_size: 44
+    doc: "Section 2 Edge Attribute Descriptor Entry (44 Bytes)"
+    fields:
+      - name: name_offset
+        type: uint32
+        doc: "Offset into Shared String Table"
+      - name: type_code
+        type: uint8
+        doc: "Attribute primitive type enum"
+      - name: reserved1
+        type: uint8
+        doc: "Alignment padding"
+      - name: reserved2
+        type: uint16
+        doc: "Alignment padding"
+      - name: dimension
+        type: uint32
+        doc: "Vector dimension (1 for scalar)"
+      - name: data_offset
+        type: uint64
+        doc: "Absolute file offset to attribute payload"
+      - name: data_bytes
+        type: uint64
+        doc: "Byte size of attribute payload"
+      - name: offsets_offset
+        type: uint64
+        doc: "Absolute file offset to var-string offsets array"
+      - name: offsets_bytes
+        type: uint64
+        doc: "Byte size of var-string offsets array"
 
   impulse_footer_trailer_v0_9_t:
     packed: true
