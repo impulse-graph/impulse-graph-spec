@@ -14,8 +14,27 @@ jobs:
     name: Validate Spec & Enforce 100% Opcode Coverage
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout impulse-graph-core
         uses: actions/checkout@v4
+        with:
+          repository: impulse-graph/impulse-graph-core
+          path: impulse-graph-core
+          ref: main
+
+      - name: Checkout impulse-graph-spec
+        uses: actions/checkout@v4
+        with:
+          path: impulse-graph-spec
+
+      - name: Setup CMake & Ninja
+        uses: ninja-build/setup-ninja@v5
+
+      - name: Build Core C-ABI Shared Library
+        run: |
+          cmake -B impulse-graph-core/impulse-cpp/build -S impulse-graph-core/impulse-cpp \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DBUILD_SHARED_LIBS=ON
+          cmake --build impulse-graph-core/impulse-cpp/build --config Release
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -27,10 +46,12 @@ jobs:
           pip install pyyaml pytest
 
       - name: Run Opcode Assembly Test Harness Suite
+        working-directory: impulse-graph-spec
         run: |
           python tools/run_vm_asm_suite.py
 
       - name: Verify Specification Syntax
+        working-directory: impulse-graph-spec
         run: |
           if [ -f spec/v2.4.yaml ]; then
             python -c "import yaml; yaml.safe_load(open('spec/v2.4.yaml'))"
