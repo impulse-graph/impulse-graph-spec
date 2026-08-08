@@ -1,0 +1,9 @@
+; ====================================================================
+; TC45: Missing CSC Transpose Topology Array Trap (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_NULL_SNAPSHOT}
+
+.text
+0x00: OP_INIT_INPUT_NODE       R0, 10
+0x01: OP_CSC_WALK             R1, R0, 0, 0              ; Relation 0 lacks CSC transpose arrays
+0x02: OP_HALT
