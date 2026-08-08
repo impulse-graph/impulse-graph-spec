@@ -1,0 +1,12 @@
+; ====================================================================
+; TC37: Ahead-of-Time Bytecode Type & Register Validation (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 42}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+
+.text
+0x00: OP_LOAD_CONST_INT       R0, 42
+0x01: OP_MOV                  R1, R0
+0x02: OP_ASSERT               R1, 42
+0x03: OP_HALT

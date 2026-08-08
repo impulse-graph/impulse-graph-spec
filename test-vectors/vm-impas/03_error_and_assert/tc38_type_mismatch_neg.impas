@@ -1,0 +1,8 @@
+; ====================================================================
+; TC38: Invalid Register Index Out-of-Bounds Trapping (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_INT       R64, 999                  ; Register R64 exceeds maximum R63 ceiling
+0x01: OP_HALT
