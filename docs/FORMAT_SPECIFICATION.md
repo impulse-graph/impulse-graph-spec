@@ -230,6 +230,25 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 
 ---
 
+### 4.4 Optional Snapshot Topology & Topology Inspection Opcodes (`0x19` .. `0x1C`)
+
+In accordance with the Impulse Graph Engine physical snapshot format specification, **all structural topology representations (CSR, CSC, COO) and Key Catalogs are fully optional**:
+* **CSR (Forward Out-Edges $u \to v$)**: Optional. Opcodes `OP_CSR_*` fail-fast with `IMPULSE_VM_ERR_NULL_SNAPSHOT` if absent.
+* **CSC (Reverse In-Edges $v \leftarrow u$)**: Optional. Opcodes `OP_CSC_*` fail-fast with `IMPULSE_VM_ERR_NULL_SNAPSHOT` if absent.
+* **COO (Coordinate Edge List $[E, 2]$)**: Optional. Opcodes `OP_COO_*` fail-fast with `IMPULSE_VM_ERR_NULL_SNAPSHOT` if absent.
+* **Key Catalogs (Dense Node ID $\leftrightarrow$ String Key / UUID)**: Optional. Opcodes `OP_MAP_KEYS_TO_DENSE` fail-fast if absent.
+
+To enable dynamic adaptive query execution without runtime exception traps, `ImpulseVM` provides 4 dedicated **Topology Inspection Opcodes**:
+
+| Opcode ID | Instruction Signature | Description | Result & Flags |
+| :--- | :--- | :--- | :--- |
+| **`0x19`** | **`OP_HAS_CSR R_DST, REL_ID`** | Inspects if relation `REL_ID` has CSR forward offsets installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
+| **`0x1A`** | **`OP_HAS_CSC R_DST, REL_ID`** | Inspects if relation `REL_ID` has CSC reverse offsets installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
+| **`0x1B`** | **`OP_HAS_COO R_DST, REL_ID`** | Inspects if relation `REL_ID` has COO edge list installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
+| **`0x1C`** | **`OP_HAS_KEY_CATALOG R_DST, DOMAIN_ID`** | Inspects if domain `DOMAIN_ID` has String/UUID key catalog installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
+
+---
+
 ### 4.3 Detailed Physical Storage Rules for Attributes
 
 Attribute storage layout depends on whether the attribute is fixed-width (scalar / vector) or variable-length.

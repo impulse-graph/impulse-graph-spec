@@ -1,0 +1,27 @@
+; ====================================================================
+; TC46: Dynamic Topology & Catalog Inspection Opcodes (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 1}
+; {EXPECT: R1 = 1}
+; {EXPECT: R2 = 1}
+; {EXPECT: R3 = 0}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+
+.data
+.csr_inline GRAPH_0 = {
+    0: [1, 2],
+    1: [2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH      R0, GRAPH_0
+0x01: OP_HAS_CSR              R0, 0                     ; Inspect CSR presence for rel_0 -> R0 = 1
+0x02: OP_HAS_CSC              R1, 0                     ; Inspect CSC presence for rel_0 -> R1 = 1
+0x03: OP_HAS_COO              R2, 0                     ; Inspect COO presence for rel_0 -> R2 = 1
+0x04: OP_HAS_KEY_CATALOG      R3, 0                     ; Inspect Key Catalog presence for domain 0 -> R3 = 0
+0x05: OP_ASSERT               R0, 1
+0x06: OP_ASSERT               R1, 1
+0x07: OP_ASSERT               R2, 1
+0x08: OP_ASSERT               R3, 0
+0x09: OP_HALT

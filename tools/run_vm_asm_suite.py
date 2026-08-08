@@ -43,6 +43,10 @@ OPCODES = {
     "OP_CSR_WALK_REDUCE_SUM": 0x16,
     "OP_CSR_WALK_REDUCE": 0x17,
     "OP_CSC_WALK": 0x18,
+    "OP_HAS_CSR": 0x19,
+    "OP_HAS_CSC": 0x1A,
+    "OP_HAS_COO": 0x1B,
+    "OP_HAS_KEY_CATALOG": 0x1C,
 
     "OP_SET_UNION": 0x30,
     "OP_SET_INTERSECT": 0x31,
