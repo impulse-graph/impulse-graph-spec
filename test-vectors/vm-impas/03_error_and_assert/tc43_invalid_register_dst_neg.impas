@@ -1,0 +1,8 @@
+; ====================================================================
+; TC43: Out-of-Bounds Destination Register Validation Trap (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_INT       R128, 999                 ; Destination register R128 exceeds max R63 ceiling
+0x01: OP_HALT

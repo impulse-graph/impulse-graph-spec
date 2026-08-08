@@ -1,0 +1,13 @@
+; ====================================================================
+; TC42: Multi-File Threshold Suite for Bytecode Type Validation (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 55}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_LOAD_CONST_INT       R0, 55
+0x01: OP_MOV                  R1, R0
+0x02: OP_ASSERT               R1, 55
+0x03: OP_HALT

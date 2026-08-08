@@ -1,0 +1,9 @@
+; ====================================================================
+; TC41: Out-of-Bounds Source Register Validation Trap (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_INT       R0, 10
+0x01: OP_MOV                  R1, R65                   ; Source register R65 exceeds max R63 ceiling
+0x02: OP_HALT

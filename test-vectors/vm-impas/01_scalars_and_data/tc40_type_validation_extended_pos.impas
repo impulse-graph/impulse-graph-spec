@@ -1,0 +1,16 @@
+; ====================================================================
+; TC40: Type Validation with Register Clearing & Reuse (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 0}
+; {EXPECT: R1 = 77}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_LOAD_CONST_INT       R0, 100
+0x01: OP_CLEAR_REG            R0
+0x02: OP_LOAD_CONST_INT       R1, 77
+0x03: OP_MOV                  R2, R1
+0x04: OP_ASSERT               R2, 77
+0x05: OP_HALT

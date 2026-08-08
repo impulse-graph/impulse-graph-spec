@@ -1,0 +1,17 @@
+; ====================================================================
+; TC39: Static Type Propagation Across Primitive Registers (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 10}
+; {EXPECT: R1 = 20}
+; {EXPECT: CALL_STACK_DEPTH = 0}
+; {EXPECT: FLAG = !ZF}
+
+.text
+0x00: OP_LOAD_CONST_INT       R0, 10
+0x01: OP_LOAD_CONST_INT       R1, 20
+0x02: OP_MOV                  R2, R0
+0x03: OP_MOV                  R3, R1
+0x04: OP_ASSERT               R2, 10
+0x05: OP_ASSERT               R3, 20
+0x06: OP_HALT
