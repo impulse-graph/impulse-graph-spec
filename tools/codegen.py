@@ -250,6 +250,8 @@ def render_java_ffm(schema):
         f"    public static final short VERSION_MAJOR = {schema['version_major']};",
         f"    public static final short VERSION_MINOR = {schema['version_minor']};",
         f"    public static final int MAGIC = {schema['magic']};",
+        f"    public static final int SPEC_MAGIC = {schema['magic']};",
+        f"    public static final short SPEC_VERSION_PACKED = 9;",
         f"    public static final int HEADER_BASELINE_OFFSET = {schema['header_baseline_offset']};",
         ""
     ]
