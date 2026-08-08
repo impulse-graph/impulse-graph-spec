@@ -1,0 +1,37 @@
+name: Impulse Graph Specification & Opcode Coverage CI
+
+on:
+  push:
+    branches: [ main, dev ]
+  pull_request:
+    branches: [ main ]
+
+permissions:
+  contents: read
+
+jobs:
+  validate-spec-and-vectors:
+    name: Validate Spec & Enforce 100% Opcode Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Python Dependencies
+        run: |
+          pip install pyyaml pytest
+
+      - name: Run Opcode Assembly Test Harness Suite
+        run: |
+          python tools/run_vm_asm_suite.py
+
+      - name: Verify Specification Syntax
+        run: |
+          if [ -f spec/v2.4.yaml ]; then
+            python -c "import yaml; yaml.safe_load(open('spec/v2.4.yaml'))"
+          fi
