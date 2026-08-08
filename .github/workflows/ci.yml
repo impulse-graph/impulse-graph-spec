@@ -13,12 +13,16 @@ jobs:
   validate-spec-and-vectors:
     name: Validate Spec & Enforce 100% Opcode Coverage
     runs-on: ubuntu-latest
+    env:
+      HAS_PAT: ${{ secrets.ORGANIZATION_PAT }}
+
     steps:
       - name: Checkout impulse-graph-spec
         uses: actions/checkout@v4
 
       - name: Checkout impulse-graph-core (if PAT available)
         continue-on-error: true
+        if: env.HAS_PAT != ''
         uses: actions/checkout@v4
         with:
           repository: impulse-graph/impulse-graph-core
