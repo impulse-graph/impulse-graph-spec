@@ -175,8 +175,10 @@ All Walk-based traversal instructions (`OP_CSR_WALK`, `OP_CSR_WALK_FILTERED`, `O
   - **Behavior**: Filter nodes using a string prefix matching condition.
 - **`OP_CSR_WALK_REDUCE_SUM`** (`0x16`)
   - **Behavior**: Walk CSR and calculate reduction sum.
+  - **Note**: This opcode is specialized strictly for summation reductions. By hardcoding the float addition (`+=`) and optional multiply-by-weight logic directly in the inner loop body without conditional branching, it enables aggressive compiler auto-vectorization (e.g., Fused Multiply-Add SIMD instructions) and delivers maximum execution performance.
 - **`OP_CSR_WALK_REDUCE`** (`0x17`)
   - **Behavior**: Walk CSR and evaluate reduction logic.
+  - **Note**: This opcode is a generalized reduction operation that dynamically evaluates the operator (e.g., `0` = Minimum, `1` = Maximum) specified by `reduce_op` (`(payload >> 8) & 0xFF`) via conditional branch evaluations inside the traversal loops. The branch checking overhead prevents auto-vectorization, resulting in lower execution throughput compared to the specialized `0x16` opcode.
 - **`OP_CSC_WALK`** (`0x18`)
   - **Behavior**: Traverse relationship edges backwards using Compressed Sparse Column topology.
   - **Type Requirements**: Source nodes register **MUST** be `TYPE_BITSET_HANDLE` or `TYPE_NODE_ID`.
