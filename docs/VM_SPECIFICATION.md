@@ -327,3 +327,34 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Behavior**: Materialize map keys/values into FFI structs.
 - **`OP_HALT`** (`0xFF`)
   - **Behavior**: Stop virtual machine execution. Return execution status `IMPULSE_VM_OK`.
+
+---
+
+## 6. Concurrency & Execution Design Factors
+
+Any implementation of the ImpulseVM query interpreter **MUST** conform to the following performance, alignment, and multi-threading invariants:
+
+### 6.1 Context Thread-Locality & Concurrency Behavior
+- **Context Isolation**: The VM query execution context (`impulse_vm_context_t`) **MUST** be thread-local and thread-private. Multiple system threads executing concurrent queries **SHALL NOT** share context instances, registers, stacks, or state frames.
+- **Lock-Free Read Path**: Since Snapshots are read-only, all execution paths over memory-mapped snapshot structures **MUST** run lock-free without acquiring mutexes or synchronization barriers.
+
+### 6.2 Intra-Opcode Parallelism (Only)
+- **Parallel Dispatch Boundaries**: The VM interpreter **MUST NOT** execute multi-threaded pipeline execution across separate instructions (i.e., no instruction-level parallelism / ILP or multi-threaded instruction scheduling).
+- **Intra-Instruction Parallelization**: Parallelization **MUST** be strictly confined to the loop internals of single heavy traversal or matrix opcodes (e.g., `OP_CSR_WALK`, `OP_CSC_WALK`, `OP_MXV`). Loop chunks **MAY** be dispatched to multiple worker threads (e.g., via OpenMP `#pragma omp parallel for`) when the frontier or workload exceeds a compiler-defined size threshold.
+
+### 6.3 Concurrency Control (`max_dop`)
+- **Parallelism Setting**: The VM context **MUST** allow configuring a maximum degree of parallelism (`max_dop`). 
+- **Sequential Safety Check**: If `max_dop` is configured to `1` (single-threaded mode), the interpreter **MUST** execute standard, sequential loop bodies without using atomic instructions (e.g., `bitset_add` instead of `bitset_add_atomic`) to bypass CPU-level hardware synchronization overhead.
+- **OP_SET_MAX_DOP Execution**: The instruction `OP_SET_MAX_DOP` (`0x75`) **SHALL** dynamically update the context's thread worker count for subsequent instruction iterations.
+
+### 6.4 Register Frame Windowing
+- **Recursive Integrity**: Subroutines (`OP_CALL`, `OP_RET`) **MUST** protect register contexts. Subroutine recursion (e.g., evaluating nested ReBAC transitivities or recursive traversals) **MUST** implement register frame windowing or context state stacking to prevent sibling subroutines from overwriting the registers of caller frames.
+
+### 6.5 Allocation-Free Hot Path
+- **Zero Heap Allocations**: The interpreter's main opcode dispatch loop (the instruction processing path) **MUST NOT** allocate or free heap memory (e.g., no `malloc`/`free` or C++ `new`/`delete` calls).
+- **Arena-Based Resource Pooling**: All intermediate structures, BitSets, vectors, and value maps **MUST** be pre-allocated and pooled. Opcodes needing temporary objects **MUST** acquire and release handles through the context's arenas (e.g., calling `acquire_bitset` / `release_bitset`).
+
+### 6.6 Caller-Assigned Result Buffers
+- **FFM Zero-Copy Collection**: Output materialization opcodes (`OP_COLLECT_BITSET`, `OP_COLLECT_ARRAY`, `OP_COLLECT_VALUE_MAP`) **MUST NOT** allocate memory buffers to return results to the client.
+- **In-Place Writes**: The caller **MUST** pre-allocate and pass the target memory destination buffers (such as Java FFM off-heap `MemorySegment` pointers or C array pointers) to the VM. The interpreter **MUST** write elements directly into these caller-assigned buffers in-place.
+
