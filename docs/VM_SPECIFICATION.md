@@ -125,30 +125,52 @@ The VM **MUST** execute bytecode instructions matching the opcode values and rul
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_INT64`.
 - **`OP_MAP_KEYS_TO_DENSE`** (`0x04`)
   - **Behavior**: Maps external keys to continuous internal node indices.
+  - **Usage**: Expects `input_param` (via FFI query parameter) containing a pointer to a struct `impulse_vm_input_keys` with external string or integer keys. It matches these keys against the primary key attribute array of the domain specified by `domain_id` (retrieved from `payload & 0xFFFF`). Matches are populated into a BitSet. To check if a key catalog mapping exists for the domain prior to mapping, the VM **SHOULD** first execute `OP_HAS_KEY_CATALOG` (`0x1C`).
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`. Sets `flags[ZF]` if the resulting BitSet is empty.
 - **`OP_LOAD_CONST_FLOAT`** (`0x05`)
   - **Behavior**: Load a 32-bit single-precision float into `dst_reg`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_FLOAT`.
+  - **Note**: The instruction payload is constrained to 32 bits. To load 64-bit float constants (doubles), the constants **MUST** be loaded indirectly from attribute arrays, vector slices, or local scratch memory using `OP_LOAD_INDIRECT`, or loaded from inline float64 tables.
 - **`OP_LOAD_CONST_STR_PREFIX`** (`0x06`)
-  - **Behavior**: Load a string prefix reference index into `dst_reg`.
+  - **Behavior**: Load a string prefix reference index from the instruction payload into `dst_reg`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_INT64`.
+  - **Note**: Since prefix string constants are stored in the Shared String Table, the register stores a 64-bit integer index/offset pointing to the string pool, not a string array handle.
 - **`OP_LOAD_INLINE_ARRAY`** (`0x07`)
-  - **Behavior**: Load address of embedded array in bytecode stream.
+  - **Behavior**: Load floats from the inline metadata data binding into a vector register.
+  - **Usage**: Expects a bound inline metadata buffer on the thread-local query context. It reads `count` (upper 16 bits of payload) float values starting at `offset_bytes` (lower 16 bits of payload) and copies them into a newly acquired float vector register.
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_FLOAT_VECTOR`.
 - **`OP_INIT_MOCK_GRAPH`** (`0x08`)
-  - **Behavior**: Load a mock snapshot struct reference into `dst_reg`.
+  - **Behavior**: Configures a mock relation slot in the VM context using inline bytecode data.
+  - **Usage**: Sets up relation slot `slot_id` (specified by `dst_reg`) using raw row offsets and column targets from the inline data binding at byte offset `off_bytes` (lower 16 bits of payload) with node count `node_count` (upper 16 bits of payload).
+  - **Note**: The "mock graph" refers to a virtual, inline adjacency matrix defined directly in the thread context's inline bytecode data stream (rather than loaded from a physical `.imps` snapshot file). This is used primarily for isolated assembly unit testing of traversal opcodes.
+  - **Outcome**: Bypasses the need to mmap a physical `.imps` snapshot file. Does not modify register values.
 
 ### 5.2 Traversal and Filter Instructions
+
+All Walk-based traversal instructions (`OP_CSR_WALK`, `OP_CSR_WALK_FILTERED`, `OP_CSC_WALK`) follow a common execution behavior:
+- **Frontier Evaluation & Flag Behavior**: If the source nodes frontier is empty (contains no active node IDs), or if the traversal result set is empty, the VM **MUST** set the Zero Flag (`ZF`) to 1 in the `flags` register. Otherwise, `flags[ZF]` **MUST** be cleared (set to 0).
+- **BitSet Materialization**: By default, Walk opcodes allocate a new off-heap BitSet handle in `dst_reg`. If the `ACCUMULATE` modifier flag is set on the instruction, the result set is unioned directly into the existing BitSet in `dst_reg` without deallocation.
+- **Valid Filters and Reductions**:
+  - **Filters**: Filter-based opcodes (`OP_NODE_FILTER`, `OP_NODE_FILTER_STR_PREFIX`, `OP_CSR_WALK_FILTERED`) check scalar values or prefix matching against attributes loaded from the snapshot's Structure-of-Arrays (SoA) attribute pools. These are mapped into the query context's `attribute_slots[rel_id][attr_id]` during initialization.
+  - **Reducers**: Reductions (`OP_CSR_WALK_REDUCE_SUM`, `OP_CSR_WALK_REDUCE`, `OP_REDUCE`) aggregate values over the traversed frontier. Valid reducers are defined by GraphBLAS binary operator IDs (e.g., `BINARY_OP_ADD`, `BINARY_OP_MUL`).
+
 - **`OP_CSR_WALK`** (`0x10`)
-  - **Behavior**: Traverse relationship edges using Compressed Sparse Row topology. Takes source nodes from a register, follows the relation ID, and writes target nodes into `dst_reg`.
-  - **Type Requirements**: Source nodes register **MUST** be `TYPE_BITSET_HANDLE` or `TYPE_NODE_ID`. Relation ID **MUST** be `TYPE_RELATION_ID`.
+  - **Behavior**: Traverse relationship edges using Compressed Sparse Row topology. Takes source nodes from `src` (lower 16 bits of payload), follows the relation `rel` (upper 16 bits of payload), and writes target nodes into `dst_reg`.
+  - **Usage**: If `src` contains a BitSet handle or single Node ID, it retrieves offsets and column targets from relation slot `rel` and performs a union of targets into `dst_reg`. Respects `ACCUMULATE` modifier flag to append targets.
+  - **Type Requirements**: Source nodes register `src` **MUST** be `TYPE_BITSET_HANDLE` or `TYPE_NODE_ID`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_CSR_WALK_FILTERED`** (`0x11`)
   - **Behavior**: Walk CSR applying attribute filter constraints.
+  - **Usage**: Performs a CSR walk over relation `rel` from source `src` while validating a filter condition on edge or target node attributes.
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_CSR_DEGREE`** (`0x12`)
   - **Behavior**: Computes the degree of specified nodes.
 - **`OP_CSR_WALK_PREDICATE`** (`0x13`)
   - **Behavior**: Walk CSR and evaluate boolean predicate.
 - **`OP_NODE_FILTER`** (`0x14`)
   - **Behavior**: Filter node identifiers using an attribute constraint.
+  - **Usage**: Evaluates the condition `attr[u] == registers[val_reg]` for each node `u` in `src`. Attributes are pre-configured in `vm_state->query_context->attribute_slots[rel_id][attr_id]`, which are resolved from target snapshot Structure-of-Arrays (SoA) attribute blocks (with `src` = `payload & 0xFF`, `val_reg` = `(payload >> 8) & 0xFF`, `attr_id` = `(payload >> 16) & 0xFF`, `rel_id` = `(payload >> 24) & 0xFF`).
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_NODE_FILTER_STR_PREFIX`** (`0x15`)
   - **Behavior**: Filter nodes using a string prefix matching condition.
 - **`OP_CSR_WALK_REDUCE_SUM`** (`0x16`)
@@ -169,6 +191,13 @@ The VM **MUST** execute bytecode instructions matching the opcode values and rul
   - **Behavior**: Verify if domain catalog exists. Sets `flags[EQ]` accordingly.
 
 ### 5.3 Set Mathematics and Algebra Instructions
+
+Set math and algebraic instructions are classified based on the number and structure of their operands:
+- **Unary Set Operations**: Operations that accept a single source register (e.g. `OP_SET_CARDINALITY`) and write to `dst_reg`.
+- **Binary Set Operations**: Operations that combine two source registers (e.g. `OP_SET_UNION`, `OP_SET_INTERSECT`, `OP_SET_DIFFERENCE`). For these, the first source register (`src1`) is specified in the lower 16 bits of the payload, and the second source register (`src2`) is specified in the upper 16 bits of the payload. The output is written to `dst_reg` (transitioning it to `TYPE_BITSET_HANDLE`).
+- **Vector-to-Vector (EWise) Operations**: Element-wise vector algebra (e.g. `OP_EWISE_ADD`, `OP_EWISE_MULT`) acting on float, double, or integer arrays.
+- **Vector-to-Scalar Reductions**: Operations (e.g. `OP_VECTOR_REDUCE_SUM`) that accumulate vector elements into a scalar destination register.
+
 - **`OP_SET_UNION`** (`0x30`)
   - **Behavior**: Union bitset arrays from two source registers.
   - **Type Requirements**: Source registers **MUST** be `TYPE_BITSET_HANDLE`.
