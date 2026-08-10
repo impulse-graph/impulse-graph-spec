@@ -112,34 +112,36 @@ The native engine library **MUST** export standard C-linkage FFI methods to inte
 The VM **MUST** execute bytecode instructions matching the opcode values and rules listed below. If an instruction executes with invalid registers, type mismatches, or out-of-bounds parameters, the VM **MUST** halt execution and return the appropriate `impulse_vm_status_t` error.
 
 ### 5.1 Setup and Input Instructions
-- **`OP_NOP`** (`0x00`)
+- **`OP_HALT`** (`0x00`)
+  - **Behavior**: Stop virtual machine execution. Return execution status `IMPULSE_VM_OK`.
+- **`OP_NOP`** (`0x01`)
   - **Behavior**: Increment `pc`. Do nothing.
-- **`OP_INIT_INPUT_NODE`** (`0x01`)
+- **`OP_INIT_INPUT_NODE`** (`0x02`)
   - **Behavior**: Copy the single scalar query parameter Node ID into `dst_reg`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_NODE_ID`.
-- **`OP_INIT_INPUT_SET`** (`0x02`)
+- **`OP_INIT_INPUT_SET`** (`0x03`)
   - **Behavior**: Fetch input parameters, populate a new off-heap BitSet, and store its handle in `dst_reg`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
-- **`OP_LOAD_CONST_INT`** (`0x03`)
+- **`OP_LOAD_CONST_INT`** (`0x04`)
   - **Behavior**: Load a 64-bit integer into `dst_reg`. If the `OFFHEAP` modifier is set, the payload represents a pointer or offset; otherwise, it is loaded directly.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_INT64`.
-- **`OP_MAP_KEYS_TO_DENSE`** (`0x04`)
+- **`OP_MAP_KEYS_TO_DENSE`** (`0x05`)
   - **Behavior**: Maps external keys to continuous internal node indices.
   - **Usage**: Expects `input_param` (via FFI query parameter) containing a pointer to a struct `impulse_vm_input_keys` with external string or integer keys. It matches these keys against the primary key attribute array of the domain specified by `domain_id` (retrieved from `payload & 0xFFFF`). Matches are populated into a BitSet. To check if a key catalog mapping exists for the domain prior to mapping, the VM **SHOULD** first execute `OP_HAS_KEY_CATALOG` (`0x1C`).
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`. Sets `flags[ZF]` if the resulting BitSet is empty.
-- **`OP_LOAD_CONST_FLOAT`** (`0x05`)
+- **`OP_LOAD_CONST_FLOAT`** (`0x06`)
   - **Behavior**: Load a 32-bit single-precision float into `dst_reg`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_FLOAT`.
   - **Note**: The instruction payload is constrained to 32 bits. To load 64-bit float constants (doubles), the constants **MUST** be loaded indirectly from attribute arrays, vector slices, or local scratch memory using `OP_LOAD_INDIRECT`, or loaded from inline float64 tables.
-- **`OP_LOAD_CONST_STR_PREFIX`** (`0x06`)
+- **`OP_LOAD_CONST_STR_PREFIX`** (`0x07`)
   - **Behavior**: Load a string prefix reference index from the instruction payload into `dst_reg`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_INT64`.
   - **Note**: Since prefix string constants are stored in the Shared String Table, the register stores a 64-bit integer index/offset pointing to the string pool, not a string array handle.
-- **`OP_LOAD_INLINE_ARRAY`** (`0x07`)
+- **`OP_LOAD_INLINE_ARRAY`** (`0x08`)
   - **Behavior**: Load floats from the inline metadata data binding into a vector register.
   - **Usage**: Expects a bound inline metadata buffer on the thread-local query context. It reads `count` (upper 16 bits of payload) float values starting at `offset_bytes` (lower 16 bits of payload) and copies them into a newly acquired float vector register.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_FLOAT_VECTOR`.
-- **`OP_INIT_MOCK_GRAPH`** (`0x08`)
+- **`OP_INIT_MOCK_GRAPH`** (`0x09`)
   - **Behavior**: Configures a mock relation slot in the VM context using inline bytecode data.
   - **Usage**: Sets up relation slot `slot_id` (specified by `dst_reg`) using raw row offsets and column targets from the inline data binding at byte offset `off_bytes` (lower 16 bits of payload) with node count `node_count` (upper 16 bits of payload).
   - **Note**: The "mock graph" refers to a virtual, inline adjacency matrix defined directly in the thread context's inline bytecode data stream (rather than loaded from a physical `.imps` snapshot file). This is used primarily for isolated assembly unit testing of traversal opcodes.
@@ -327,8 +329,17 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Behavior**: Resolve dense offsets into user domain key formats.
 - **`OP_COLLECT_VALUE_MAP`** (`0x93`)
   - **Behavior**: Materialize map keys/values into FFI structs.
-- **`OP_HALT`** (`0xFF`)
-  - **Behavior**: Stop virtual machine execution. Return execution status `IMPULSE_VM_OK`.
+
+### 5.9 Reserved Opcodes
+- **`OP_RESERVED_0A`** through **`OP_RESERVED_0F`** (`0x0A`–`0x0F`)
+- **`OP_RESERVED_1D`** through **`OP_RESERVED_2F`** (`0x1D`–`0x2F`)
+- **`OP_RESERVED_3A`** through **`OP_RESERVED_3F`** (`0x3A`–`0x3F`)
+- **`OP_RESERVED_4C`** through **`OP_RESERVED_4F`** (`0x4C`–`0x4F`)
+- **`OP_RESERVED_57`** through **`OP_RESERVED_59`** (`0x57`–`0x59`)
+- **`OP_RESERVED_5D`** through **`OP_RESERVED_5F`** (`0x5D`–`0x5F`)
+- **`OP_RESERVED_6D`** through **`OP_RESERVED_6F`** (`0x6D`–`0x6F`)
+- **`OP_RESERVED_76`** through **`OP_RESERVED_8F`** (`0x76`–`0x8F`)
+  - **Behavior**: Execution of any reserved opcode **MUST** immediately halt virtual machine execution and return the status `IMPULSE_VM_ERR_RESERVED_OPCODE` (`10`).
 
 ---
 

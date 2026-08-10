@@ -24,15 +24,16 @@ BOLD = "\033[1m"
 
 # --- Opcode Mapping Table ---
 OPCODES = {
-    "OP_NOP": 0x00,
-    "OP_INIT_INPUT_NODE": 0x01,
-    "OP_INIT_INPUT_SET": 0x02,
-    "OP_LOAD_CONST_INT": 0x03,
-    "OP_MAP_KEYS_TO_DENSE": 0x04,
-    "OP_LOAD_CONST_FLOAT": 0x05,
-    "OP_LOAD_CONST_STR_PREFIX": 0x06,
-    "OP_LOAD_INLINE_ARRAY": 0x07,
-    "OP_INIT_MOCK_GRAPH": 0x08,
+    "OP_HALT": 0x00,
+    "OP_NOP": 0x01,
+    "OP_INIT_INPUT_NODE": 0x02,
+    "OP_INIT_INPUT_SET": 0x03,
+    "OP_LOAD_CONST_INT": 0x04,
+    "OP_MAP_KEYS_TO_DENSE": 0x05,
+    "OP_LOAD_CONST_FLOAT": 0x06,
+    "OP_LOAD_CONST_STR_PREFIX": 0x07,
+    "OP_LOAD_INLINE_ARRAY": 0x08,
+    "OP_INIT_MOCK_GRAPH": 0x09,
 
     "OP_CSR_WALK": 0x10,
     "OP_CSR_WALK_FILTERED": 0x11,
@@ -94,6 +95,8 @@ OPCODES = {
     "OP_KCORE_DECOMPOSITION": 0x68,
     "OP_MOTIF_MATCH_3": 0x69,
     "OP_GRAPH_ISOMORPHISM": 0x6A,
+    "OP_ROARING_BITMAP_OR": 0x6B,
+    "OP_ROARING_BITMAP_AND_NOT": 0x6C,
 
     "OP_MOV": 0x70,
     "OP_CLEAR_REG": 0x71,
@@ -106,7 +109,6 @@ OPCODES = {
     "OP_COLLECT_ARRAY": 0x91,
     "OP_MAP_DENSE_TO_KEYS": 0x92,
     "OP_COLLECT_VALUE_MAP": 0x93,
-    "OP_HALT": 0xFF,
 }
 
 STATUS_NAMES = {
@@ -120,6 +122,7 @@ STATUS_NAMES = {
     7: "IMPULSE_VM_ERR_USER_THROW",
     8: "IMPULSE_VM_ERR_ASSERTION_FAILED",
     9: "IMPULSE_VM_ERR_TRAP",
+    10: "IMPULSE_VM_ERR_RESERVED_OPCODE",
 }
 
 # --- C-ABI Types ---
@@ -327,6 +330,15 @@ def parse_impas_file(file_path):
                     if sym_name in symbols:
                         off_b, cnt = symbols[sym_name]
                         payload = off_b | (cnt << 16)
+            elif op_name == "OP_CSC_WALK":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+                if len(tokens) == 4:
+                    payload |= (63 << 16)
+                    payload |= ((parse_val(tokens[3]) & 0xFF) << 24)
+                elif len(tokens) > 4:
+                    payload |= ((parse_val(tokens[3]) & 0xFF) << 16)
+                    payload |= ((parse_val(tokens[4]) & 0xFF) << 24)
             elif op_name in ("OP_MXV", "OP_VXM"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
@@ -418,6 +430,7 @@ def main():
                 print_flush(f"{YELLOW}[SKIP]{RESET} {rel_path} (Empty or no executable instructions)")
                 continue
 
+            print_flush(f"[RUN] {rel_path}")
             ctx = lib.impulse_vm_context_create(None)
             c_buf = None
             if data_buf:
@@ -481,6 +494,7 @@ def main():
                 passed_count += 1
             else:
                 print_flush(f"{RED}[FAIL]{RESET} {rel_path}")
+                print_flush(f"       -> Fail location: PC={state.pc}")
                 for reason in failure_reasons:
                     print_flush(f"       -> {RED}{reason}{RESET}")
                 failed_count += 1

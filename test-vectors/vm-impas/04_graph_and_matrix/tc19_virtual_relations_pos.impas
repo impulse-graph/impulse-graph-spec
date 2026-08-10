@@ -21,13 +21,15 @@
 
 .text
 0x00: OP_INIT_MOCK_GRAPH     R0, POSTS_GRAPH
-0x01: OP_INIT_INPUT_NODE     R1, 100                     ; Post Node ID 100
-0x02: OP_CSC_WALK            R2, R1, REL_USER_POSTS_POST  ; Bitset R2 of posters
-0x03: OP_CSC_WALK            R3, R1, REL_USER_LIKES_POST  ; Bitset R3 of likers
-0x04: OP_CSC_WALK            R4, R1, REL_USER_COMMENTS_POST ; Bitset R4 of commenters
-0x05: OP_SET_UNION           R5, R2, R3                  ; R5 = R2 | R3
-0x06: OP_SET_UNION           R6, R5, R4                  ; R6 = R5 | R4 (All connected users)
-0x07: OP_COLLECT_BITSET      R7, R6
-0x08: OP_LOAD_CONST_INT      R0, 200
-0x09: OP_ASSERT              R0, 200
-0x0A: OP_HALT
+0x01: OP_INIT_MOCK_GRAPH     R1, POSTS_GRAPH
+0x02: OP_INIT_MOCK_GRAPH     R2, POSTS_GRAPH
+0x03: OP_INIT_INPUT_NODE     R1, 100                     ; Post Node ID 100
+0x04: OP_CSC_WALK            R2, R1, REL_USER_POSTS_POST  ; Bitset R2 of posters
+0x05: OP_CSC_WALK            R3, R1, REL_USER_LIKES_POST  ; Bitset R3 of likers
+0x06: OP_CSC_WALK            R4, R1, REL_USER_COMMENTS_POST ; Bitset R4 of commenters
+0x07: OP_SET_UNION           R5, R2, R3                  ; R5 = R2 | R3
+0x08: OP_SET_UNION           R6, R5, R4                  ; R6 = R5 | R4 (All connected users)
+0x09: OP_COLLECT_BITSET      R7, R6
+0x0A: OP_LOAD_CONST_INT      R0, 200
+0x0B: OP_ASSERT              R0, 200
+0x0C: OP_HALT
