@@ -1,24 +1,36 @@
-# Impulse Graph C-ABI Binary Snapshot Specification (v0.9.0)
+# Impulse Graph Specifications & Test Vectors (v0.9.0)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
-This repository contains the canonical, normative specification and shared test vectors for the **Impulse Graph Engine C-ABI Binary Snapshot Specification (v0.9.0)**.
+This repository contains the canonical, normative specifications and shared compliance test vectors for the **Impulse Graph Engine** ecosystem. It serves as the single source of truth for all implementations (C++, Java 25, Rust, Python, Go, C#) of both the binary snapshot format and the register-based virtual machine query engine.
+
+---
 
 ## Directory Structure
 
-* `docs/FORMAT_SPECIFICATION.md`: The normative C-ABI Binary Snapshot Specification v0.9.0 layout, header flags, alignment directives, domain key types, CSR topology rules, SoA attribute type system, and compliance rules.
-* `rework-notes.md`: Architectural rework notes, S3 streaming upload design, physical block layout, and type system specs.
-* `test-vectors/`: Shared binary snapshot test vectors for polyglot implementations (C++, Java, Rust, Python, Go, C#).
+- **`docs/`**: Normative specifications (concise, formal specification language):
+  - [`FORMAT_SPECIFICATION.md`](docs/FORMAT_SPECIFICATION.md): The normative C-ABI Binary Snapshot Specification layout, header flags, alignment, domain key types, CSR topology rules, and SoA attribute type system.
+  - [`VM_SPECIFICATION.md`](docs/VM_SPECIFICATION.md): The normative register-based virtual machine specification, registers, type tagging invariants, execution state layouts, status flags, and the `impOps` instruction set directory.
+  - [`SCHEMA_SPECIFICATION.md`](docs/SCHEMA_SPECIFICATION.md): The normative specification for declarative graph schemas (`.imps.schema.yaml`).
+- **`spec/`**: Declarative schema definitions (e.g., [`v0.9.0.yaml`](spec/v0.9.0.yaml)) of the format used for automated C++ and Java FFM class code generation.
+- **`test-vectors/`**: Shared compliance test vectors for cross-language verification:
+  - `tc01_` to `tc36_`: Binary snapshot files (`*.imps`, `*.bin`) covering edge cases, alignments, keys, encodings, and corruptions.
+  - [`vm-impas/`](test-vectors/vm-impas/): Self-contained ImpulseVM assembly unit test scripts (`*.impas`) organized by category (scalars, control flow, errors, graphs, and extended algorithms).
+- **`tools/`**: Verification and code generation utilities:
+  - [`codegen.py`](tools/codegen.py): Emitter for C++ headers and Java FFM layout files compiled from specification schemas.
+  - [`run_vm_asm_suite.py`](tools/run_vm_asm_suite.py): FFI-based test runner that executes the `.impas` unit tests against a compiled native engine library and verifies coverage.
 
-## Key Specification Highlights (v0.9.0)
+---
 
-- **Header Alignment**: Fixed 4KB Page 0 with 64-byte active baseline, magic `0x494D5053` (`IMPS`), version `0x0009` (v0.9.0).
-- **Single-Pass Cloud Ingestion**: Signatures, SHA-256 digests, metadata streams, and 16-byte trailer (`footer_length` + `"IMPS"`) sit at EOF for zero-staging S3 multi-part uploads.
-- **Physical Block Layout**: 4KB page-aligned Relation Blocks positioned *before* Node Domain Blocks for instant sub-microsecond topology traversal.
-- **Hardware Alignment**: 128-byte alignment across all internal matrix and SoA attribute arrays for AVX-512 vector units, GPU warp memory coalescing, and GPUDirect Storage (`cuFile`).
-- **Structure of Arrays (SoA) & Bitwise Nullability**: Orthogonal `type_code` with Bit 7 (`0x80`) Nullability flag (128B-aligned Validity Bitmap array) and `dimension` attribute for 0.00µs zero-copy PyTorch/NumPy 2D Tensor mappings.
-- **Standardized Topology**: Always standard uncompressed CSR (`ENCODING_RAW = 0x00`), optional CSC transpose index, and explicit reverse relations.
+## Running the Assembly Compliance Suite
 
-## License
+To verify that a compiled native engine implementation conforms to the virtual machine specification, execute the polyglot assembly test runner:
 
-Apache License 2.0. See [LICENSE](LICENSE) for details.
+```bash
+python3 tools/run_vm_asm_suite.py
+```
+
+### Requirements
+- Python 3.8+
+- A compiled native library (`libimpulse_graph.dylib`, `libimpulse_graph.so`, or `impulse_graph.dll`) located in `../impulse-graph-core/impulse-cpp/build/`.
+- 100% instruction set opcode coverage: The test suite verifies that every defined opcode is covered in at least two distinct `.impas` files.
