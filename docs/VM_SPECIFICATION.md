@@ -270,6 +270,10 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_RET`** (`0x56`)
   - **Behavior**: Pop caller PC from subroutine stack and set `pc`.
   - **Constraint**: If call stack is empty, return `IMPULSE_VM_ERR_STACK_UNDERFLOW`.
+- **`OP_ENTER_FRAME`** (`0x57`)
+  - **Behavior**: Allocate a new execution stack frame with the frame size specified in `dst_reg`.
+- **`OP_LEAVE_FRAME`** (`0x58`)
+  - **Behavior**: Tear down the active execution stack frame.
 - **`OP_THROW`** (`0x5A`)
   - **Behavior**: Stop execution and return custom runtime exception status.
   - **Outcome**: Returns status `IMPULSE_VM_ERR_USER_THROW`.
@@ -335,7 +339,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_RESERVED_1D`** through **`OP_RESERVED_2F`** (`0x1D`–`0x2F`)
 - **`OP_RESERVED_3A`** through **`OP_RESERVED_3F`** (`0x3A`–`0x3F`)
 - **`OP_RESERVED_4C`** through **`OP_RESERVED_4F`** (`0x4C`–`0x4F`)
-- **`OP_RESERVED_57`** through **`OP_RESERVED_59`** (`0x57`–`0x59`)
+- **`OP_RESERVED_59`** (`0x59`)
 - **`OP_RESERVED_5D`** through **`OP_RESERVED_5F`** (`0x5D`–`0x5F`)
 - **`OP_RESERVED_6D`** through **`OP_RESERVED_6F`** (`0x6D`–`0x6F`)
 - **`OP_RESERVED_76`** through **`OP_RESERVED_8F`** (`0x76`–`0x8F`)
