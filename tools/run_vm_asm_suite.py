@@ -80,6 +80,8 @@ OPCODES = {
     "OP_STABLE_CHECK": 0x54,
     "OP_CALL": 0x55,
     "OP_RET": 0x56,
+    "OP_ENTER_FRAME": 0x57,
+    "OP_LEAVE_FRAME": 0x58,
     "OP_THROW": 0x5A,
     "OP_ASSERT": 0x5B,
     "OP_TRAP": 0x5C,
@@ -319,7 +321,7 @@ def parse_impas_file(file_path):
             payload = 0
             flags = 0
 
-            if op_name in ("OP_JMP", "OP_JZ", "OP_JNZ", "OP_CALL", "OP_TRAP", "OP_NOP", "OP_HALT", "OP_RET", "OP_STABLE_CHECK"):
+            if op_name in ("OP_JMP", "OP_JZ", "OP_JNZ", "OP_CALL", "OP_TRAP", "OP_NOP", "OP_HALT", "OP_RET", "OP_STABLE_CHECK", "OP_LEAVE_FRAME"):
                 if len(tokens) > 1:
                     payload = parse_val(tokens[1])
             elif op_name in ("OP_INIT_MOCK_GRAPH", "OP_LOAD_INLINE_ARRAY"):
@@ -344,7 +346,7 @@ def parse_impas_file(file_path):
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
                 if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
-            elif op_name in ("OP_LOAD_INDIRECT", "OP_ASSERT"):
+            elif op_name in ("OP_LOAD_INDIRECT", "OP_ASSERT", "OP_ENTER_FRAME"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
