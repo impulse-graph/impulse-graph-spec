@@ -1,0 +1,25 @@
+; ====================================================================
+; BENCH02: Mixed Scalar ALU Pipeline (1,000,000 Iterations x 16 Ops)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT   R0, 1000000
+0x01: OP_LOAD_CONST_INT   R1, 42
+0x02: OP_LOAD_CONST_INT   R2, 10
+0x03: OP_LOAD_CONST_INT   R3, 7
+0x04: OP_LOAD_CONST_INT   R4, 1
+0x05: OP_LOAD_CONST_INT   R5, 3
+0x06: OP_LOAD_CONST_INT   R6, 2
+0x07: OP_LOAD_CONST_INT   R7, 5
+0x08: OP_LOAD_CONST_INT   R8, 9
+0x09: OP_LOAD_CONST_INT   R9, 13
+0x0A: OP_LOAD_CONST_INT   R10, 17
+0x0B: OP_LOAD_CONST_INT   R11, 23
+0x0C: OP_LOAD_CONST_INT   R12, 29
+0x0D: OP_LOAD_CONST_INT   R13, 31
+0x0E: OP_LOAD_CONST_INT   R14, 37
+0x0F: OP_LOAD_CONST_INT   R15, 41
+0x10: OP_LOOP_DECR        R0, 1
+0x11: OP_JNZ              -15
+0x12: OP_HALT

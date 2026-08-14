@@ -1,0 +1,12 @@
+; ====================================================================
+; BENCH01: Tight Loop Minimum Overhead (1,000,000 Iterations)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 0}
+; {EXPECT: FLAG = ZF}
+
+.text
+0x00: OP_LOAD_CONST_INT   R0, 1000000
+0x01: OP_LOOP_DECR        R0, 1
+0x02: OP_JNZ              -1
+0x03: OP_HALT
