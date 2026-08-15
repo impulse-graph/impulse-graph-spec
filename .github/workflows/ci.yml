@@ -18,6 +18,19 @@ jobs:
       - name: Checkout impulse-graph-spec
         uses: actions/checkout@v4
 
+      - name: Checkout impulse-graph-core
+        uses: actions/checkout@v4
+        with:
+          repository: impulse-graph/impulse-graph-core
+          path: impulse-graph-core
+          ref: main
+
+      - name: Build Impulse Graph Core C-ABI Shared Library
+        run: |
+          cd impulse-graph-core/impulse-cpp
+          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
+          cmake --build build -j$(nproc)
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -39,6 +52,8 @@ jobs:
           fi
 
       - name: Run Opcode Assembly Test Harness Suite
+        env:
+          IMPULSE_LIB_PATH: ${{ github.workspace }}/impulse-graph-core/impulse-cpp/build/libimpulse_graph.so
         run: |
           python tools/run_vm_asm_suite.py
 

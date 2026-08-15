@@ -155,11 +155,19 @@ class VmState(ctypes.Structure):
 
 # --- Find Library Path ---
 def load_native_library():
+    env_path = os.environ.get("IMPULSE_LIB_PATH")
+    if env_path and Path(env_path).exists():
+        return ctypes.CDLL(str(env_path))
+
     repo_root = Path(__file__).resolve().parent.parent.parent
+    this_repo = Path(__file__).resolve().parent.parent
     possible_paths = [
         repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.dylib",
         repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.so",
         repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "impulse_graph.dll",
+        this_repo / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.dylib",
+        this_repo / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.so",
+        this_repo / "impulse-graph-core" / "impulse-cpp" / "build" / "impulse_graph.dll",
     ]
     for p in possible_paths:
         if p.exists():
