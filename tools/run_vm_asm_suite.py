@@ -48,6 +48,7 @@ OPCODES = {
     "OP_HAS_CSC": 0x1A,
     "OP_HAS_COO": 0x1B,
     "OP_HAS_KEY_CATALOG": 0x1C,
+    "OP_ASSERT_FINITE": 0x2A,
 
     "OP_SET_UNION": 0x30,
     "OP_SET_INTERSECT": 0x31,
@@ -125,6 +126,9 @@ STATUS_NAMES = {
     8: "IMPULSE_VM_ERR_ASSERTION_FAILED",
     9: "IMPULSE_VM_ERR_TRAP",
     10: "IMPULSE_VM_ERR_RESERVED_OPCODE",
+    11: "IMPULSE_VM_ERR_BUFFER_OVERFLOW",
+    12: "IMPULSE_VM_ERR_FLOATING_POINT",
+    13: "IMPULSE_VM_ERR_GAS_EXHAUSTED",
 }
 
 # --- C-ABI Types ---
@@ -298,7 +302,13 @@ def parse_impas_file(file_path):
                     elif val == "!ST":
                         expectations["flag_st"] = False
 
-        # Parse Code Instructions
+        # Parse Code Instructions & Directives
+        if line_str.startswith(".fuel"):
+            parts = line_str.split()
+            if len(parts) > 1:
+                expectations["fuel"] = parse_val(parts[1])
+            continue
+
         if line_str.startswith(";") or line_str.startswith(".") or not line_str:
             continue
 
@@ -399,6 +409,9 @@ def main():
     lib.impulse_vm_context_bind_inline_data.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_size_t]
     lib.impulse_vm_context_bind_inline_data.restype = None
 
+    lib.impulse_vm_context_set_fuel.argtypes = [ctypes.c_void_p, ctypes.c_uint64]
+    lib.impulse_vm_context_set_fuel.restype = None
+
     lib.impulse_vm_execute.argtypes = [
         ctypes.POINTER(Instruction),
         ctypes.c_size_t,
@@ -434,6 +447,8 @@ def main():
 
             print_flush(f"[RUN] {rel_path}")
             ctx = lib.impulse_vm_context_create(None)
+            if "fuel" in expectations:
+                lib.impulse_vm_context_set_fuel(ctx, expectations["fuel"])
             c_buf = None
             if data_buf:
                 c_buf = (ctypes.c_char * len(data_buf)).from_buffer_copy(data_buf)

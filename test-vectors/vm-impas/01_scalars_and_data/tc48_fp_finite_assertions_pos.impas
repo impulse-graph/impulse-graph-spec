@@ -1,0 +1,18 @@
+; ====================================================================
+; TC48: Floating Point Finite Assertions & Clean Data (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 48}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.array_float CLEAN_VEC = [1.25, 2.50, 3.75, 4.0]
+
+.text
+0x00: OP_LOAD_CONST_FLOAT   R1, 3.14159
+0x01: OP_ASSERT_FINITE      R1
+0x02: OP_LOAD_INLINE_ARRAY  R2, CLEAN_VEC
+0x03: OP_ASSERT_FINITE      R2
+0x04: OP_LOAD_CONST_INT     R0, 48
+0x05: OP_ASSERT             R0, 48
+0x06: OP_HALT

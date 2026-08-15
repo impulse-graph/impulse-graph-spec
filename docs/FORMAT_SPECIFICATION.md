@@ -227,6 +227,27 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 | `0x0A` | `FIXED_BYTES` | `0x0A` | `0x8A` | $\ge 1$ | $\text{dim}$ Bytes (dim=16 for UUID, dim=32 for SHA-256) |
 | `0x0B` | `VAR_STRING` | `0x0B` | `0x8B` | Ignored (`0`) | Variable UTF-8 (`uint32_t offsets[]` + Data Blob) |
 | `0x0C` | `VAR_BYTES` | `0x0C` | `0x8C` | Ignored (`0`) | Variable Binary (`uint32_t offsets[]` + Data Blob) |
+| `0x0D` | `INTERVAL_SEC_32` | `0x0D` | `0x8D` | $\ge 1$ | 8 Bytes packed struct (`uint32_t start_sec`, `uint32_t duration_sec`) |
+| `0x0E` | `INTERVAL_MS_64` | `0x0E` | `0x8E` | $\ge 1$ | 16 Bytes packed struct (`uint64_t start_ms`, `uint64_t duration_ms`) |
+
+---
+
+### 3.4 Section 2.6: Secondary Index Directory Table (Fixed 64 Bytes per Index)
+Begins immediately after Relation Directory Table, aligned to a 128-byte boundary. Contains `IndexCount` generic secondary index descriptors:
+
+| Byte Offset | Field Name | C-ABI Type | Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0000` – `0x0003` | `IndexID` | `uint32_t` | 4 Bytes | Zero-indexed secondary index identifier (`0`..`IndexCount - 1`). |
+| `0x0004` – `0x0005` | `DomainID` | `uint16_t` | 2 Bytes | Target Node Domain ID. |
+| `0x0006` – `0x0007` | `RelationID` | `uint16_t` | 2 Bytes | Target Relation ID (`0xFFFF` for Node Domain attributes). |
+| `0x0008` – `0x0009` | `AttributeIndex` | `uint16_t` | 2 Bytes | 0-indexed Attribute index within target relation or node domain. |
+| `0x000A` | `IndexType` | `uint8_t` | 1 Byte | Generic Index Type enum (`0x01` = Permutation, `0x02` = ZoneMap, `0x03` = InvertedBitSet, `0x04` = MPHF, `0x05` = Trigram, `0x06` = DomainSplit, `0x07` = TemporalInterval). |
+| `0x000B` | `Reserved1` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
+| `0x000C` – `0x000F` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (e.g., `"idx_user_email\0"`). |
+| `0x0010` – `0x0017` | `DataOffset` | `uint64_t` | 8 Bytes | Absolute 128B-aligned file offset to index data payload blob. |
+| `0x0018` – `0x001F` | `DataBytes` | `uint64_t` | 8 Bytes | Total byte size of index data payload blob. |
+| `0x0020` – `0x0027` | `PayloadFeatureMask` | `uint64_t` | 8 Bytes | Generic Index Feature Bitmask (e.g. hash seed, metric flags). |
+| `0x0028` – `0x003F` | `ReservedPadding` | `uint8_t[24]` | 24 Bytes | Reserved for future index engine parameters (`0x00`). |
 
 ---
 
@@ -246,6 +267,10 @@ To enable dynamic adaptive query execution without runtime exception traps, `Imp
 | **`0x1A`** | **`OP_HAS_CSC R_DST, REL_ID`** | Inspects if relation `REL_ID` has CSC reverse offsets installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
 | **`0x1B`** | **`OP_HAS_COO R_DST, REL_ID`** | Inspects if relation `REL_ID` has COO edge list installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
 | **`0x1C`** | **`OP_HAS_KEY_CATALOG R_DST, DOMAIN_ID`** | Inspects if domain `DOMAIN_ID` has String/UUID key catalog installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
+| **`0x1D`** | **`OP_DENSE_WALK R_DST, R_SRC, REL_ID`** | Dense bitmask grid matrix traversal | Traverses `ENCODING_DENSE` bitmask grid relation. |
+| **`0x1E`** | **`OP_CREATE_SCRATCH_INDEX DOMAIN, ATTR, TYPE`** | Idempotently creates secondary index in transient scratch memory | Builds scratch index in RAM / `.imps.idx` sidecar if absent. |
+| **`0x1F`** | **`OP_DROP_SCRATCH_INDEX DOMAIN, ATTR, TYPE`** | Idempotently drops secondary index from transient scratch memory | Frees transient scratch index. |
+| **`0x20`** | **`OP_HAS_DENSE R_DST, REL_ID`** | Inspects if relation `REL_ID` is encoded as a `ENCODING_DENSE` bitmask grid | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
 
 ---
 

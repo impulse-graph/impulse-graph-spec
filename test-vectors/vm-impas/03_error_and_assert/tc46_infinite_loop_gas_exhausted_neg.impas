@@ -1,0 +1,12 @@
+; ====================================================================
+; TC46: Infinite Loop & Fuel Exhaustion Protection (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_GAS_EXHAUSTED}
+
+.data
+.fuel 500
+
+.text
+0x00: OP_LOAD_CONST_INT       R0, 1
+0x01: OP_JMP                  0x00                      ; Backward jump creating spin loop until fuel depletes
+0x02: OP_HALT

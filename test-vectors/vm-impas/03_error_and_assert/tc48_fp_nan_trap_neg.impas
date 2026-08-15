@@ -1,0 +1,12 @@
+; ====================================================================
+; TC48: Floating Point NaN Assertion Trap (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_FLOATING_POINT}
+
+.data
+.array_float NAN_VEC = [1.0, nan, 3.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY  R1, NAN_VEC
+0x01: OP_ASSERT_FINITE      R1
+0x02: OP_HALT

@@ -1,0 +1,21 @@
+{
+  "test_case_id": "tc38",
+  "name": "Dense Relation Bitmask Test Vector",
+  "description": "Validates ENCODING_DENSE (0x02) dense bitmask relation grid format.",
+  "expected_status": "IMPULSE_OK",
+  "header": {
+    "magic": "IMPS",
+    "version": 9
+  },
+  "relation_directory": [
+    {
+      "relation_id": 0,
+      "src_domain_id": 0,
+      "tgt_domain_id": 0,
+      "encoding_id": 2,
+      "relation_name": "DENSE_GRAPH",
+      "node_count": 1000,
+      "edge_count": 500000
+    }
+  ]
+}
