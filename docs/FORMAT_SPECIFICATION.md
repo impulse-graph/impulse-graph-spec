@@ -41,6 +41,10 @@ The format is organized into **4KB OS page-aligned physical blocks**, structured
 │   ├── Node Fixed-width SoA Attribute Arrays (128B Aligned)                        │
 │   └── Node Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
 ├───────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 4: KEY CATALOG BLOCK [OPTIONAL, 128B Aligned]                             │
+│   ├── Minimal Perfect Hash Function (MPHF) or Sorted Array Indices                 │
+│   └── (O(1) / O(log N) mapping of external string/int keys to dense Node IDs)     │
+├───────────────────────────────────────────────────────────────────────────────────┤
 │ FOOTER BLOCK [EOF, 4KB Aligned]                                                   │
 │   ├── Unified UTF-8 Key/Value Custom Metadata Stream (Unlimited multi-map)         │
 │   ├── Final Catalog & Relation Directory Table Copy (S3 Cloud Range Reader Copy)  │
@@ -227,6 +231,27 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 | `0x0A` | `FIXED_BYTES` | `0x0A` | `0x8A` | $\ge 1$ | $\text{dim}$ Bytes (dim=16 for UUID, dim=32 for SHA-256) |
 | `0x0B` | `VAR_STRING` | `0x0B` | `0x8B` | Ignored (`0`) | Variable UTF-8 (`uint32_t offsets[]` + Data Blob) |
 | `0x0C` | `VAR_BYTES` | `0x0C` | `0x8C` | Ignored (`0`) | Variable Binary (`uint32_t offsets[]` + Data Blob) |
+| `0x0D` | `INTERVAL_SEC_32` | `0x0D` | `0x8D` | $\ge 1$ | 8 Bytes packed struct (`uint32_t start_sec`, `uint32_t duration_sec`) |
+| `0x0E` | `INTERVAL_MS_64` | `0x0E` | `0x8E` | $\ge 1$ | 16 Bytes packed struct (`uint64_t start_ms`, `uint64_t duration_ms`) |
+
+---
+
+### 3.4 Section 2.6: Secondary Index Directory Table (Fixed 64 Bytes per Index)
+Begins immediately after Relation Directory Table, aligned to a 128-byte boundary. Contains `IndexCount` generic secondary index descriptors:
+
+| Byte Offset | Field Name | C-ABI Type | Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0000` – `0x0003` | `IndexID` | `uint32_t` | 4 Bytes | Zero-indexed secondary index identifier (`0`..`IndexCount - 1`). |
+| `0x0004` – `0x0005` | `DomainID` | `uint16_t` | 2 Bytes | Target Node Domain ID. |
+| `0x0006` – `0x0007` | `RelationID` | `uint16_t` | 2 Bytes | Target Relation ID (`0xFFFF` for Node Domain attributes). |
+| `0x0008` – `0x0009` | `AttributeIndex` | `uint16_t` | 2 Bytes | 0-indexed Attribute index within target relation or node domain. |
+| `0x000A` | `IndexType` | `uint8_t` | 1 Byte | Generic Index Type enum (`0x01` = Permutation, `0x02` = ZoneMap, `0x03` = InvertedBitSet, `0x04` = MPHF, `0x05` = Trigram, `0x06` = DomainSplit, `0x07` = TemporalInterval). |
+| `0x000B` | `Reserved1` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
+| `0x000C` – `0x000F` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (e.g., `"idx_user_email\0"`). |
+| `0x0010` – `0x0017` | `DataOffset` | `uint64_t` | 8 Bytes | Absolute 128B-aligned file offset to index data payload blob. |
+| `0x0018` – `0x001F` | `DataBytes` | `uint64_t` | 8 Bytes | Total byte size of index data payload blob. |
+| `0x0020` – `0x0027` | `PayloadFeatureMask` | `uint64_t` | 8 Bytes | Generic Index Feature Bitmask (e.g. hash seed, metric flags). |
+| `0x0028` – `0x003F` | `ReservedPadding` | `uint8_t[24]` | 24 Bytes | Reserved for future index engine parameters (`0x00`). |
 
 ---
 
@@ -246,6 +271,10 @@ To enable dynamic adaptive query execution without runtime exception traps, `Imp
 | **`0x1A`** | **`OP_HAS_CSC R_DST, REL_ID`** | Inspects if relation `REL_ID` has CSC reverse offsets installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
 | **`0x1B`** | **`OP_HAS_COO R_DST, REL_ID`** | Inspects if relation `REL_ID` has COO edge list installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
 | **`0x1C`** | **`OP_HAS_KEY_CATALOG R_DST, DOMAIN_ID`** | Inspects if domain `DOMAIN_ID` has String/UUID key catalog installed | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
+| **`0x1D`** | **`OP_DENSE_WALK R_DST, R_SRC, REL_ID`** | Dense bitmask grid matrix traversal | Traverses `ENCODING_DENSE` bitmask grid relation. |
+| **`0x1E`** | **`OP_CREATE_SCRATCH_INDEX DOMAIN, ATTR, TYPE`** | Idempotently creates secondary index in transient scratch memory | Builds scratch index in RAM / `.imps.idx` sidecar if absent. |
+| **`0x1F`** | **`OP_DROP_SCRATCH_INDEX DOMAIN, ATTR, TYPE`** | Idempotently drops secondary index from transient scratch memory | Frees transient scratch index. |
+| **`0x20`** | **`OP_HAS_DENSE R_DST, REL_ID`** | Inspects if relation `REL_ID` is encoded as a `ENCODING_DENSE` bitmask grid | `R_DST = 1` if present, `0` if absent.<br>Sets `ZF = 0` (present) or `ZF = 1` (absent). |
 
 ---
 
@@ -263,15 +292,39 @@ Attribute storage layout depends on whether the attribute is fixed-width (scalar
 * **Offsets Array**: Stored at 128B-aligned `OffsetsOffset` containing an array of $K + 1$ 32-bit unsigned integers (`uint32_t offsets[K + 1]`), where `offsets[0] = 0`.
 * **Data Payload Blob**: Stored at 128B-aligned `DataOffset` containing the raw concatenated UTF-8 text or binary bytes.
 * **Slice Extraction**: Payload bytes for element $i$ are extracted from `DataOffset + offsets[i]` with byte length `offsets[i + 1] - offsets[i]`.
+---
+
+## 5. Section 4: Key Catalogs & ID Mappings
+
+Section 4 stores the off-heap index structures required to resolve external business keys (Strings, UUIDs, Integers) to internal dense `0` to `N-1` Node IDs, and vice-versa. 
+
+In accordance with the physical specification, $O(N)$ linear scans or heap allocations for key resolution are prohibited. All mappings MUST be performed in $O(1)$ or $O(\log N)$ using 128-byte aligned zero-copy memory mapped structures.
+
+### 6.1 Dense ID to Key Resolution ($O(1)$ Array Lookup)
+The forward mapping (Dense ID $\to$ External Key) is implemented natively by storing the keys as a standard **Node Domain Attribute** (often implicitly named `_key` or identified via `IndexType = 0xFFFF`).
+- For fixed-width keys (e.g. `INT64`), the dense ID is simply used to directly index the 128B-aligned `data_ptr` array ($O(1)$ lookup).
+- For variable-length keys (e.g. `VAR_STRING`, `UUID128`), the dense ID indexes the `offsets_ptr` array to locate the slice within the `data_ptr` blob ($O(1)$ lookup).
+
+### 6.2 Key to Dense ID Resolution ($O(1) / O(\log N)$ Reverse Index)
+The reverse mapping (External Key $\to$ Dense ID) requires a **Secondary Index Directory Entry** targeting the Node Domain. 
+
+The structural format of the Section 4 index block depends on the `key_type` defined in the Domain Catalog:
+
+* **Variable Length Strings & UUIDs (`VAR_STRING`, `UUID128`)**:
+  - Requires **IndexType `0x04` (IMP_INDEX_MINIMAL_PERFECT_HASH)**. 
+  - Resolves string keys to dense IDs in $O(1)$ time with $\approx 2-3$ bits/key overhead.
+* **Fixed-Width Integers (`INT32`, `INT64`)**:
+  - Requires **IndexType `0x01` (IMP_INDEX_PERMUTATION)** or a direct sorted array.
+  - Resolves integer keys to dense IDs in $O(\log N)$ time via binary search.
 
 ---
 
-## 5. Footer Block & S3 Streaming Upload Specification
+## 6. Footer Block & S3 Streaming Upload Specification
 
-### 5.1 Single-Pass S3 Ingestion
+### 6.1 Single-Pass S3 Ingestion
 For unseekable S3 multi-part uploads, signatures, SHA-256 digests, and catalog directories are serialized into the **Footer Block at EOF**.
 
-### 5.2 16-Byte Footer Trailer Specification
+### 6.2 16-Byte Footer Trailer Specification
 Every compliant v0.9.0 snapshot MUST terminate with exactly 16 bytes at EOF:
 
 ```c
@@ -284,7 +337,7 @@ typedef struct impulse_footer_trailer {
 
 ---
 
-## 6. Hardware Alignment & C-ABI Macros
+## 7. Hardware Alignment & C-ABI Macros
 
 ```c
 // 128-Byte Alignment for AVX-512 SIMD & GPU Warp Coalescing
@@ -296,9 +349,9 @@ typedef struct impulse_footer_trailer {
 
 ---
 
-## 7. Future Research & Architectural Explorations
+## 8. Future Research & Architectural Explorations
 
-### 7.1 Multi-Snapshot Query Execution & Cross-Snapshot Relation Namespacing
+### 8.1 Multi-Snapshot Query Execution & Cross-Snapshot Relation Namespacing
 
 Future specification iterations explore allowing single queries (`ImpulseVM` execution pipelines) to bind and traverse across multiple `.imps` binary snapshots (e.g., Snapshot `A` containing relations `rel0..10`, and Snapshot `B` containing relations `rel11..13`).
 
@@ -318,7 +371,7 @@ Future specification iterations explore allowing single queries (`ImpulseVM` exe
    - **String Pool Base Pointer Isolation**: Scope variable-length UTF-8 string offsets (`VAR_STRING`) to their originating snapshot's string pool pointer (`string_table_base_A` vs `string_table_base_B`) to avoid cross-snapshot memory corruption in attribute filter opcodes (`OP_FILTER_ATTR_STR`).
    - **Attribute Schema Unification**: Standardize bitwise primitive types across snapshots to ensure vector operations (`OP_MXV`) run without runtime alignment or type-coercion overhead.
 
-### 7.2 ImpulseVM Register Windowing & 64 KB Off-Heap Scratch Baseline
+### 8.2 ImpulseVM Register Windowing & 64 KB Off-Heap Scratch Baseline
 
 `ImpulseVM` query execution contexts (`VmQueryContext` / `impulse_vm_context_t`) establish a **64 KB (`65,536` bytes)** default baseline off-heap scratch memory allocation.
 
@@ -335,7 +388,7 @@ Future specification iterations explore allowing single queries (`ImpulseVM` exe
 4. **Multi-Snapshot Lifecycle & Execution Safety**:
    - **Atomic Ref-Counting & Thread Safety**: Extend `VmQueryContext` to maintain atomic read-locks and reference counts across all participant snapshot `mmap` handles to prevent OS page faults (`SIGBUS`) during dynamic snapshot unmapping or hot-swapping.
 
-### 7.2 Dynamic Delta Overlay for In-Memory Graph CRUD Operations (v0.9.2+ Feature Roadmap)
+### 8.2 Dynamic Delta Overlay for In-Memory Graph CRUD Operations (v0.9.2+ Feature Roadmap)
 
 A major future research initiative slated for the **v0.9.2+ feature roadmap** focuses on evaluating dynamic in-memory **Delta Overlays** (`CsrDeltaLayer`) for handling real-time Graph CRUD operations (insertions/deletions of nodes and edges, and node/edge attribute mutations) directly on top of immutable `.imps` zero-copy snapshots.
 

@@ -276,11 +276,13 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Behavior**: Tear down the active execution stack frame.
 - **`OP_THROW`** (`0x5A`)
   - **Behavior**: Stop execution and return custom runtime exception status.
-  - **Outcome**: Returns status `IMPULSE_VM_ERR_USER_THROW`.
-- **`OP_ASSERT`** (`0x5B`)
-  - **Behavior**: Verify invariant condition on register values or flags. If check fails, return `IMPULSE_VM_ERR_ASSERTION_FAILED`.
-- **`OP_TRAP`** (`0x5C`)
-  - **Behavior**: Interrupt execution context and invoke registered debugger hooks. Returns `IMPULSE_VM_ERR_TRAP`.
+  - **Outcome**: Returns status `IMPULSE_VM_ERR_USER_THROW` (`7`).
+- `OP_ASSERT` (`0x5B`):
+  - **Behavior**: Verify invariant condition on register values or flags. If check fails, return `IMPULSE_VM_ERR_ASSERTION_FAILED` (`8`).
+- `OP_TRAP` (`0x5C`):
+  - **Behavior**: Interrupt execution context and invoke registered debugger hooks. Returns `IMPULSE_VM_ERR_TRAP` (`9`).
+- `IMPULSE_VM_ERR_GAS_EXHAUSTED` (`13` / `0x0D`):
+  - **Behavior**: Returned when an execution loop or query exceeds its configured instruction fuel / gas budget in `VmQueryContext`, terminating unbounded loops safely.
 
 ### 5.6 Extended Operations
 - **`OP_SAMPLE_NEIGHBORS`** (`0x60`)

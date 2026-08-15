@@ -1,0 +1,33 @@
+[1m[94m===============================================================[0m
+[1m[94m ImpulseVM Polyglot Assembly Test Suite & Coverage Verifier   [0m
+[1m[94m Spec v0.9.0 / Spec v2.4                                       [0m
+[1m[94m===============================================================[0m
+
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc00_vm_init_and_halt_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc01_scalar_ops_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc02_inline_data_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc26_scratch_memory_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc29_max_dop_control_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc31_register_windowing_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc35_recursive_factorial_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc37_bytecode_type_validation_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc39_type_validation_primitives_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc40_type_validation_extended_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/01_scalars_and_data/tc46_has_csr_csc_coo_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/02_control_flow/tc03_control_flow_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/02_control_flow/tc04_subroutine_pos.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc05_throw_exception_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc06_assert_failure_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc07_trap_signal_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc13_bounds_error_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc14_error_handling_suite2_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc15_trap_suite2_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc27_scratch_memory_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc32_recursion_overflow_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc33_extra_return_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc38_type_mismatch_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc41_invalid_register_src_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc43_invalid_register_dst_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc44_type_validation_suite2_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/03_error_and_assert/tc45_missing_csc_neg.impas
+[92m[PASS][0m test-vectors/vm-impas/04_graph_and_matrix/tc08_graphblas_mxv_pos.impas

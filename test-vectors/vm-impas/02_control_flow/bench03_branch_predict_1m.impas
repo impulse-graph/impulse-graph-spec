@@ -1,0 +1,18 @@
+; ====================================================================
+; BENCH03: Branch Predictor & Jump Stress (1,000,000 Iterations)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT   R0, 1000000
+0x01: OP_LOAD_CONST_INT   R1, 1
+0x02: OP_LOOP_DECR        R1, 1
+0x03: OP_JZ               2
+0x04: OP_NOP
+0x05: OP_LOAD_CONST_INT   R2, 2
+0x06: OP_LOOP_DECR        R2, 1
+0x07: OP_JNZ              2
+0x08: OP_NOP
+0x09: OP_LOOP_DECR        R0, 1
+0x0A: OP_JNZ              -9
+0x0B: OP_HALT

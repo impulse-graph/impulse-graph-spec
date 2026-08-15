@@ -1,0 +1,33 @@
+{
+  "test_case_id": "tc37",
+  "name": "Index Directory Table Metadata Test Vector",
+  "description": "Validates Section 2.6 Index Directory Table descriptors for 0 to N non-vector secondary indexes.",
+  "expected_status": "IMPULSE_OK",
+  "header": {
+    "magic": "IMPS",
+    "version": 9,
+    "global_required_features": 64
+  },
+  "index_directory": [
+    {
+      "index_id": 0,
+      "domain_id": 0,
+      "relation_id": 65535,
+      "attribute_index": 0,
+      "index_type": 3,
+      "index_name": "idx_user_state",
+      "data_bytes": 1024,
+      "payload_feature_mask": 0
+    },
+    {
+      "index_id": 1,
+      "domain_id": 0,
+      "relation_id": 65535,
+      "attribute_index": 1,
+      "index_type": 4,
+      "index_name": "idx_user_email",
+      "data_bytes": 4096,
+      "payload_feature_mask": 0
+    }
+  ]
+}
