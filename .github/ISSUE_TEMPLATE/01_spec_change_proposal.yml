@@ -1,0 +1,54 @@
+name: 📜 Specification Change Proposal (RFC)
+description: Propose an amendment, clarification, or structural update to the Impulse Binary Snapshot Format (.imps).
+title: "RFC: [Brief Description of Specification Change]"
+labels: ["rfc", "specification"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing a change to the **Impulse Binary Snapshot Specification**. Please provide a detailed technical rationale and backward-compatibility assessment.
+  - type: dropdown
+    id: spec_section
+    attributes:
+      label: Target Specification Section
+      description: Which part of the format specification does this proposal affect?
+      options:
+        - "Page 0 Header Baseline (0x00..0x3F)"
+        - "Section 1: Node CSR Structure"
+        - "Section 2: Shared String Table"
+        - "Section 3: Edge Attribute Streams"
+        - "Section 4: Key Catalog & Index Directory"
+        - "Section 5: Dense Node Attributes"
+        - "Section 6: Temporal Graph & Edge Indices"
+        - "Section 7: Vector Embeddings"
+        - "128-Byte Alignment & Memory Map Rules"
+        - "Other / Cross-Section"
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation & Problem Statement
+      description: What limitation, performance bottleneck, or use case motivates this change?
+      placeholder: Describe the problem...
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_specification
+    attributes:
+      label: Detailed Technical Specification
+      description: Precise binary layout, byte offsets, field widths, and alignment rules.
+      placeholder: |
+        Offset: 0x...
+        Field: ...
+        Type: ...
+    validations:
+      required: true
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Backward Compatibility & Polyglot Impact
+      description: How does this affect existing .imps files, C-ABI readers, Java 25 FFM, and Python mmap bindings?
+      placeholder: Discuss ABI stability, versioning bump requirements, etc.
+    validations:
+      required: true

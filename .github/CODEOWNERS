@@ -1,0 +1,9 @@
+# Impulse Graph Specification & Test Vectors CODEOWNERS
+# Order matters: later rules take precedence over earlier ones.
+
+*                         @impulse-graph/maintainers
+/.github/                 @impulse-graph/maintainers
+/docs/                    @impulse-graph/spec-maintainers
+/spec/                    @impulse-graph/spec-maintainers
+/test-vectors/            @impulse-graph/spec-maintainers
+/tools/                   @impulse-graph/tooling-maintainers

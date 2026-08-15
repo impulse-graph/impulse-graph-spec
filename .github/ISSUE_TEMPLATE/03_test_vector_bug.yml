@@ -1,0 +1,38 @@
+name: 🐛 Test Vector Bug or Conformance Issue
+description: Report a bug in an existing test vector, parser failure, or specification conformance discrepancy.
+title: "Bug: [Brief Description of Conformance Issue]"
+labels: ["bug", "test-vectors"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Report an issue with a conformance test vector (`tc01`..`tc36` or `test-vectors/vm-impas/`).
+  - type: input
+    id: vector_id
+    attributes:
+      label: Test Vector Identifier
+      placeholder: "e.g. tc04_alignment, 15_vm_loop_jump.impas"
+    validations:
+      required: true
+  - type: textarea
+    id: behavior_observed
+    attributes:
+      label: Observed Behavior
+      description: What happens when executing the test vector with the reference harness?
+    validations:
+      required: true
+  - type: textarea
+    id: behavior_expected
+    attributes:
+      label: Expected Behavior
+      description: What should happen according to the normative specification?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction Steps & Logs
+      description: Command run and output trace.
+      placeholder: python tools/run_vm_asm_suite.py ...
+    validations:
+      required: true

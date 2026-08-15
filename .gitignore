@@ -1,7 +1,28 @@
 # OS files
 .DS_Store
 Thumbs.db
+*.swp
+*.swo
+*~
+
+# Python cache & artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.venv/
+venv/
+ENV/
 
 # Build & temporary files
 *.tmp
 *.log
+*.bin
+*.imps
+*.out
+
