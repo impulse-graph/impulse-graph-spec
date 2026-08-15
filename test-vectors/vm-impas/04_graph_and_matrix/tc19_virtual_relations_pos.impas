@@ -3,7 +3,7 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 ; {EXPECT: R0 = 200}
-; {EXPECT: FLAG = ZF}
+; {EXPECT: FLAG = !ZF}
 
 .data
 .rel REL_USER_POSTS_POST    = 0, multiplicity = many_to_many

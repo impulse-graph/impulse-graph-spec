@@ -346,8 +346,7 @@ def parse_impas_file(file_path):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
                 if len(tokens) == 4:
-                    payload |= (63 << 16)
-                    payload |= ((parse_val(tokens[3]) & 0xFF) << 24)
+                    payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
                 elif len(tokens) > 4:
                     payload |= ((parse_val(tokens[3]) & 0xFF) << 16)
                     payload |= ((parse_val(tokens[4]) & 0xFF) << 24)
