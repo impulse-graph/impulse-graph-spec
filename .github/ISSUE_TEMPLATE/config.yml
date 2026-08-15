@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Impulse Graph Community Discussions
+    url: https://github.com/impulse-graph/impulse-graph-core/discussions
+    about: Ask questions, share ideas, and discuss architecture with the community.
+  - name: 🔒 Security Vulnerability Reporting
+    url: https://github.com/impulse-graph/impulse-graph-spec/security/advisories
+    about: Privately report a security vulnerability or critical specification flaw.

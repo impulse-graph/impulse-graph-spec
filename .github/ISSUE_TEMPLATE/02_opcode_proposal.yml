@@ -1,0 +1,57 @@
+name: ⚡ ImpOps Opcode / ISA Extension Proposal
+description: Propose a new Impulse VM opcode (impOps) or ISA instruction semantics update.
+title: "Opcode Proposal: OP_[NAME]"
+labels: ["impops", "opcode-proposal"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template to propose a new Virtual Machine opcode for the **`impOps`** instruction set architecture.
+  - type: input
+    id: opcode_mnemonic
+    attributes:
+      label: Opcode Mnemonic
+      placeholder: "e.g. OP_VEC_COSINE_SIM, OP_BITMAP_COUNT"
+    validations:
+      required: true
+  - type: dropdown
+    id: opcode_category
+    attributes:
+      label: Opcode Category / Subsystem
+      options:
+        - "Graph Traversal (CSR / CSC Walk)"
+        - "Linear Algebra / GraphBLAS (MxV / VxM)"
+        - "Graph Analytics / Connected Components"
+        - "SIMD Vector / Bitset Filtering"
+        - "Register Math / Arithmetic / Bitwise"
+        - "Control Flow / Branching / Tableswitch"
+        - "Domain Key Resolution / MPHF"
+        - "String / Attribute Access"
+    validations:
+      required: true
+  - type: textarea
+    id: semantics
+    attributes:
+      label: Formal Opcode Semantics & Operands
+      description: Specify opcode operands, register inputs/outputs, and status flag updates (ZF/SF/OF).
+      placeholder: |
+        Syntax: OP_EXAMPLE R_DST, R_SRC1, R_SRC2
+        Encoding: [OPCODE (8b)] [R_DST (8b)] [R_SRC1 (8b)] [R_SRC2 (8b)] [PAYLOAD (32b)]
+        Operation: R_DST = ...
+        Flags: ZF = (R_DST == 0)
+    validations:
+      required: true
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Execution Justification & Workload Context
+      description: Explain why this instruction is needed in the core VM rather than composed from existing opcodes.
+    validations:
+      required: true
+  - type: textarea
+    id: planned_test_vectors
+    attributes:
+      label: Test Vector Strategy
+      description: Note positive (normal execution) and negative (bounds check / error trap) test vector paths.
+    validations:
+      required: true

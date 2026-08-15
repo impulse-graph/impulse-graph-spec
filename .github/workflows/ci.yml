@@ -13,31 +13,10 @@ jobs:
   validate-spec-and-vectors:
     name: Validate Spec & Enforce 100% Opcode Coverage
     runs-on: ubuntu-latest
-    env:
-      HAS_PAT: ${{ secrets.ORGANIZATION_PAT }}
 
     steps:
       - name: Checkout impulse-graph-spec
         uses: actions/checkout@v4
-
-      - name: Checkout impulse-graph-core (if PAT available)
-        continue-on-error: true
-        if: env.HAS_PAT != ''
-        uses: actions/checkout@v4
-        with:
-          repository: impulse-graph/impulse-graph-core
-          path: impulse-graph-core
-          ref: main
-          token: ${{ secrets.ORGANIZATION_PAT }}
-
-      - name: Build Core C-ABI Shared Library (if checked out)
-        run: |
-          if [ -d impulse-graph-core/impulse-cpp ]; then
-            cmake -B impulse-graph-core/impulse-cpp/build -S impulse-graph-core/impulse-cpp \
-              -DCMAKE_BUILD_TYPE=Release \
-              -DBUILD_SHARED_LIBS=ON
-            cmake --build impulse-graph-core/impulse-cpp/build --config Release
-          fi
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -46,18 +25,20 @@ jobs:
 
       - name: Install Python Dependencies
         run: |
+          pip install --upgrade pip
           pip install pyyaml pytest
+
+      - name: Verify Specification YAML Syntax
+        run: |
+          if [ -f spec/v0.9.0.yaml ]; then
+            python -c "import yaml; yaml.safe_load(open('spec/v0.9.0.yaml'))"
+            echo "SUCCESS: spec/v0.9.0.yaml is valid YAML"
+          else
+            echo "ERROR: spec/v0.9.0.yaml not found!"
+            exit 1
+          fi
 
       - name: Run Opcode Assembly Test Harness Suite
         run: |
-          if [ -d impulse-graph-core/impulse-cpp/build ]; then
-            python tools/run_vm_asm_suite.py
-          else
-            echo "Skipping native execution suite (impulse-graph-core not checked out). Validating test vector syntax..."
-          fi
+          python tools/run_vm_asm_suite.py
 
-      - name: Verify Specification Syntax
-        run: |
-          if [ -f spec/v2.4.yaml ]; then
-            python -c "import yaml; yaml.safe_load(open('spec/v2.4.yaml'))"
-          fi
