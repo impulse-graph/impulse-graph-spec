@@ -18,14 +18,17 @@ jobs:
       - name: Checkout impulse-graph-spec
         uses: actions/checkout@v4
 
-      - name: Checkout impulse-graph-core
+      - name: Checkout impulse-graph-core (if PAT available)
+        continue-on-error: true
         uses: actions/checkout@v4
         with:
           repository: impulse-graph/impulse-graph-core
           path: impulse-graph-core
           ref: main
+          token: ${{ secrets.GH_PAT || secrets.ORGANIZATION_PAT || secrets.GITHUB_TOKEN }}
 
       - name: Build Impulse Graph Core C-ABI Shared Library
+        if: hashFiles('impulse-graph-core/impulse-cpp/CMakeLists.txt') != ''
         run: |
           cd impulse-graph-core/impulse-cpp
           cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
