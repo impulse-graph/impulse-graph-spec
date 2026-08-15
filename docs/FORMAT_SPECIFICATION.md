@@ -41,6 +41,10 @@ The format is organized into **4KB OS page-aligned physical blocks**, structured
 │   ├── Node Fixed-width SoA Attribute Arrays (128B Aligned)                        │
 │   └── Node Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
 ├───────────────────────────────────────────────────────────────────────────────────┤
+│ SECTION 4: KEY CATALOG BLOCK [OPTIONAL, 128B Aligned]                             │
+│   ├── Minimal Perfect Hash Function (MPHF) or Sorted Array Indices                 │
+│   └── (O(1) / O(log N) mapping of external string/int keys to dense Node IDs)     │
+├───────────────────────────────────────────────────────────────────────────────────┤
 │ FOOTER BLOCK [EOF, 4KB Aligned]                                                   │
 │   ├── Unified UTF-8 Key/Value Custom Metadata Stream (Unlimited multi-map)         │
 │   ├── Final Catalog & Relation Directory Table Copy (S3 Cloud Range Reader Copy)  │
@@ -288,15 +292,39 @@ Attribute storage layout depends on whether the attribute is fixed-width (scalar
 * **Offsets Array**: Stored at 128B-aligned `OffsetsOffset` containing an array of $K + 1$ 32-bit unsigned integers (`uint32_t offsets[K + 1]`), where `offsets[0] = 0`.
 * **Data Payload Blob**: Stored at 128B-aligned `DataOffset` containing the raw concatenated UTF-8 text or binary bytes.
 * **Slice Extraction**: Payload bytes for element $i$ are extracted from `DataOffset + offsets[i]` with byte length `offsets[i + 1] - offsets[i]`.
+---
+
+## 5. Section 4: Key Catalogs & ID Mappings
+
+Section 4 stores the off-heap index structures required to resolve external business keys (Strings, UUIDs, Integers) to internal dense `0` to `N-1` Node IDs, and vice-versa. 
+
+In accordance with the physical specification, $O(N)$ linear scans or heap allocations for key resolution are prohibited. All mappings MUST be performed in $O(1)$ or $O(\log N)$ using 128-byte aligned zero-copy memory mapped structures.
+
+### 6.1 Dense ID to Key Resolution ($O(1)$ Array Lookup)
+The forward mapping (Dense ID $\to$ External Key) is implemented natively by storing the keys as a standard **Node Domain Attribute** (often implicitly named `_key` or identified via `IndexType = 0xFFFF`).
+- For fixed-width keys (e.g. `INT64`), the dense ID is simply used to directly index the 128B-aligned `data_ptr` array ($O(1)$ lookup).
+- For variable-length keys (e.g. `VAR_STRING`, `UUID128`), the dense ID indexes the `offsets_ptr` array to locate the slice within the `data_ptr` blob ($O(1)$ lookup).
+
+### 6.2 Key to Dense ID Resolution ($O(1) / O(\log N)$ Reverse Index)
+The reverse mapping (External Key $\to$ Dense ID) requires a **Secondary Index Directory Entry** targeting the Node Domain. 
+
+The structural format of the Section 4 index block depends on the `key_type` defined in the Domain Catalog:
+
+* **Variable Length Strings & UUIDs (`VAR_STRING`, `UUID128`)**:
+  - Requires **IndexType `0x04` (IMP_INDEX_MINIMAL_PERFECT_HASH)**. 
+  - Resolves string keys to dense IDs in $O(1)$ time with $\approx 2-3$ bits/key overhead.
+* **Fixed-Width Integers (`INT32`, `INT64`)**:
+  - Requires **IndexType `0x01` (IMP_INDEX_PERMUTATION)** or a direct sorted array.
+  - Resolves integer keys to dense IDs in $O(\log N)$ time via binary search.
 
 ---
 
-## 5. Footer Block & S3 Streaming Upload Specification
+## 6. Footer Block & S3 Streaming Upload Specification
 
-### 5.1 Single-Pass S3 Ingestion
+### 6.1 Single-Pass S3 Ingestion
 For unseekable S3 multi-part uploads, signatures, SHA-256 digests, and catalog directories are serialized into the **Footer Block at EOF**.
 
-### 5.2 16-Byte Footer Trailer Specification
+### 6.2 16-Byte Footer Trailer Specification
 Every compliant v0.9.0 snapshot MUST terminate with exactly 16 bytes at EOF:
 
 ```c
@@ -309,7 +337,7 @@ typedef struct impulse_footer_trailer {
 
 ---
 
-## 6. Hardware Alignment & C-ABI Macros
+## 7. Hardware Alignment & C-ABI Macros
 
 ```c
 // 128-Byte Alignment for AVX-512 SIMD & GPU Warp Coalescing
@@ -321,9 +349,9 @@ typedef struct impulse_footer_trailer {
 
 ---
 
-## 7. Future Research & Architectural Explorations
+## 8. Future Research & Architectural Explorations
 
-### 7.1 Multi-Snapshot Query Execution & Cross-Snapshot Relation Namespacing
+### 8.1 Multi-Snapshot Query Execution & Cross-Snapshot Relation Namespacing
 
 Future specification iterations explore allowing single queries (`ImpulseVM` execution pipelines) to bind and traverse across multiple `.imps` binary snapshots (e.g., Snapshot `A` containing relations `rel0..10`, and Snapshot `B` containing relations `rel11..13`).
 
@@ -343,7 +371,7 @@ Future specification iterations explore allowing single queries (`ImpulseVM` exe
    - **String Pool Base Pointer Isolation**: Scope variable-length UTF-8 string offsets (`VAR_STRING`) to their originating snapshot's string pool pointer (`string_table_base_A` vs `string_table_base_B`) to avoid cross-snapshot memory corruption in attribute filter opcodes (`OP_FILTER_ATTR_STR`).
    - **Attribute Schema Unification**: Standardize bitwise primitive types across snapshots to ensure vector operations (`OP_MXV`) run without runtime alignment or type-coercion overhead.
 
-### 7.2 ImpulseVM Register Windowing & 64 KB Off-Heap Scratch Baseline
+### 8.2 ImpulseVM Register Windowing & 64 KB Off-Heap Scratch Baseline
 
 `ImpulseVM` query execution contexts (`VmQueryContext` / `impulse_vm_context_t`) establish a **64 KB (`65,536` bytes)** default baseline off-heap scratch memory allocation.
 
@@ -360,7 +388,7 @@ Future specification iterations explore allowing single queries (`ImpulseVM` exe
 4. **Multi-Snapshot Lifecycle & Execution Safety**:
    - **Atomic Ref-Counting & Thread Safety**: Extend `VmQueryContext` to maintain atomic read-locks and reference counts across all participant snapshot `mmap` handles to prevent OS page faults (`SIGBUS`) during dynamic snapshot unmapping or hot-swapping.
 
-### 7.2 Dynamic Delta Overlay for In-Memory Graph CRUD Operations (v0.9.2+ Feature Roadmap)
+### 8.2 Dynamic Delta Overlay for In-Memory Graph CRUD Operations (v0.9.2+ Feature Roadmap)
 
 A major future research initiative slated for the **v0.9.2+ feature roadmap** focuses on evaluating dynamic in-memory **Delta Overlays** (`CsrDeltaLayer`) for handling real-time Graph CRUD operations (insertions/deletions of nodes and edges, and node/edge attribute mutations) directly on top of immutable `.imps` zero-copy snapshots.
 
