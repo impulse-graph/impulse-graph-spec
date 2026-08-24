@@ -1,0 +1,9 @@
+; ====================================================================
+; TC221: Adaptive Walk (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_LOAD_CONST_INT      R1, 0
+0x01: OP_ADAPTIVE_WALK       R2, R1, 999
+0x02: OP_HALT

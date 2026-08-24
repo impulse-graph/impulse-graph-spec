@@ -1,0 +1,23 @@
+; ====================================================================
+; TDD 06: Set Difference In-Place Aliasing Verification (dst == src2)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline DIFF_GRAPH = {
+    0: [1, 2, 3],
+    1: [2],
+    2: [],
+    3: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, DIFF_GRAPH
+0x01: OP_LOAD_CONST_INT      R1, 0
+0x02: OP_CSR_WALK            R1, R1, 0
+0x03: OP_LOAD_CONST_INT      R2, 1
+0x04: OP_CSR_WALK            R2, R2, 0
+0x05: OP_SET_DIFFERENCE      R2, R1, R2
+0x06: OP_SET_CARDINALITY     R3, R2
+0x07: OP_ASSERT              R3, 2
+0x08: OP_HALT

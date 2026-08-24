@@ -1,0 +1,8 @@
+; ====================================================================
+; TC204_OP_GATHER_NODE_ATTR_NEG: OP_GATHER_NODE_ATTR (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_GATHER_NODE_ATTR R64, R1, 0x0, 0x0
+0x01: OP_HALT

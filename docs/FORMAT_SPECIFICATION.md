@@ -214,7 +214,7 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 ```
 
 * **Non-Nullable (`is_nullable == false`, Bit 7 = 0)**: Zero validity bitmap overhead. 100% of memory is allocated to contiguous data values.
-* **Nullable (`is_nullable == true`, Bit 7 = 1)**: A 128-byte aligned **Validity Bitmap** (`uint64_t validity_bitmap[(K + 63) / 64]`) is placed at `DataOffset` immediately preceding the data array ($1\text{ bit per entity}$, Bit $i=1 \rightarrow$ valid value, Bit $i=0 \rightarrow$ null).
+* **Nullable (`is_nullable == true`, Bit 7 = 1)**: A 128-byte aligned **Validity Bitmap** (`uint64_t validity_bitmap[(K + 63) / 64]`) is placed at `DataOffset`. The validity bitmap MUST be strictly padded with `0x00` to the nearest 128-byte boundary. The actual data payload array begins immediately after the padded bitmap, guaranteeing that the data array remains strictly 128-byte aligned for hardware SIMD load instructions. ($1\text{ bit per entity}$, Bit $i=1 \rightarrow$ valid value, Bit $i=0 \rightarrow$ null).
 
 #### Base Data Type Table (`0x00` .. `0x7F` Base Codes):
 | Base Code (`0x7F`) | Base Type Name | Non-Null Code | Nullable Code (`0x80`) | Dimension (`dim`) | Memory Layout |

@@ -1,0 +1,7 @@
+; ====================================================================
+; TC63: SET_MAX_DOP Invalid Register Error (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_SET_MAX_DOP      R65, 4    ; Register R65 is out of bounds

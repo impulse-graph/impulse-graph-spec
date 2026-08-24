@@ -1,0 +1,8 @@
+; ====================================================================
+; TC160_COO_WALK_REDUCE_POS: OP_COO_WALK_REDUCE (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_COO_WALK_REDUCE       R0, R1, 0x0
+0x01: OP_HALT

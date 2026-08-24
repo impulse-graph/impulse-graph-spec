@@ -1,0 +1,8 @@
+; ====================================================================
+; TC158_COO_WALK_FILTERED_POS: OP_COO_WALK_FILTERED (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_COO_WALK_FILTERED     R0, R1, 0x0
+0x01: OP_HALT

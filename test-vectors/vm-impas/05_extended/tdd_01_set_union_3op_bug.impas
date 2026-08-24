@@ -1,0 +1,32 @@
+; ====================================================================
+; TDD 01: OP_SET_UNION 3-Operand Specification & In-Place Compliance
+; 
+; Tests that OP_SET_UNION correctly decodes both src1 and src2 from
+; the payload, rather than treating it as an in-place 2-operand
+; mutation (dst = dst U src1).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+; Seed registers with distinct scalar values
+0x00: OP_LOAD_CONST_INT R1, 10
+0x01: OP_LOAD_CONST_INT R2, 20
+
+; R3 starts as 99
+0x02: OP_LOAD_CONST_INT R3, 99
+
+; C++ Bug: Will execute R3 = R3 (99) U R1 (10), completely ignoring R2 (20).
+; Java Bug: Will allocate a new bitset for R3 containing {10, 20} (Correct math, but leaks).
+; Spec Correct: R3 = {10, 20}.
+0x03: OP_SET_UNION R3, R1, R2
+
+; We verify correctness by intersecting with 99. 
+; If C++ is buggy, R4 will contain {99}. If correct, R4 is empty.
+0x04: OP_LOAD_CONST_INT R4, 99
+0x05: OP_SET_INTERSECT R4, R3, R4
+
+; If R4 cardinality is > 0, the 3-operand spec was violated (R3 still contained 99).
+0x06: OP_SET_CARDINALITY R5, R4
+0x07: OP_ASSERT R5, 0
+
+0x08: OP_HALT

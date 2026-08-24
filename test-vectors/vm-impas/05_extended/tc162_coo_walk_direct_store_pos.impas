@@ -1,0 +1,8 @@
+; ====================================================================
+; TC162_COO_WALK_DIRECT_STORE_POS: OP_COO_WALK_DIRECT_STORE (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_COO_WALK_DIRECT_STORE R0, R1, 0x0
+0x01: OP_HALT

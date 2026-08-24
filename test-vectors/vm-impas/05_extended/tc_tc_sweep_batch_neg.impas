@@ -1,0 +1,8 @@
+; ====================================================================
+; OP_TC_SWEEP_BATCH (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_TC_SWEEP_BATCH R64, R0
+0x01: OP_HALT

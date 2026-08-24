@@ -1,0 +1,8 @@
+; ====================================================================
+; TC153_FIXPOINT_KLEENE_STAR_NEG: OP_FIXPOINT_KLEENE_STAR (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_FIXPOINT_KLEENE_STAR  R64, R1, 0x0
+0x01: OP_HALT

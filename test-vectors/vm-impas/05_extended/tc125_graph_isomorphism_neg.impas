@@ -1,0 +1,8 @@
+; ====================================================================
+; TC125_GRAPH_ISOMORPHISM_NEG: Graph Isomorphism (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_GRAPH_ISOMORPHISM   R64, R7
+0x01: OP_HALT

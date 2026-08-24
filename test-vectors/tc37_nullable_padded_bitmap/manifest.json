@@ -1,0 +1,11 @@
+{
+  "name": "tc37_nullable_padded_bitmap",
+  "description": "Validates 128-byte padded validity bitmap layout for nullable attributes.",
+  "spec_version": "0.9.0",
+  "domain_count": 1,
+  "relation_count": 0,
+  "total_nodes": 1354,
+  "total_edges": 0,
+  "sha256": "e6cfb11fd70eae360ea43d8316bde0519c60a6ff0532cab5ad788e06cbab7d34",
+  "expected_status": "IMPULSE_VM_OK"
+}

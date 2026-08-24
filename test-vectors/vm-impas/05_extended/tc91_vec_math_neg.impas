@@ -1,0 +1,10 @@
+; ====================================================================
+; TC91: Vector Math (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_VEC_MATH_UNARY R99, 1, R1
+0x01: OP_VEC_MATH_BINARY R99, 1, R1, R2
+0x02: OP_VEC_MATH_TERNARY R99, 1, R1, R2, R3
+0x03: OP_HALT

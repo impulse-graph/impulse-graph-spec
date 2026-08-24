@@ -1,0 +1,8 @@
+; ====================================================================
+; TC121_SPARSE_MATVEC_NEG: Sparse MatVec (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_SPARSE_MATVEC       R64, R7
+0x01: OP_HALT

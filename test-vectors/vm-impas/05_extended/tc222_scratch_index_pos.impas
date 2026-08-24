@@ -1,0 +1,10 @@
+; ====================================================================
+; TC222: Scratch Index Creation and Destruction (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT          R0, 0
+0x01: OP_CREATE_SCRATCH_INDEX    R0, 0xFFFF
+0x02: OP_DROP_SCRATCH_INDEX      R0, 0xFFFF
+0x03: OP_HALT

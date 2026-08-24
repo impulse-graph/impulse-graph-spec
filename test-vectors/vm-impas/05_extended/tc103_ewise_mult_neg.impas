@@ -1,0 +1,8 @@
+; ====================================================================
+; TC103_EWISE_MULT_NEG: Element-wise Mult (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_EWISE_MULT          R64, R1, R2
+0x01: OP_HALT

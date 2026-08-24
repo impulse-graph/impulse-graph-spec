@@ -1,0 +1,8 @@
+; ====================================================================
+; TC154_SWAP_REG_POS: OP_SWAP_REG (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_SWAP_REG              R0, R1
+0x01: OP_HALT

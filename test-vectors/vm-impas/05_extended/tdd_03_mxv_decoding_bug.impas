@@ -1,0 +1,22 @@
+; ====================================================================
+; TDD 03: OP_MXV Payload Decoding and Semiring Stub
+;
+; Tests that OP_MXV strictly obeys the 8-bit src_vec, 8-bit rel,
+; 16-bit semiring_id bitshift layout in the bytecode payload.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+.data
+.array_float WEIGHTS = [1.0, 2.0, 3.0, 4.0]
+.csr_inline  GRAPH_0 = {
+    0: [1, 2],
+    1: [2],
+    2: [3]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_0
+0x01: OP_LOAD_INLINE_ARRAY   R1, WEIGHTS
+0x02: OP_MXV                 R2, R1, R0, SEMIRING_PLUS_TIMES
+0x03: OP_HALT

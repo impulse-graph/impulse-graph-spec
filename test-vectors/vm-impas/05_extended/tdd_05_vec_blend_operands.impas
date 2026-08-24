@@ -1,0 +1,12 @@
+; ====================================================================
+; TDD 05: Vec Blend Operand Ordering Verification
+; Verifies mask is operand 1, src_true is operand 2, src_false is operand 3
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 10
+0x01: OP_LOAD_CONST_INT      R1, 20
+0x02: OP_LOAD_CONST_INT      R2, 1
+0x03: OP_VEC_BLEND           R3, R2, R0, R1
+0x04: OP_HALT

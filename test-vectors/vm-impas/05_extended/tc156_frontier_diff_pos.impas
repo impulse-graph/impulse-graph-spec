@@ -1,0 +1,8 @@
+; ====================================================================
+; TC156_FRONTIER_DIFF_POS: OP_FRONTIER_DIFF (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_FRONTIER_DIFF         R0, R1, R2
+0x01: OP_HALT

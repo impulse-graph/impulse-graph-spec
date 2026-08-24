@@ -1,0 +1,15 @@
+; ====================================================================
+; TC143: Group 14 Direct Stores & Dense Walks Negative Test 2
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_LOAD_CONST_INT          R1, 0
+0x01: OP_CSR_WALK_DIRECT_STORE   R2, R1, 999
+0x02: OP_CSR_WALK_DENSE_STREAM   R3, R1, 999
+0x03: OP_CSC_WALK_DIRECT_STORE   R4, R1, 999
+0x04: OP_DENSE_WALK              R5, R1, 999
+0x05: OP_DENSE_WALK_BITMATRIX    R6, R1, 999
+0x06: OP_DENSE_WALK_REDUCE       R100
+0x07: OP_DENSE_WALK_DIRECT_STORE R8, R1, 999
+0x08: OP_HALT

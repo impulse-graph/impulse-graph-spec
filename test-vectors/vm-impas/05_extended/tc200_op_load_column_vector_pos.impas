@@ -1,0 +1,8 @@
+; ====================================================================
+; TC200_OP_LOAD_COLUMN_VECTOR_POS: OP_LOAD_COLUMN_VECTOR (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_LOAD_COLUMN_VECTOR R0, 0x0, 0x0
+0x01: OP_HALT

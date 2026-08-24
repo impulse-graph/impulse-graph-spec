@@ -1,0 +1,8 @@
+; ====================================================================
+; TC_JMP_OOB: JMP Out of Bounds (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_JMP 100
+0x01: OP_HALT

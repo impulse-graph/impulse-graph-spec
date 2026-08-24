@@ -1,0 +1,8 @@
+; ====================================================================
+; TC123_KCORE_DECOMPOSITION_NEG: K-Core Decomposition (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_KCORE_DECOMPOSITION R64, R7
+0x01: OP_HALT

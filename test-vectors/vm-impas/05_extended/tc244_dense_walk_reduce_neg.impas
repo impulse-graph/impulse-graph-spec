@@ -1,0 +1,8 @@
+; ====================================================================
+; TC244: OP_DENSE_WALK_REDUCE (Negative Test - Invalid Register)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_DENSE_WALK_REDUCE       R64
+0x01: OP_HALT

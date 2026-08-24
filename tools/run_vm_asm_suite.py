@@ -35,6 +35,8 @@ OPCODES = {
     "OP_LOAD_INLINE_ARRAY": 0x08,
     "OP_INIT_MOCK_GRAPH": 0x09,
 
+    "OP_CSR_WALK_2HOP": 0x0E,
+    "OP_CSR_WALK_STATE": 0x0F,
     "OP_CSR_WALK": 0x10,
     "OP_CSR_WALK_FILTERED": 0x11,
     "OP_CSR_DEGREE": 0x12,
@@ -48,7 +50,22 @@ OPCODES = {
     "OP_HAS_CSC": 0x1A,
     "OP_HAS_COO": 0x1B,
     "OP_HAS_KEY_CATALOG": 0x1C,
+    "OP_ADAPTIVE_WALK": 0x1D,
+    "OP_CREATE_SCRATCH_INDEX": 0x1E,
+    "OP_DROP_SCRATCH_INDEX": 0x1F,
+
+    "OP_VEC_CMP_EQ": 0x20,
+    "OP_VEC_CMP_GT": 0x21,
+    "OP_VEC_CMP_LT": 0x22,
+    "OP_VEC_CMP_BETWEEN": 0x23,
+    "OP_MASK_AND": 0x24,
+    "OP_MASK_OR": 0x25,
+    "OP_MASK_NOT": 0x26,
+    "OP_VEC_BLEND": 0x27,
     "OP_ASSERT_FINITE": 0x2A,
+    "OP_VEC_MATH_UNARY": 0x2D,
+    "OP_VEC_MATH_BINARY": 0x2E,
+    "OP_VEC_MATH_TERNARY": 0x2F,
 
     "OP_SET_UNION": 0x30,
     "OP_SET_INTERSECT": 0x31,
@@ -60,6 +77,8 @@ OPCODES = {
     "OP_VECTOR_STR_CONCAT": 0x37,
     "OP_FLOAT_VECTOR_SCALE": 0x38,
     "OP_L1_NORM_DIFF": 0x39,
+    "OP_PROJECT_STATE": 0x3A,
+    "OP_VECTOR_TIME_VALID_AT": 0x3D,
 
     "OP_CC_AFFOREST": 0x40,
     "OP_MXV": 0x41,
@@ -108,10 +127,30 @@ OPCODES = {
     "OP_ASSERT_SCRATCH_BYTES": 0x74,
     "OP_SET_MAX_DOP": 0x75,
 
+    "OP_LOAD_COLUMN_VECTOR": 0x80,
+    "OP_GATHER_NODE_ATTR": 0x81,
+    "OP_GATHER_EDGE_ATTR": 0x82,
+    "OP_BRIN_ZONE_SKIP": 0x83,
+
+    "OP_CSR_WALK_DIRECT_STORE": 0x84,
+    "OP_CSR_WALK_DENSE_STREAM": 0x85,
+    "OP_COO_WALK": 0x86,
+    "OP_CSC_WALK_DIRECT_STORE": 0x87,
+    "OP_FIXPOINT_KLEENE_STAR": 0x88,
+    "OP_SWAP_REG": 0x89,
+    "OP_FRONTIER_DIFF": 0x8A,
+    "OP_COO_WALK_FILTERED": 0x8B,
+    "OP_COO_WALK_REDUCE": 0x8C,
+    "OP_COO_WALK_DIRECT_STORE": 0x8D,
+    "OP_DENSE_WALK": 0x8E,
+    "OP_DENSE_WALK_BITMATRIX": 0x8F,
+
     "OP_COLLECT_BITSET": 0x90,
     "OP_COLLECT_ARRAY": 0x91,
     "OP_MAP_DENSE_TO_KEYS": 0x92,
     "OP_COLLECT_VALUE_MAP": 0x93,
+    "OP_DENSE_WALK_REDUCE": 0x94,
+    "OP_DENSE_WALK_DIRECT_STORE": 0x95,
 }
 
 STATUS_NAMES = {
@@ -185,6 +224,8 @@ CONSTANTS = {
     "BINARY_OP_MAX": 3,
     "BINARY_OP_AND": 4,
     "BINARY_OP_OR": 5,
+    "BINARY_OP_ARGMIN": 6,
+    "BINARY_OP_ARGMAX": 7,
 }
 
 def parse_val(t):
@@ -286,7 +327,7 @@ def parse_impas_file(file_path):
             if "=" in exp_body:
                 key, val = [x.strip() for x in exp_body.split("=", 1)]
                 if key == "STATUS":
-                    expectations["status"] = val
+                    expectations["status"] = "IMPULSE_VM_OK" if val in ("IMPULSE_VM_SUCCESS", "SUCCESS", "0") else val
                 elif key.startswith("R"):
                     reg_idx = int(key[1:])
                     expectations["registers"][reg_idx] = int(val)
@@ -330,6 +371,8 @@ def parse_impas_file(file_path):
 
         tokens = re.split(r"[\s,]+", code_part)
         op_name = tokens[0].upper()
+        if not op_name.startswith("OP_"):
+            continue
 
         if op_name in OPCODES:
             op_code = OPCODES[op_name]
@@ -363,6 +406,56 @@ def parse_impas_file(file_path):
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
                 if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name == "OP_VEC_BLEND":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+            elif op_name == "OP_VEC_CMP_BETWEEN":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+            elif op_name in ("OP_VEC_CMP_EQ", "OP_VEC_CMP_GT", "OP_VEC_CMP_LT", "OP_MASK_AND", "OP_MASK_OR"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+            elif op_name == "OP_MASK_NOT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+            elif op_name == "OP_VEC_MATH_UNARY":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: flags = parse_val(tokens[4])
+            elif op_name == "OP_VEC_MATH_BINARY":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+                if len(tokens) > 5: flags = parse_val(tokens[5])
+            elif op_name == "OP_VEC_MATH_TERNARY":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+                if len(tokens) > 5: payload |= ((parse_val(tokens[5]) & 0xFF) << 24)
+                if len(tokens) > 6: flags = parse_val(tokens[6])
+            elif op_name == "OP_GATHER_NODE_ATTR":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name == "OP_COO_WALK_FILTERED":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name in ("OP_SET_UNION", "OP_SET_INTERSECT", "OP_SET_DIFFERENCE"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                if len(tokens) > 4: flags = parse_val(tokens[4])
             elif op_name in ("OP_LOAD_INDIRECT", "OP_ASSERT", "OP_ENTER_FRAME"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
@@ -385,6 +478,8 @@ def parse_impas_file(file_path):
                     flags = parse_val(tokens[4])
 
             instructions.append(Instruction(op_code, flags, dst_reg, payload & 0xFFFFFFFF))
+        else:
+            raise ValueError(f"Unknown opcode '{op_name}' in line: {line_str}")
 
     return instructions, bytes(data_bytes), expectations, opcodes_used
 

@@ -1,0 +1,8 @@
+; ====================================================================
+; TC53: Vector Comparison Operations Suite 2 (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_VEC_CMP_GT        R64, 0x0201
+0x01: OP_HALT
