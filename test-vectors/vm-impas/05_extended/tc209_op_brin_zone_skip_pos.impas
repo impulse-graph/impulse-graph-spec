@@ -1,0 +1,8 @@
+; ====================================================================
+; TC209_OP_BRIN_ZONE_SKIP_POS: OP_BRIN_ZONE_SKIP (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_BRIN_ZONE_SKIP R0
+0x01: OP_HALT

@@ -1,0 +1,8 @@
+; ====================================================================
+; TC126_ROARING_BITMAP_OR_NEG: Roaring Bitmap OR (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_ROARING_BITMAP_OR   R64, R1, R2
+0x01: OP_HALT

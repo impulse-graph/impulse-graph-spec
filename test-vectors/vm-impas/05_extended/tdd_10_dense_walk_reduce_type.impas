@@ -1,0 +1,8 @@
+; ====================================================================
+; TDD 10: Dense Walk Reduce Return Type Verification
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_DENSE_WALK_REDUCE       R2
+0x01: OP_HALT

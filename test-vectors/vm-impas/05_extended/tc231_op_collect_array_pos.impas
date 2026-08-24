@@ -1,0 +1,8 @@
+; ====================================================================
+; TC231_OP_COLLECT_ARRAY_POS: OP_COLLECT_ARRAY (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_COLLECT_ARRAY       R0, R1
+0x01: OP_HALT

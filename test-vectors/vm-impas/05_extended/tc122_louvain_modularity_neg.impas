@@ -1,0 +1,8 @@
+; ====================================================================
+; TC122_LOUVAIN_MODULARITY_NEG: Louvain Modularity (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOUVAIN_MODULARITY  R64, R7
+0x01: OP_HALT

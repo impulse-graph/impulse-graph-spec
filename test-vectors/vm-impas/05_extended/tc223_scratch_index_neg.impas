@@ -1,0 +1,8 @@
+; ====================================================================
+; TC223: Scratch Index (Negative Test - Invalid Register)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_INT          R100, 0
+0x01: OP_HALT

@@ -1,0 +1,10 @@
+; ====================================================================
+; TC90: Vector Math (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_VEC_MATH_UNARY R1, 0
+0x01: OP_VEC_MATH_BINARY R1, 0
+0x02: OP_VEC_MATH_TERNARY R1, 0
+0x03: OP_HALT

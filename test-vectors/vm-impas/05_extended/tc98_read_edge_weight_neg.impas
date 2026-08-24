@@ -1,0 +1,8 @@
+; ====================================================================
+; TC98: Read Edge Weight (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_READ_EDGE_WEIGHT R64, R1
+0x01: OP_HALT

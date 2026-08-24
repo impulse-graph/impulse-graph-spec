@@ -1,0 +1,12 @@
+; ====================================================================
+; TDD 12: Canonical Math Function IDs Verification (SQRT = 2)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float NUMS = [4.0, 9.0, 16.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R1, NUMS
+0x01: OP_VEC_MATH_UNARY          R2, R1, 2
+0x02: OP_HALT

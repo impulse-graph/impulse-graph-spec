@@ -1,0 +1,7 @@
+; ====================================================================
+; TC62: ALLOC_SCRATCH Invalid Register Error (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_ALLOC_SCRATCH    R65, 1024 ; Register R65 is out of bounds

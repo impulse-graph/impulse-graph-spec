@@ -1,0 +1,10 @@
+; ====================================================================
+; TC_JZ_OOB: JZ Out of Bounds (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_LOAD_CONST_INT R0, 0
+0x01: OP_VEC_CMP_EQ R0, R0, R0
+0x02: OP_JZ 100
+0x03: OP_HALT

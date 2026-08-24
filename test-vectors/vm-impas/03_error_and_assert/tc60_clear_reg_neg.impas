@@ -1,0 +1,7 @@
+; ====================================================================
+; TC60: CLEAR_REG Register Bounds Error (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_CLEAR_REG        R65       ; R65 is out of bounds

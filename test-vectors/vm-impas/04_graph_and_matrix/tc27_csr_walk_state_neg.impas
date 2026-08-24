@@ -1,0 +1,10 @@
+; ====================================================================
+; TC27: CSR Walk State and Project State (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 42
+0x01: OP_CSR_WALK_STATE      R2, R0, R0
+0x02: OP_PROJECT_STATE       R1, R0, 10
+0x03: OP_HALT

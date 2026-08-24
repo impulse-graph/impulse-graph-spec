@@ -1,0 +1,8 @@
+; ====================================================================
+; TC124_MOTIF_MATCH_3_NEG: Motif Match 3 (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_MOTIF_MATCH_3       R64, R7
+0x01: OP_HALT

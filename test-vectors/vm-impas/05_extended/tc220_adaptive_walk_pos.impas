@@ -1,0 +1,16 @@
+; ====================================================================
+; TC220: Adaptive Walk (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline ADAPT_GRAPH = {
+    0: [1, 2],
+    1: [2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, ADAPT_GRAPH
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_ADAPTIVE_WALK       R2, R1, 0
+0x03: OP_HALT

@@ -1,0 +1,19 @@
+; ====================================================================
+; TC226: All Remaining Opcodes Verification Suite 2 (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline ADAPT_GRAPH2 = {
+    0: [1],
+    1: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, ADAPT_GRAPH2
+0x01: OP_INIT_INPUT_NODE         R1, 0
+0x02: OP_ADAPTIVE_WALK           R2, R1, 0
+0x03: OP_CREATE_SCRATCH_INDEX    R0, 0xFFFF
+0x04: OP_DROP_SCRATCH_INDEX      R0, 0xFFFF
+0x05: OP_VECTOR_TIME_VALID_AT    R3, R1
+0x06: OP_HALT

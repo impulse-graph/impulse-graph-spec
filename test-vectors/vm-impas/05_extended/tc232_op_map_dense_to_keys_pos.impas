@@ -1,0 +1,8 @@
+; ====================================================================
+; TC232_OP_MAP_DENSE_TO_KEYS_POS: OP_MAP_DENSE_TO_KEYS (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+
+.text
+0x00: OP_MAP_DENSE_TO_KEYS   R0, R1
+0x01: OP_HALT

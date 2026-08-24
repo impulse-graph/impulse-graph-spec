@@ -1,0 +1,9 @@
+; ====================================================================
+; TC119: CSR Degree (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 42
+0x01: OP_CSR_DEGREE          R2, R0, 999
+0x02: OP_HALT

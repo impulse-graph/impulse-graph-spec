@@ -1,0 +1,8 @@
+; ====================================================================
+; TC95: Brandes Forward (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_BRANDES_FORWARD R64, R1
+0x01: OP_HALT
