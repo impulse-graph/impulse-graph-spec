@@ -1,0 +1,36 @@
+; ====================================================================
+; TDD 02: OP_LOOP_DECR Branch Logic and Zero Flag
+;
+; Tests that OP_LOOP_DECR decrements *before* evaluating the branch
+; condition (> 0), and correctly sets the Zero Flag (ZF) when the
+; value reaches exactly 0.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+; Initialize loop counter to 1
+0x00: OP_LOAD_CONST_INT R1, 1
+
+; Initialize iteration tracker to 0
+0x01: OP_LOAD_CONST_INT R2, 0
+
+; Loop Start (Index 2)
+0x02: OP_LOAD_CONST_INT R3, 1
+0x03: OP_SET_UNION R2, R2, R3
+
+; C++: Decrements R1 to 0. 0 is not > 0. Does NOT branch. (1 iteration total). Sets ZF.
+; Java Bug: Checks 1 > 0. Decrements R1 to 0. Branches back to index 2! (2 iterations total).
+0x04: OP_LOOP_DECR R1, 2
+
+; Verify iteration count.
+; If Java bug exists, R2 cardinality will be 2, or R2 value will reflect 2 loops.
+0x05: OP_SET_CARDINALITY R4, R2
+0x06: OP_ASSERT R4, 1
+
+; Verify ZF was set by OP_LOOP_DECR when R1 hit 0.
+; If Java bug exists, ZF is false, so OP_JZ will NOT jump, causing an assertion failure.
+0x07: OP_JZ 2
+0x08: OP_LOAD_CONST_INT R9, 99
+0x09: OP_ASSERT R9, 0 ; Force trap if ZF was not set
+
+0x0A: OP_HALT
