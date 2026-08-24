@@ -16,11 +16,11 @@ jobs:
 
     steps:
       - name: Checkout impulse-graph-spec
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout impulse-graph-core (if PAT available)
         continue-on-error: true
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: impulse-graph/impulse-graph-core
           path: impulse-graph-core
@@ -35,7 +35,7 @@ jobs:
           cmake --build build -j$(nproc)
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
 
