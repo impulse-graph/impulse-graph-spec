@@ -557,6 +557,8 @@ def main():
             ctx = lib.impulse_vm_context_create(None)
             if "fuel" in expectations:
                 lib.impulse_vm_context_set_fuel(ctx, expectations["fuel"])
+            elif os.environ.get("IMPULSE_TEST_ENABLE_FUEL") == "1":
+                lib.impulse_vm_context_set_fuel(ctx, 1000000)
             c_buf = None
             if data_buf:
                 c_buf = (ctypes.c_char * len(data_buf)).from_buffer_copy(data_buf)
