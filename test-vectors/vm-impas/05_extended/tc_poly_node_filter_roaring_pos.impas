@@ -1,0 +1,18 @@
+; ====================================================================
+; Test: TC_POLY_NODE_FILTER_ROARING_POS
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG = ZF}
+
+.data
+.set_roaring FRONTIER = [0, 2]
+
+.array_float MOCK_PRICES = [1.5, 0.0, 3.14, 0.0]
+0x00: OP_LOAD_INLINE_ARRAY     R0, MOCK_PRICES
+0x01: OP_INIT_MOCK_NODE_ATTR   0, R0, R255
+
+
+.text
+0x02: OP_LOAD_INLINE_SET_ROARING R3, FRONTIER
+0x03: OP_NODE_FILTER R4, R3, R0, 0
+0x04: OP_HALT
