@@ -1,0 +1,39 @@
+; ====================================================================
+; TDD 14: Vector Time Valid At Verification with Null Bounds
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 3}
+
+.data
+.csr_inline TIME_GRAPH = {
+    0: [1, 2, 3]
+}
+.array_int ATTR_START = [0, 200, 200, 200]
+.array_int ATTR_END   = [0, 220, 220, 220]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, TIME_GRAPH
+
+; Node 1: Start is NULL, End is 220. Active at 210.
+; Node 2: Start is 200, End is NULL. Active at 210.
+; Node 3: Start is NULL, End is NULL. Active at 210.
+; Bitsets map targets [1,2,3].
+; Bitmap value for Node 1 Start (bit 1) = 0. Node 2 Start (bit 2) = 1. Node 3 Start (bit 3) = 0. So bitmap = 2 + 0 + 0 = 2 -> 0b010 -> (R9 = 4)
+; Bitmap value for Node 1 End (bit 1) = 1. Node 2 End (bit 2) = 0. Node 3 End (bit 3) = 0. So bitmap = 2 -> 0b0010 -> (R10 = 2)
+
+0x01: OP_LOAD_INLINE_INT_ARRAY   R1, ATTR_START
+0x02: OP_LOAD_CONST_INT          R9, 4 ; Binary 100
+0x03: OP_INIT_MOCK_NODE_ATTR     10, R1, R9
+
+0x04: OP_LOAD_INLINE_INT_ARRAY   R2, ATTR_END
+0x05: OP_LOAD_CONST_INT          R10, 2 ; Binary 010
+0x06: OP_INIT_MOCK_NODE_ATTR     20, R2, R10
+
+0x07: OP_LOAD_CONST_INT          R3, 210
+
+; Check which target nodes of relation 0 are active at time 210
+; attr_start = 10, attr_end = 20
+0x08: OP_VECTOR_TIME_VALID_AT    R5, R3, 0, 10, 20
+0x09: OP_SET_CARDINALITY         R4, R5
+0x0A: OP_ASSERT                  R4, 3
+0x0B: OP_HALT

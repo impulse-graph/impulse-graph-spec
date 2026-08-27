@@ -284,6 +284,10 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Behavior**: Extracts the validity bitmap of a nullable vector as a BitSet.
   - **Usage**: Expects `dst_reg` and `src_reg` (the nullable vector). If `src_reg` is nullable, creates a BitSet handle in `dst_reg` wrapping the validity bitmap (yielding an $O(1)$ `IS NOT NULL` mask). If `src_reg` is not nullable, returns a BitSet containing all `1`s for the length of the vector.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
+- **`OP_VECTOR_TIME_VALID_AT`** (`0x3D`)
+  - **Behavior**: Evaluates temporal bounds to determine which elements are active at a given timestamp.
+  - **Usage**: Expects `dst_reg` and `ts_reg` (the register containing the target timestamp). It requires the **128-bit Extended Instruction** format to specify `rel_id` (upper 16 bits of base payload), `attr_id_start` (lower 16 bits of extension word), and `attr_id_end` (upper 16 bits of extension word). Returns a BitSet containing all elements where `attr_start <= registers[ts_reg] < attr_end`. If an attribute is missing/null, the bound is treated as open (infinity).
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 
 ### 6.4 GraphBLAS and Matrix Instructions
 - **`OP_CC_AFFOREST`** (`0x40`)
