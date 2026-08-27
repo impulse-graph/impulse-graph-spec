@@ -34,6 +34,8 @@ OPCODES = {
     "OP_LOAD_CONST_STR_PREFIX": 0x07,
     "OP_LOAD_INLINE_ARRAY": 0x08,
     "OP_INIT_MOCK_GRAPH": 0x09,
+    "OP_LOAD_INLINE_SET": 0x0A,
+    "OP_INIT_MOCK_NODE_ATTR": 0x0B,
 
     "OP_CSR_WALK_2HOP": 0x0E,
     "OP_CSR_WALK_STATE": 0x0F,
@@ -78,6 +80,8 @@ OPCODES = {
     "OP_FLOAT_VECTOR_SCALE": 0x38,
     "OP_L1_NORM_DIFF": 0x39,
     "OP_PROJECT_STATE": 0x3A,
+    "OP_COALESCE": 0x3B,
+    "OP_EXTRACT_VALIDITY": 0x3C,
     "OP_VECTOR_TIME_VALID_AT": 0x3D,
 
     "OP_CC_AFFOREST": 0x40,
@@ -151,6 +155,14 @@ OPCODES = {
     "OP_COLLECT_VALUE_MAP": 0x93,
     "OP_DENSE_WALK_REDUCE": 0x94,
     "OP_DENSE_WALK_DIRECT_STORE": 0x95,
+}
+
+OPCODE_ALIASES = {
+    "OP_LOAD_INLINE_INT_ARRAY": "OP_LOAD_INLINE_ARRAY",
+    "OP_LOAD_INLINE_NODE_ARRAY": "OP_LOAD_INLINE_SET",
+    "OP_LOAD_INLINE_SET_DENSE": "OP_LOAD_INLINE_SET",
+    "OP_LOAD_INLINE_SET_ROARING": "OP_LOAD_INLINE_SET",
+    "OP_INIT_MOCK_EDGE_ATTR": "OP_INIT_MOCK_NODE_ATTR",
 }
 
 STATUS_NAMES = {
@@ -294,11 +306,32 @@ def parse_impas_file(file_path):
     for arr_match in re.finditer(r"\.array_float\s+(\w+)\s*=\s*\[([^\]]+)\]", full_text):
         sym_name = arr_match.group(1)
         arr_body = arr_match.group(2)
+        while len(data_bytes) % 4 != 0:
+            data_bytes.append(0)
         offset_start = len(data_bytes)
-        floats = [float(x.strip()) for x in arr_body.split(",") if x.strip()]
+        floats = []
+        for x in arr_body.split(","):
+            xs = x.strip()
+            if xs:
+                if xs.lower() == "nan": floats.append(float("nan"))
+                elif xs.lower() in ("inf", "+inf", "infinity", "+infinity"): floats.append(float("inf"))
+                elif xs.lower() in ("-inf", "-infinity"): floats.append(float("-inf"))
+                else: floats.append(float(xs))
         for flt in floats:
             data_bytes.extend(struct.pack("<f", flt))
         symbols[sym_name] = (offset_start, len(floats))
+
+    # Parse all .array_int / .array_uint32 / .array_node / .set / .set_dense / .set_roaring / .set_bitset blocks
+    for arr_match in re.finditer(r"\.(?:array_int|array_uint32|array_node|set|set_dense|set_roaring|set_bitset)\s+(\w+)\s*=\s*\[([^\]]*)\]", full_text):
+        sym_name = arr_match.group(1)
+        arr_body = arr_match.group(2)
+        while len(data_bytes) % 4 != 0:
+            data_bytes.append(0)
+        offset_start = len(data_bytes)
+        ints = [int(x.strip()) for x in arr_body.split(",") if x.strip()]
+        for val in ints:
+            data_bytes.extend(struct.pack("<I", val))
+        symbols[sym_name] = (offset_start, len(ints))
 
     # Parse all .rel directives: .rel <name> = <id> [, multiplicity = <m1|1m|11|mn>]
     for rel_match in re.finditer(r"\.rel\s+(\w+)\s*=\s*(\d+)(?:\s*,\s*multiplicity\s*=\s*(\w+))?", full_text):
@@ -374,9 +407,10 @@ def parse_impas_file(file_path):
         if not op_name.startswith("OP_"):
             continue
 
-        if op_name in OPCODES:
-            op_code = OPCODES[op_name]
-            opcodes_used.add(op_name)
+        canonical_op = OPCODE_ALIASES.get(op_name, op_name)
+        if canonical_op in OPCODES:
+            op_code = OPCODES[canonical_op]
+            opcodes_used.add(canonical_op)
 
             dst_reg = 0
             payload = 0
@@ -385,7 +419,7 @@ def parse_impas_file(file_path):
             if op_name in ("OP_JMP", "OP_JZ", "OP_JNZ", "OP_CALL", "OP_TRAP", "OP_NOP", "OP_HALT", "OP_RET", "OP_STABLE_CHECK", "OP_LEAVE_FRAME"):
                 if len(tokens) > 1:
                     payload = parse_val(tokens[1])
-            elif op_name in ("OP_INIT_MOCK_GRAPH", "OP_LOAD_INLINE_ARRAY"):
+            elif op_name in ("OP_INIT_MOCK_GRAPH", "OP_LOAD_INLINE_ARRAY", "OP_LOAD_INLINE_INT_ARRAY", "OP_LOAD_INLINE_SET", "OP_LOAD_INLINE_SET_DENSE", "OP_LOAD_INLINE_SET_ROARING", "OP_LOAD_INLINE_NODE_ARRAY"):
                 if len(tokens) > 1:
                     dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2:
@@ -393,6 +427,25 @@ def parse_impas_file(file_path):
                     if sym_name in symbols:
                         off_b, cnt = symbols[sym_name]
                         payload = off_b | (cnt << 16)
+                    else:
+                        payload = parse_val(sym_name)
+            elif op_name in ("OP_INIT_MOCK_NODE_ATTR", "OP_INIT_MOCK_EDGE_ATTR"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+            elif op_name == "OP_COALESCE":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+            elif op_name == "OP_EXTRACT_VALIDITY":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+            elif op_name == "OP_VECTOR_TIME_VALID_AT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+                if len(tokens) > 5: payload |= ((parse_val(tokens[5]) & 0xFF) << 24)
             elif op_name == "OP_CSC_WALK":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
@@ -401,6 +454,20 @@ def parse_impas_file(file_path):
                 elif len(tokens) > 4:
                     payload |= ((parse_val(tokens[3]) & 0xFF) << 16)
                     payload |= ((parse_val(tokens[4]) & 0xFF) << 24)
+            elif op_name == "OP_CSR_WALK_PREDICATE":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name == "OP_CSR_WALK_2HOP":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 4:
+                    payload |= (parse_val(tokens[2]) & 0xFFFF)
+                    payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                elif len(tokens) > 4:
+                    payload |= (parse_val(tokens[2]) & 0xFF)
+                    payload |= ((parse_val(tokens[3]) & 0xFFFF) << 8)
+                    payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
             elif op_name in ("OP_MXV", "OP_VXM"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
@@ -477,7 +544,17 @@ def parse_impas_file(file_path):
                 if len(tokens) > 4:
                     flags = parse_val(tokens[4])
 
-            instructions.append(Instruction(op_code, flags, dst_reg, payload & 0xFFFFFFFF))
+            # Check if 128-bit extended encoding is needed for relation IDs > 255
+            if (payload >> 16) > 255 and op_name in ("OP_CSR_WALK", "OP_CSR_WALK_FILTERED", "OP_CSR_DEGREE", "OP_CSR_WALK_2HOP", "OP_CSR_WALK_STATE", "OP_CSR_WALK_REDUCE_SUM", "OP_CSR_WALK_PREDICATE", "OP_CSC_WALK"):
+                # Word 1: opcode, flags | 0x80, dst_reg, (payload & 0xFFFF), 0
+                arg1 = payload & 0xFFFF
+                arg2 = 0
+                instructions.append(Instruction(op_code, flags | 0x80, dst_reg, arg1 | (arg2 << 16)))
+                # Word 2: 0xFF, 0, (payload >> 16), 0, 0
+                rel_id = (payload >> 16) & 0xFFFF
+                instructions.append(Instruction(0xFF, 0x00, rel_id, 0))
+            else:
+                instructions.append(Instruction(op_code, flags, dst_reg, payload & 0xFFFFFFFF))
         else:
             raise ValueError(f"Unknown opcode '{op_name}' in line: {line_str}")
 

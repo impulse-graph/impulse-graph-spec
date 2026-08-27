@@ -3,7 +3,7 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 ; {EXPECT: R0 = 300}
-; {EXPECT: FLAG = !ZF}
+; {EXPECT: FLAG = ZF}
 
 .text
 0x00: OP_INIT_INPUT_SET      R1, 0
