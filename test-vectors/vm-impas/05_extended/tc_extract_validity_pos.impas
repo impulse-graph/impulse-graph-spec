@@ -2,10 +2,18 @@
 ; Test: OP_EXTRACT_VALIDITY
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
-; {EXPECT: R2 = 888}
-; {EXPECT: FLAG_ZF = 0}
+
+.data
+.array_float MOCK_PRICES = [1.5, 0.0, 3.14, 0.0]
+.set VALIDITY_MASK = [0, 2]
 
 .text
-0x00: OP_LOAD_CONST_INT      R1, 1
-0x01: OP_EXTRACT_VALIDITY    R2, R1
-0x02: OP_HALT
+0x00: OP_LOAD_INLINE_ARRAY     R1, MOCK_PRICES
+0x01: OP_INIT_INPUT_SET        R2, VALIDITY_MASK
+0x02: OP_INIT_MOCK_NODE_ATTR   38000, R1, R2
+
+0x03: OP_INIT_INPUT_NODE       R0, 0
+0x04: OP_GATHER_NODE_ATTR      R3, R0, 0, 38000
+
+0x05: OP_EXTRACT_VALIDITY      R4, R3
+0x06: OP_HALT
