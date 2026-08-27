@@ -286,7 +286,7 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_VECTOR_TIME_VALID_AT`** (`0x3D`)
   - **Behavior**: Evaluates temporal bounds to determine which elements are active at a given timestamp.
-  - **Usage**: Expects `dst_reg` and `ts_reg` (the register containing the target timestamp). It requires the **128-bit Extended Instruction** format to specify `rel_id` (upper 16 bits of base payload), `attr_id_start` (lower 16 bits of extension word), and `attr_id_end` (upper 16 bits of extension word). Returns a BitSet containing all elements where `attr_start <= registers[ts_reg] < attr_end`. If an attribute is missing/null, the bound is treated as open (infinity).
+  - **Usage**: Expects `dst_reg` and `ts_reg`. The `ts_reg` can dynamically contain either a scalar timestamp (`TYPE_INT64`) or a vector of timestamps (`TYPE_UINT64_VECTOR` / `TYPE_NODE_VECTOR`) evaluated element-wise. It requires the **128-bit Extended Instruction** format to specify `rel_id` (upper 16 bits of base payload), `attr_id_start` (lower 16 bits of extension word), and `attr_id_end` (upper 16 bits of extension word). Returns a BitSet containing all target nodes where `attr_start <= ts_val < attr_end`. If an attribute bound is missing/null, it is treated as open (infinity).
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 
 ### 6.4 GraphBLAS and Matrix Instructions
