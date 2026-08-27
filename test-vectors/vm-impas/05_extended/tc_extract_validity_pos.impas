@@ -1,0 +1,11 @@
+; ====================================================================
+; Test: OP_EXTRACT_VALIDITY
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R2 = 888}
+; {EXPECT: FLAG_ZF = 0}
+
+.text
+0x00: OP_LOAD_CONST_INT      R1, 1
+0x01: OP_EXTRACT_VALIDITY    R2, R1
+0x02: OP_HALT

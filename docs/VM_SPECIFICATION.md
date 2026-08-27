@@ -277,6 +277,14 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_L1_NORM_DIFF`** (`0x39`)
   - **Behavior**: Calculate L1 Norm of differences between vectors.
 
+- **`OP_COALESCE`** (`0x28`)
+  - **Behavior**: Coalesces a nullable vector into a dense vector by replacing null elements with a fallback value.
+  - **Usage**: Expects `dst_reg`, `src_reg` (nullable vector), and a fallback loaded in a third register (specified in the payload). Replaces elements where validity bit is `0` with the fallback value. The resulting `dst_reg` vector **MUST NOT** have a validity bitmap.
+- **`OP_EXTRACT_VALIDITY`** (`0x29`)
+  - **Behavior**: Extracts the validity bitmap of a nullable vector as a BitSet.
+  - **Usage**: Expects `dst_reg` and `src_reg` (the nullable vector). If `src_reg` is nullable, creates a BitSet handle in `dst_reg` wrapping the validity bitmap (yielding an $O(1)$ `IS NOT NULL` mask). If `src_reg` is not nullable, returns a BitSet containing all `1`s for the length of the vector.
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
+
 ### 6.4 GraphBLAS and Matrix Instructions
 - **`OP_CC_AFFOREST`** (`0x40`)
   - **Behavior**: Component step in Afforest algorithm.
