@@ -1,8 +1,14 @@
 ; ====================================================================
 ; TC205_OP_GATHER_NODE_ATTR_SUITE2_POS: OP_GATHER_NODE_ATTR (Positive Test)
 ; ====================================================================
-; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float MOCK_PRICES = [1.5, 0.0]
 
 .text
-0x00: OP_GATHER_NODE_ATTR R0, R1, 0x0, 0x0
-0x01: OP_HALT
+0x00: OP_LOAD_INLINE_ARRAY     R1, MOCK_PRICES
+0x01: OP_INIT_MOCK_NODE_ATTR   0, R1, R0
+0x02: OP_INIT_INPUT_NODE       R2, 0
+0x03: OP_GATHER_NODE_ATTR      R3, R2, 0
+0x04: OP_HALT

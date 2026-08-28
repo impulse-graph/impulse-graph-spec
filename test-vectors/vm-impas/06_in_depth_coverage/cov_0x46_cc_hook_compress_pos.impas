@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x46_CC_HOOK_COMPRESS_POS: OP_CC_HOOK_COMPRESS
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_HOOK = {
+    0: [1],
+    1: [2],
+    2: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_HOOK
+0x01: OP_CC_HOOK_COMPRESS    R0, R10
+0x02: OP_HALT

@@ -1,0 +1,19 @@
+; ====================================================================
+; COV_0x60_GRAPH_ALGORITHMS_POS: OP_SAMPLE_NEIGHBORS, OP_RANDOM_WALK, OP_SCATTER_GATHER, OP_REBAC_CHECK
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_ALG = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_ALG
+0x01: OP_SAMPLE_NEIGHBORS    R0, R10
+0x02: OP_RANDOM_WALK         R1, R10
+0x03: OP_SCATTER_GATHER      R2, R10
+0x04: OP_REBAC_CHECK         R3, 0
+0x05: OP_HALT

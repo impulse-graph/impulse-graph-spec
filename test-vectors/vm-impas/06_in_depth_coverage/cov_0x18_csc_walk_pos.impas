@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x18_CSC_WALK_POS: OP_CSC_WALK (Reverse Traversal)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline  GRAPH_CSC = {
+    0: [1],
+    1: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_CSC
+0x01: OP_INIT_INPUT_NODE     R1, 1
+0x02: OP_CSC_WALK            R2, R1, R0
+0x03: OP_HALT

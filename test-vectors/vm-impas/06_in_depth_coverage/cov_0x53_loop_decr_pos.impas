@@ -1,0 +1,9 @@
+; ====================================================================
+; COV_0x53_LOOP_DECR_POS: OP_LOOP_DECR (Loop Decrement Counter)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 3
+0x01: OP_LOOP_DECR           R0, 1
+0x02: OP_HALT

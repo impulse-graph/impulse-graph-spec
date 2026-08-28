@@ -1,0 +1,11 @@
+; ====================================================================
+; COV_0x08_LOAD_INLINE_ARRAY_INV_REG_NEG: OP_LOAD_INLINE_ARRAY (Invalid Register R64)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.array_float EMBEDDINGS = [1.0, 2.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R64, EMBEDDINGS
+0x01: OP_HALT

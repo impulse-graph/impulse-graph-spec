@@ -1,0 +1,20 @@
+; ====================================================================
+; COV_0x8C_COO_DENSE_WALKS_POS: OP_COO_WALK_REDUCE, OP_COO_WALK_DIRECT_STORE, OP_DENSE_WALK, OP_DENSE_WALK_BITMATRIX
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_DENSE = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_DENSE
+0x01: OP_INIT_INPUT_NODE     R0, 0
+0x02: OP_COO_WALK_REDUCE     R1, R0, R10
+0x03: OP_COO_WALK_DIRECT_STORE R2, R0, R10
+0x04: OP_DENSE_WALK          R3, R0, R10
+0x05: OP_DENSE_WALK_BITMATRIX R4, R0, R10
+0x06: OP_HALT

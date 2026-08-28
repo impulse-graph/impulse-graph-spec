@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x10_CSR_WALK_TYPE_NULL_POS: OP_CSR_WALK (Uninitialized Source Register)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG = ZF}
+
+.data
+.csr_inline  GRAPH_EMPTY = {
+    0: [1, 2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_EMPTY
+0x01: OP_CLEAR_REG           R1
+0x02: OP_CSR_WALK            R2, R1, R0
+0x03: OP_HALT

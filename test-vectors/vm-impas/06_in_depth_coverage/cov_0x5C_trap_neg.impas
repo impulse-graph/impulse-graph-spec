@@ -1,0 +1,8 @@
+; ====================================================================
+; COV_0x5C_TRAP_NEG: OP_TRAP (Breakpoint / Unreachable Trap)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_TRAP}
+
+.text
+0x00: OP_TRAP                1
+0x01: OP_HALT

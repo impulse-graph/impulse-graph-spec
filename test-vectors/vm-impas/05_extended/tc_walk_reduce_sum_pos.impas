@@ -1,0 +1,20 @@
+; ====================================================================
+; Test: TC_WALK_REDUCE_SUM_POS
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG = !ZF}
+; {EXPECT: R4 = 60}
+
+.data
+.csr_inline REDUCE_GRAPH = {
+    0: [1, 2, 3]
+}
+.array_int MOCK_VALUES = [0, 10, 20, 30]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, REDUCE_GRAPH
+0x01: OP_LOAD_INLINE_INT_ARRAY R1, MOCK_VALUES
+0x02: OP_INIT_MOCK_NODE_ATTR 0, R1, R255
+0x03: OP_INIT_INPUT_NODE R2, 0
+0x04: OP_CSR_WALK_REDUCE_SUM R4, R2, 0
+0x05: OP_HALT

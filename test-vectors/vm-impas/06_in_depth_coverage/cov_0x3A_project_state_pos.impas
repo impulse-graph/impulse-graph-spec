@@ -1,0 +1,9 @@
+; ====================================================================
+; COV_0x3A_PROJECT_STATE_POS: OP_PROJECT_STATE
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_CSR_WALK_STATE      R0, 0, 0
+0x01: OP_PROJECT_STATE       R1, R0
+0x02: OP_HALT

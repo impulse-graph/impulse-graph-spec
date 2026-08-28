@@ -1,0 +1,14 @@
+; ====================================================================
+; COV_0x21_VEC_CMP_GT_POS: OP_VEC_CMP_GT (Vector Greater Than)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float VEC_A = [5.0, 2.0, 10.0, 1.0]
+.array_float VEC_B = [1.0, 3.0, 5.0, 2.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_B
+0x02: OP_VEC_CMP_GT          R2, R0, R1
+0x03: OP_HALT

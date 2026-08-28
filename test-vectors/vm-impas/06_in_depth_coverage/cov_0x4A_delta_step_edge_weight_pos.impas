@@ -1,0 +1,18 @@
+; ====================================================================
+; COV_0x4A_DELTA_STEP_EDGE_WEIGHT_POS: OP_DELTA_STEP_RELAX, OP_READ_EDGE_WEIGHT
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_W = {
+    0: [1],
+    1: []
+}
+.array_float WEIGHTS = [2.5]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_W
+0x01: OP_INIT_MOCK_EDGE_ATTR R11, WEIGHTS
+0x02: OP_READ_EDGE_WEIGHT    R0, R11, 0
+0x03: OP_DELTA_STEP_RELAX    R1, R10, R11, 0
+0x04: OP_HALT

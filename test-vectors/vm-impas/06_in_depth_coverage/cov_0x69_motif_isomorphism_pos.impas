@@ -1,0 +1,17 @@
+; ====================================================================
+; COV_0x69_MOTIF_ISOMORPHISM_POS: OP_MOTIF_MATCH_3, OP_GRAPH_ISOMORPHISM
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_MOTIF = {
+    0: [1],
+    1: [2],
+    2: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_MOTIF
+0x01: OP_MOTIF_MATCH_3       R0, R10
+0x02: OP_GRAPH_ISOMORPHISM   R1, R10
+0x03: OP_HALT

@@ -25,7 +25,8 @@ The ImpulseVM is a register-based virtual machine operating on a bank of general
 
 ### 2.2 Program Counter (PC)
 - The execution context **MUST** maintain a 32-bit unsigned Program Counter (`pc`).
-- The `pc` register represents the zero-indexed instruction array offset to be executed next.
+- The `pc` register represents the zero-indexed instruction array offset of the currently executing instruction.
+- The `pc` **MUST** only be incremented *after* the successful execution of an instruction. If an instruction halts (e.g., `OP_HALT`) or faults (e.g., bounds error, trap, throw), the `pc` remains strictly pointed at the offset of that halting or faulting instruction.
 
 ### 2.3 Status Flags Register (FLAGS)
 The execution state **MUST** maintain a 64-bit status flags register (`flags`). The lower bits are mapped as follows:
@@ -83,10 +84,32 @@ Every executable instruction **MUST** be packed into exactly 8 bytes (64 bits), 
 
 | Byte Offset | Field Name | Type | Semantic Role |
 | :--- | :--- | :--- | :--- |
-| `0x00` | `opcode` | `uint8_t` | The ImpOps bytecode opcode identifier (`0x00`..`0xFF`). |
+| `0x00` | `opcode` | `uint8_t` | The ImpOps bytecode opcode identifier (`0x00`..`0xFE`). |
 | `0x01` | `flags` | `uint8_t` | Instruction modifiers (see §3.3). |
 | `0x02` – `0x03` | `dst_reg` | `uint16_t` | Destination register index (`0`..`63`). |
 | `0x04` – `0x07` | `payload` | `uint32_t` | Operands, constants, offsets, or jump addresses. |
+
+#### 3.2.1 16-Byte Extended Instruction Layout (128 bits)
+If the instruction requires more than a 32-bit payload (e.g., loading a full 64-bit constant, or utilizing more than 3 source operands with 16-bit register IDs), it **MAY** use the 128-bit Extended Instruction format. This is dynamically signaled by setting `Bit 7` (`FLAG_EXTENDED`) in the instruction `flags`.
+
+When the VM decodes `FLAG_EXTENDED`, it **MUST** automatically consume the immediately following 64-bit slot in the instruction stream as extended payload, advancing the Program Counter by 2. 
+
+To maintain runtime security against invalid branches into the middle of a 128-bit instruction, the second 64-bit word **MUST** begin with the reserved tombstone opcode `0xFF` (`OP_EXTENSION_PAYLOAD`), followed by a `0x00` padding byte to ensure flawless 16-bit and 32-bit memory alignment for the remaining 48 bits.
+
+| Word | Byte Offset | Field Name | Type | Semantic Role |
+| :--- | :--- | :--- | :--- | :--- |
+| **Word 1** | `0x00` | `opcode` | `uint8_t` | Base operation opcode (`0x00`..`0xFE`). |
+| | `0x01` | `flags` | `uint8_t` | Modifiers, including `FLAG_EXTENDED (0x80)`. |
+| | `0x02` – `0x03` | `dst_reg` | `uint16_t` | Destination register index. |
+| | `0x04` – `0x05` | `arg1` | `uint16_t` | First extended 16-bit source argument. |
+| | `0x06` – `0x07` | `arg2` | `uint16_t` | Second extended 16-bit source argument. |
+| **Word 2** | `0x08` | `ext_marker` | `uint8_t` | **MUST** be `0xFF` (`OP_EXTENSION_PAYLOAD`). |
+| | `0x09` | `padding` | `uint8_t` | **MUST** be `0x00` (Alignment padding). |
+| | `0x0A` – `0x0B` | `arg3` | `uint16_t` | Third extended 16-bit source argument. |
+| | `0x0C` – `0x0D` | `arg4` | `uint16_t` | Fourth extended 16-bit source argument. |
+| | `0x0E` – `0x0F` | `arg5` | `uint16_t` | Fifth extended 16-bit source argument. |
+
+*Note: For operations requiring a 32-bit integer immediate offset in the extension word, the VM backend MAY cast `arg4` and `arg5` (bytes `0x0C`–`0x0F`) as a single perfectly-aligned 32-bit `uint32_t` via an anonymous union.*
 
 ### 3.3 Instruction Modifier Flags
 The `flags` byte in the instruction structure is a bitmask defined as:
@@ -94,6 +117,7 @@ The `flags` byte in the instruction structure is a bitmask defined as:
 - **`Bit 1` (`0x02` / `IMPULSE_VM_OP_FLAG_ACCUMULATE`)**: Accumulate flag. Instructs the VM to accumulate results into the destination register rather than overwriting.
 - **`Bit 2` (`0x04` / `IMPULSE_VM_OP_FLAG_INVERT`)**: Invert flag. Negates conditions, filters, or set tests.
 - **`Bit 3` (`0x08` / `IMPULSE_VM_OP_FLAG_OFFHEAP`)**: Off-heap flag. Explicitly forces off-heap memory evaluations.
+- **`Bit 7` (`0x80` / `IMPULSE_VM_OP_FLAG_EXTENDED`)**: Extended format flag. Instructs the VM to decode the current instruction and the subsequent 64-bit block as a single 128-bit `SafeExtendedInstruction`.
 
 ---
 
@@ -107,11 +131,38 @@ The native engine library **MUST** export standard C-linkage FFI methods to inte
 
 ---
 
-## 5. ImpOps Instruction Set Reference
+## 5. Null Safety and Validity Semantics
+
+The Impulse Graph Engine supports nullable attributes via 128-byte aligned **Validity Bitmaps** (as defined in the physical format schema, where `Bit 7` of the attribute type code is set to `1`). When executing operations that read or interact with nullable attributes, the VM **MUST** strictly adhere to the following null safety semantics:
+
+### 5.1 Filters and Comparisons
+When evaluating predicate opcodes (e.g., `OP_NODE_FILTER`, `OP_NODE_FILTER_STR_PREFIX`, `OP_CSR_WALK_FILTERED`, `OP_VEC_CMP_EQ`):
+- If the attribute validity bit for an element is `0` (null), the comparison **MUST** immediately evaluate to `false`.
+- Nulls are considered unknown states. `NULL == NULL` evaluates to `false`, and `NULL != VALUE` evaluates to `false`.
+- If the `INVERT` flag is set on the instruction, null elements **MUST STILL** evaluate to `false`. An inverted filter returns all *valid* elements that do not match the condition; it **MUST NOT** return null elements.
+
+### 5.2 Aggregations and Reductions
+When evaluating reduction opcodes (e.g., `OP_CSR_WALK_REDUCE_SUM`, `OP_REDUCE`, `OP_EWISE_REDUCE_MIN`, `OP_EWISE_REDUCE_MAX`):
+- **Skip Semantics**: Aggregators **MUST** skip (ignore) elements where the validity bit is `0`.
+  - For example, `OP_CSR_WALK_REDUCE_SUM` over weights `[5.0, NULL, 3.0]` yields `8.0`. 
+  - `OP_SET_CARDINALITY` or counting reductions over `[A, NULL, B]` yields `2`.
+- **Empty/Null State**: If a reduction operates entirely over null values (or an empty set), the VM **MUST** set the `ZF` (Zero Flag) to `1` and set the destination register to a default empty value (e.g., `0` for sums, `MAX_INT` for mins, `MIN_INT` for maxes).
+
+### 5.3 Element-Wise Vector Algebra
+When evaluating vector math opcodes (e.g., `OP_EWISE_ADD`, `OP_EWISE_MULT`, `OP_VEC_MATH_TERNARY`):
+- **Poison / Propagation Semantics**: If any source element in a vector operation is null (validity bit is `0`), the resulting vector element **MUST** also be marked as null.
+  - For example, `[5.0, NULL, 2.0] + [1.0, 1.0, 1.0] = [6.0, NULL, 3.0]`.
+- The destination register containing the resulting vector (`TYPE_FLOAT_VECTOR`, etc.) **MUST** have an associated validity bitmap allocated in the VM Context if any source vector was nullable.
+
+### 5.4 Gather and Indirect Loads
+When evaluating `OP_GATHER_NODE_ATTR`, `OP_GATHER_EDGE_ATTR`, or `OP_LOAD_INDIRECT`:
+- If the target attribute is schema-defined as nullable, the VM **MUST** load and bind both the data span and the validity bitmap span to the resulting vector register handle. Any downstream opcodes interacting with that register will then correctly apply the semantics from §5.1, §5.2, or §5.3.
+
+## 6. ImpOps Instruction Set Reference
 
 The VM **MUST** execute bytecode instructions matching the opcode values and rules listed below. If an instruction executes with invalid registers, type mismatches, or out-of-bounds parameters, the VM **MUST** halt execution and return the appropriate `impulse_vm_status_t` error.
 
-### 5.1 Setup and Input Instructions
+### 6.1 Setup and Input Instructions
 - **`OP_HALT`** (`0x00`)
   - **Behavior**: Stop virtual machine execution. Return execution status `IMPULSE_VM_OK`.
 - **`OP_NOP`** (`0x01`)
@@ -147,7 +198,7 @@ The VM **MUST** execute bytecode instructions matching the opcode values and rul
   - **Note**: The "mock graph" refers to a virtual, inline adjacency matrix defined directly in the thread context's inline bytecode data stream (rather than loaded from a physical `.imps` snapshot file). This is used primarily for isolated assembly unit testing of traversal opcodes.
   - **Outcome**: Bypasses the need to mmap a physical `.imps` snapshot file. Does not modify register values.
 
-### 5.2 Traversal and Filter Instructions
+### 6.2 Traversal and Filter Instructions
 
 All Walk-based traversal instructions (`OP_CSR_WALK`, `OP_CSR_WALK_FILTERED`, `OP_CSC_WALK`) follow a common execution behavior:
 - **Frontier Evaluation & Flag Behavior**: If the source nodes frontier is empty (contains no active node IDs), or if the traversal result set is empty, the VM **MUST** set the Zero Flag (`ZF`) to 1 in the `flags` register. Otherwise, `flags[ZF]` **MUST** be cleared (set to 0).
@@ -194,7 +245,7 @@ All Walk-based traversal instructions (`OP_CSR_WALK`, `OP_CSR_WALK_FILTERED`, `O
 - **`OP_HAS_KEY_CATALOG`** (`0x1C`)
   - **Behavior**: Verify if domain catalog exists. Sets `flags[EQ]` accordingly.
 
-### 5.3 Set Mathematics and Algebra Instructions
+### 6.3 Set Mathematics and Algebra Instructions
 
 Set math and algebraic instructions are classified based on the number and structure of their operands:
 - **Unary Set Operations**: Operations that accept a single source register (e.g. `OP_SET_CARDINALITY`) and write to `dst_reg`.
@@ -227,7 +278,19 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_L1_NORM_DIFF`** (`0x39`)
   - **Behavior**: Calculate L1 Norm of differences between vectors.
 
-### 5.4 GraphBLAS and Matrix Instructions
+- **`OP_COALESCE`** (`0x28`)
+  - **Behavior**: Coalesces a nullable vector into a dense vector by replacing null elements with a fallback value.
+  - **Usage**: Expects `dst_reg`, `src_reg` (nullable vector), and a fallback loaded in a third register (specified in the payload). Replaces elements where validity bit is `0` with the fallback value. The resulting `dst_reg` vector **MUST NOT** have a validity bitmap.
+- **`OP_EXTRACT_VALIDITY`** (`0x29`)
+  - **Behavior**: Extracts the validity bitmap of a nullable vector as a BitSet.
+  - **Usage**: Expects `dst_reg` and `src_reg` (the nullable vector). If `src_reg` is nullable, creates a BitSet handle in `dst_reg` wrapping the validity bitmap (yielding an $O(1)$ `IS NOT NULL` mask). If `src_reg` is not nullable, returns a BitSet containing all `1`s for the length of the vector.
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
+- **`OP_VECTOR_TIME_VALID_AT`** (`0x3D`)
+  - **Behavior**: Evaluates temporal bounds to determine which elements are active at a given timestamp.
+  - **Usage**: Expects `dst_reg` and `ts_reg`. The `ts_reg` can dynamically contain either a scalar timestamp (`TYPE_INT64`) or a vector of timestamps (`TYPE_UINT64_VECTOR` / `TYPE_NODE_VECTOR`) evaluated element-wise. It requires the **128-bit Extended Instruction** format to specify `rel_id` (upper 16 bits of base payload), `attr_id_start` (lower 16 bits of extension word), and `attr_id_end` (upper 16 bits of extension word). Returns a BitSet containing all target nodes where `attr_start <= ts_val < attr_end`. If an attribute bound is missing/null, it is treated as open (infinity).
+  - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
+
+### 6.4 GraphBLAS and Matrix Instructions
 - **`OP_CC_AFFOREST`** (`0x40`)
   - **Behavior**: Component step in Afforest algorithm.
 - **`OP_MXV`** (`0x41`)
@@ -253,7 +316,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_READ_EDGE_WEIGHT`** (`0x4B`)
   - **Behavior**: Reads weight value associated with edge offset.
 
-### 5.5 Control Flow and Branching Instructions
+### 6.5 Control Flow and Branching Instructions
 - **`OP_JMP`** (`0x50`)
   - **Behavior**: Set program counter `pc` to execution offset in payload.
 - **`OP_JZ`** (`0x51`)
@@ -275,7 +338,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_LEAVE_FRAME`** (`0x58`)
   - **Behavior**: Tear down the active execution stack frame.
 - **`OP_THROW`** (`0x5A`)
-  - **Behavior**: Stop execution and return custom runtime exception status.
+  - **Behavior**: Stop execution and return custom runtime exception status. Writes the exception payload directly into `R0` as a `TYPE_INT64`.
   - **Outcome**: Returns status `IMPULSE_VM_ERR_USER_THROW` (`7`).
 - `OP_ASSERT` (`0x5B`):
   - **Behavior**: Verify invariant condition on register values or flags. If check fails, return `IMPULSE_VM_ERR_ASSERTION_FAILED` (`8`).
@@ -284,7 +347,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - `IMPULSE_VM_ERR_GAS_EXHAUSTED` (`13` / `0x0D`):
   - **Behavior**: Returned when an execution loop or query exceeds its configured instruction fuel / gas budget in `VmQueryContext`, terminating unbounded loops safely.
 
-### 5.6 Extended Operations
+### 6.6 Extended Operations
 - **`OP_SAMPLE_NEIGHBORS`** (`0x60`)
   - **Behavior**: Perform neighbor sampling (GNN target).
 - **`OP_RANDOM_WALK`** (`0x61`)
@@ -312,7 +375,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_ROARING_BITMAP_AND_NOT`** (`0x6C`)
   - **Behavior**: Bitwise logical AND-NOT subtraction on roaring bitmaps.
 
-### 5.7 Registers and Memory Management Instructions
+### 6.7 Registers and Memory Management Instructions
 - **`OP_MOV`** (`0x70`)
   - **Behavior**: Copy value and type tag from source register (payload) into `dst_reg`.
 - **`OP_CLEAR_REG`** (`0x71`)
@@ -326,7 +389,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_SET_MAX_DOP`** (`0x75`)
   - **Behavior**: Set concurrency limits (maximum degree of parallelism) for multi-threaded opcodes.
 
-### 5.8 Materialization and Output Instructions
+### 6.8 Materialization and Output Instructions
 - **`OP_COLLECT_BITSET`** (`0x90`)
   - **Behavior**: Materialize target BitSet items into caller array buffer.
 - **`OP_COLLECT_ARRAY`** (`0x91`)
@@ -336,7 +399,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_COLLECT_VALUE_MAP`** (`0x93`)
   - **Behavior**: Materialize map keys/values into FFI structs.
 
-### 5.9 Reserved Opcodes
+### 6.9 Reserved Opcodes
 - **`OP_RESERVED_0A`** through **`OP_RESERVED_0F`** (`0x0A`–`0x0F`)
 - **`OP_RESERVED_1D`** through **`OP_RESERVED_2F`** (`0x1D`–`0x2F`)
 - **`OP_RESERVED_3A`** through **`OP_RESERVED_3F`** (`0x3A`–`0x3F`)
@@ -349,31 +412,31 @@ Set math and algebraic instructions are classified based on the number and struc
 
 ---
 
-## 6. Concurrency & Execution Design Factors
+## 7. Concurrency ## 6. Concurrency & Execution Design Factors Execution Design Factors
 
 Any implementation of the ImpulseVM query interpreter **MUST** conform to the following performance, alignment, and multi-threading invariants:
 
-### 6.1 Context Thread-Locality & Concurrency Behavior
+### 7.1 Context Thread-Locality & Concurrency Behavior
 - **Context Isolation**: The VM query execution context (`impulse_vm_context_t`) **MUST** be thread-local and thread-private. Multiple system threads executing concurrent queries **SHALL NOT** share context instances, registers, stacks, or state frames.
 - **Lock-Free Read Path**: Since Snapshots are read-only, all execution paths over memory-mapped snapshot structures **MUST** run lock-free without acquiring mutexes or synchronization barriers.
 
-### 6.2 Intra-Opcode Parallelism (Only)
+### 7.2 Intra-Opcode Parallelism (Only)
 - **Parallel Dispatch Boundaries**: The VM interpreter **MUST NOT** execute multi-threaded pipeline execution across separate instructions (i.e., no instruction-level parallelism / ILP or multi-threaded instruction scheduling).
 - **Intra-Instruction Parallelization**: Parallelization **MUST** be strictly confined to the loop internals of single heavy traversal or matrix opcodes (e.g., `OP_CSR_WALK`, `OP_CSC_WALK`, `OP_MXV`). Loop chunks **MAY** be dispatched to multiple worker threads (e.g., via OpenMP `#pragma omp parallel for`) when the frontier or workload exceeds a compiler-defined size threshold.
 
-### 6.3 Concurrency Control (`max_dop`)
+### 7.3 Concurrency Control (`max_dop`)
 - **Parallelism Setting**: The VM context **MUST** allow configuring a maximum degree of parallelism (`max_dop`). 
 - **Sequential Safety Check**: If `max_dop` is configured to `1` (single-threaded mode), the interpreter **MUST** execute standard, sequential loop bodies without using atomic instructions (e.g., `bitset_add` instead of `bitset_add_atomic`) to bypass CPU-level hardware synchronization overhead.
 - **OP_SET_MAX_DOP Execution**: The instruction `OP_SET_MAX_DOP` (`0x75`) **SHALL** dynamically update the context's thread worker count for subsequent instruction iterations.
 
-### 6.4 Register Frame Windowing
+### 7.4 Register Frame Windowing
 - **Recursive Integrity**: Subroutines (`OP_CALL`, `OP_RET`) **MUST** protect register contexts. Subroutine recursion (e.g., evaluating nested ReBAC transitivities or recursive traversals) **MUST** implement register frame windowing or context state stacking to prevent sibling subroutines from overwriting the registers of caller frames.
 
-### 6.5 Allocation-Free Hot Path
+### 7.5 Allocation-Free Hot Path
 - **Zero Heap Allocations**: The interpreter's main opcode dispatch loop (the instruction processing path) **MUST NOT** allocate or free heap memory (e.g., no `malloc`/`free` or C++ `new`/`delete` calls).
 - **Arena-Based Resource Pooling**: All intermediate structures, BitSets, vectors, and value maps **MUST** be pre-allocated and pooled. Opcodes needing temporary objects **MUST** acquire and release handles through the context's arenas (e.g., calling `acquire_bitset` / `release_bitset`).
 
-### 6.6 Caller-Assigned Result Buffers
+### 7.6 Caller-Assigned Result Buffers
 - **FFM Zero-Copy Collection**: Output materialization opcodes (`OP_COLLECT_BITSET`, `OP_COLLECT_ARRAY`, `OP_COLLECT_VALUE_MAP`) **MUST NOT** allocate memory buffers to return results to the client.
 - **In-Place Writes**: The caller **MUST** pre-allocate and pass the target memory destination buffers (such as Java FFM off-heap `MemorySegment` pointers or C array pointers) to the VM. The interpreter **MUST** write elements directly into these caller-assigned buffers in-place.
 

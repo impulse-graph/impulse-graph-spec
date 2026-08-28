@@ -1,0 +1,19 @@
+; ====================================================================
+; Test: TC_POLY_NODE_FILTER_ID_LIST_POS
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG = !ZF}
+; {EXPECT: R5 = 1}
+
+.data
+.array_int MOCK_VALUES = [10, 0, 30, 0]
+.array_node FRONTIER = [0, 2]
+
+.text
+0x00: OP_LOAD_INLINE_INT_ARRAY R1, MOCK_VALUES
+0x01: OP_INIT_MOCK_NODE_ATTR   0, R1, R255
+0x02: OP_LOAD_CONST_INT        R0, 30
+0x03: OP_LOAD_INLINE_NODE_ARRAY  R3, FRONTIER
+0x04: OP_NODE_FILTER R4, R3, R0, 0, 0
+0x05: OP_SET_CARDINALITY R5, R4
+0x06: OP_HALT

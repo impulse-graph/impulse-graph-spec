@@ -1,0 +1,12 @@
+; ====================================================================
+; COV_0x2A_ASSERT_FINITE_POS: OP_ASSERT_FINITE (All Finite Floats)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float FINITE_VALS = [1.5, -2.5, 0.0, 100.25]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, FINITE_VALS
+0x01: OP_ASSERT_FINITE       R0
+0x02: OP_HALT

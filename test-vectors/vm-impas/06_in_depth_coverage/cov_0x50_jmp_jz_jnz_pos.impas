@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x50_JMP_JZ_JNZ_POS: OP_JMP, OP_JZ, OP_JNZ
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 0
+0x01: OP_JZ                  4
+0x02: OP_LOAD_CONST_INT      R1, 999
+0x03: OP_HALT
+0x04: OP_LOAD_CONST_INT      R0, 1
+0x05: OP_JNZ                 7
+0x06: OP_HALT
+0x07: OP_JMP                 9
+0x08: OP_HALT
+0x09: OP_HALT

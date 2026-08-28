@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x47_TC_SWEEP_POS: OP_TC_SWEEP_BATCH (Triangle Count Sweep)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_TRI = {
+    0: [1, 2],
+    1: [0, 2],
+    2: [0, 1]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_TRI
+0x01: OP_TC_SWEEP_BATCH      R0, R10, 0
+0x02: OP_HALT

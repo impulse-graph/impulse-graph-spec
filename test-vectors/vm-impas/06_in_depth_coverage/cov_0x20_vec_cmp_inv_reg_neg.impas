@@ -1,0 +1,8 @@
+; ====================================================================
+; COV_0x20_VEC_CMP_INV_REG_NEG: OP_VEC_CMP_EQ (Invalid Register R64)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_VEC_CMP_EQ          R64, 0, 1
+0x01: OP_HALT

@@ -1,0 +1,19 @@
+; ====================================================================
+; COV_0x0E_CSR_WALK_2HOP_POS: OP_CSR_WALK_2HOP (Positive 2-Hop Traversal)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.csr_inline  GRAPH_2HOP = {
+    0: [1],
+    1: [2, 3],
+    2: [],
+    3: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_2HOP
+0x01: OP_INIT_INPUT_NODE     R0, 0
+0x02: OP_CSR_WALK_2HOP       R2, R10, R10
+0x03: OP_HALT

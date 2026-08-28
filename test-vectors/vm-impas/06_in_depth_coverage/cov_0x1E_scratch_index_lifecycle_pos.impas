@@ -1,0 +1,9 @@
+; ====================================================================
+; COV_0x1E_SCRATCH_INDEX_LIFECYCLE_POS: OP_CREATE_SCRATCH_INDEX & OP_DROP_SCRATCH_INDEX
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_CREATE_SCRATCH_INDEX R0, 0
+0x01: OP_DROP_SCRATCH_INDEX   R0, 0
+0x02: OP_HALT

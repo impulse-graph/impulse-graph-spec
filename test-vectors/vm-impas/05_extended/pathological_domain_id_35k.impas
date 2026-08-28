@@ -1,0 +1,11 @@
+; ====================================================================
+; Pathological Test: 35,000 Domain ID
+; ====================================================================
+; The OP_MAP_KEYS_TO_DENSE opcode puts the domain_id in the payload. 
+; Here, 35000 (0x88B8) fits in a 16-bit payload, but stresses the 
+; architectural upper bounds of the struct.
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_MAP_KEYS_TO_DENSE   R0, 35000
+0x01: OP_HALT

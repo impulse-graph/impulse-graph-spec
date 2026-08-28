@@ -1,0 +1,12 @@
+; ====================================================================
+; Pathological Test: 38,000 Attribute ID (Exceeds 8-bit limit of 255)
+; ====================================================================
+; Similar to rel_id, 38000 (0x9470) gets truncated to 112 (0x70) by the
+; 8-bit packing limits.
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 1
+0x01: OP_LOAD_CONST_INT      R1, 2
+0x02: OP_NODE_FILTER         R2, R0, R1, 38000
+0x03: OP_HALT
