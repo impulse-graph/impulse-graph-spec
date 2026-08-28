@@ -1,0 +1,17 @@
+; ====================================================================
+; COV_0x30_SET_OPS_POS: OP_SET_UNION, OP_SET_INTERSECT, OP_SET_DIFFERENCE, OP_SET_CARDINALITY
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.set SET_A = [1, 2, 3]
+.set SET_B = [2, 3, 4]
+
+.text
+0x00: OP_LOAD_INLINE_SET     R0, SET_A
+0x01: OP_LOAD_INLINE_SET     R1, SET_B
+0x02: OP_SET_UNION           R2, R0, R1
+0x03: OP_SET_INTERSECT       R3, R0, R1
+0x04: OP_SET_DIFFERENCE      R4, R0, R1
+0x05: OP_SET_CARDINALITY     R5, R2
+0x06: OP_HALT

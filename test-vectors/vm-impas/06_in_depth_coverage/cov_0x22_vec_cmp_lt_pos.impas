@@ -1,0 +1,13 @@
+; ====================================================================
+; COV_0x22_VEC_CMP_LT_POS: OP_VEC_CMP_LT (Vector Less Than Scalar)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float VEC_A = [5.0, 2.0, 10.0, 1.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_LOAD_CONST_FLOAT    R1, 3.0
+0x02: OP_VEC_CMP_LT          R2, R0, R1
+0x03: OP_HALT

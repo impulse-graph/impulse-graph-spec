@@ -1,0 +1,8 @@
+; ====================================================================
+; COV_0x1C_HAS_KEY_CATALOG_POS: OP_HAS_KEY_CATALOG
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_HAS_KEY_CATALOG     R0, 0
+0x01: OP_HALT

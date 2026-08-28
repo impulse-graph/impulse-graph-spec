@@ -1,0 +1,10 @@
+; ====================================================================
+; COV_0x73_SCRATCH_DOP_POS: OP_ALLOC_SCRATCH, OP_ASSERT_SCRATCH_BYTES, OP_SET_MAX_DOP
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.text
+0x00: OP_ALLOC_SCRATCH       R0, 1024
+0x01: OP_ASSERT_SCRATCH_BYTES R0, 1024
+0x02: OP_SET_MAX_DOP         R1, 4
+0x03: OP_HALT

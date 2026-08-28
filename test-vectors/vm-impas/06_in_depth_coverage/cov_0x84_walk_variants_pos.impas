@@ -1,0 +1,20 @@
+; ====================================================================
+; COV_0x84_WALK_VARIANTS_POS: OP_CSR_WALK_DIRECT_STORE, OP_CSR_WALK_DENSE_STREAM, OP_COO_WALK, OP_CSC_WALK_DIRECT_STORE
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_WALKS = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_WALKS
+0x01: OP_INIT_INPUT_NODE     R0, 0
+0x02: OP_CSR_WALK_DIRECT_STORE R1, R0, R10
+0x03: OP_CSR_WALK_DENSE_STREAM R2, R0, R10
+0x04: OP_COO_WALK            R3, R0, R10
+0x05: OP_CSC_WALK_DIRECT_STORE R4, R0, R10
+0x06: OP_HALT

@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x27_VEC_BLEND_POS: OP_VEC_BLEND
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.set MASK = [0, 2]
+.array_float VEC_TRUE = [10.0, 20.0, 30.0, 40.0]
+.array_float VEC_FALSE = [1.0, 2.0, 3.0, 4.0]
+
+.text
+0x00: OP_LOAD_INLINE_SET     R0, MASK
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_TRUE
+0x02: OP_LOAD_INLINE_ARRAY   R2, VEC_FALSE
+0x03: OP_VEC_BLEND           R3, R0, R1, R2
+0x04: OP_HALT

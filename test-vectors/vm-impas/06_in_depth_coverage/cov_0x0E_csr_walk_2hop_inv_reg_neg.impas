@@ -1,0 +1,8 @@
+; ====================================================================
+; COV_0x0E_CSR_WALK_2HOP_INV_REG_NEG: OP_CSR_WALK_2HOP (Invalid Register R64)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_CSR_WALK_2HOP       R64, 0, 0
+0x01: OP_HALT

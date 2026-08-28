@@ -25,7 +25,8 @@ The ImpulseVM is a register-based virtual machine operating on a bank of general
 
 ### 2.2 Program Counter (PC)
 - The execution context **MUST** maintain a 32-bit unsigned Program Counter (`pc`).
-- The `pc` register represents the zero-indexed instruction array offset to be executed next.
+- The `pc` register represents the zero-indexed instruction array offset of the currently executing instruction.
+- The `pc` **MUST** only be incremented *after* the successful execution of an instruction. If an instruction halts (e.g., `OP_HALT`) or faults (e.g., bounds error, trap, throw), the `pc` remains strictly pointed at the offset of that halting or faulting instruction.
 
 ### 2.3 Status Flags Register (FLAGS)
 The execution state **MUST** maintain a 64-bit status flags register (`flags`). The lower bits are mapped as follows:
@@ -337,7 +338,7 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_LEAVE_FRAME`** (`0x58`)
   - **Behavior**: Tear down the active execution stack frame.
 - **`OP_THROW`** (`0x5A`)
-  - **Behavior**: Stop execution and return custom runtime exception status.
+  - **Behavior**: Stop execution and return custom runtime exception status. Writes the exception payload directly into `R0` as a `TYPE_INT64`.
   - **Outcome**: Returns status `IMPULSE_VM_ERR_USER_THROW` (`7`).
 - `OP_ASSERT` (`0x5B`):
   - **Behavior**: Verify invariant condition on register values or flags. If check fails, return `IMPULSE_VM_ERR_ASSERTION_FAILED` (`8`).

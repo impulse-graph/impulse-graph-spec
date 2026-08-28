@@ -1,0 +1,15 @@
+; ====================================================================
+; COV_0x80_STORAGE_SPECIALIZED_POS: OP_LOAD_COLUMN_VECTOR, OP_GATHER_NODE_ATTR, OP_GATHER_EDGE_ATTR, OP_BRIN_ZONE_SKIP
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.node_attr ATTRS = { 0: 1.0, 1: 2.0 }
+
+.text
+0x00: OP_INIT_MOCK_NODE_ATTR R10, ATTRS
+0x01: OP_LOAD_COLUMN_VECTOR  R0, 0
+0x02: OP_GATHER_NODE_ATTR    R1, 0, R10
+0x03: OP_GATHER_EDGE_ATTR    R2, 0, R10
+0x04: OP_BRIN_ZONE_SKIP      R3, 0
+0x05: OP_HALT

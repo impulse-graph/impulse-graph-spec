@@ -1,0 +1,19 @@
+; ====================================================================
+; COV_0x41_MXV_VXM_POS: OP_MXV, OP_VXM (Matrix-Vector Multiplication)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_M = {
+    0: [1, 2],
+    1: [2],
+    2: []
+}
+.array_float VEC_X = [1.0, 2.0, 3.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_M
+0x01: OP_LOAD_INLINE_ARRAY   R0, VEC_X
+0x02: OP_MXV                 R1, R0, R10, 0
+0x03: OP_VXM                 R2, R0, R10, 0
+0x04: OP_HALT

@@ -1,0 +1,25 @@
+; ====================================================================
+; TDD 16: Vector Math Operations (Unary, Binary)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 1091567616}
+; {EXPECT: R6 = 1091567616}
+
+.data
+.array_float NUMS1 = [4.0, 9.0, 16.0]
+.array_float NUMS2 = [2.0, 3.0, 4.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R1, NUMS1
+0x01: OP_LOAD_INLINE_ARRAY       R2, NUMS2
+
+; Unary: 2 = SQRT
+0x02: OP_VEC_MATH_UNARY          R3, R1, 2
+; Check R3[0] == 2.0
+0x03: OP_VECTOR_REDUCE_SUM       R4, R3
+
+; Binary: 3 = DIV. R1 / R2 -> [4/2, 9/3, 16/4] = [2, 3, 4]
+0x04: OP_VEC_MATH_BINARY         R5, R1, R2, 3
+0x05: OP_VECTOR_REDUCE_SUM       R6, R5
+
+0x06: OP_HALT

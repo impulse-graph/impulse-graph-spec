@@ -1,0 +1,10 @@
+; ====================================================================
+; Test: OP_COALESCE (Negative Test - Invalid Register)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_FLOAT      R0, 1.5
+0x01: OP_LOAD_CONST_FLOAT      R1, 2.5
+0x02: OP_COALESCE              R99, R0, R1
+0x03: OP_HALT

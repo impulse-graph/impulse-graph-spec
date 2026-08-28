@@ -1,0 +1,8 @@
+; ====================================================================
+; COV_0x07_LOAD_CONST_STR_PREFIX_INV_REG_NEG: OP_LOAD_CONST_STR_PREFIX (Invalid Register R64)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_LOAD_CONST_STR_PREFIX R64, 12
+0x01: OP_HALT

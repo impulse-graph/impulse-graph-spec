@@ -427,8 +427,14 @@ def parse_impas_file(file_path):
                     if sym_name in symbols:
                         off_b, cnt = symbols[sym_name]
                         payload = off_b | (cnt << 16)
-                    else:
-                        payload = parse_val(sym_name)
+            elif op_name == "OP_LOAD_CONST_FLOAT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2:
+                    flt_val = float(tokens[2])
+                    payload = struct.unpack("<I", struct.pack("<f", flt_val))[0]
+            elif op_name == "OP_LOAD_CONST_INT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload = parse_val(tokens[2]) & 0xFFFFFFFF
             elif op_name in ("OP_INIT_MOCK_NODE_ATTR", "OP_INIT_MOCK_EDGE_ATTR"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)

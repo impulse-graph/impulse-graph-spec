@@ -1,0 +1,16 @@
+; ====================================================================
+; COV_0x2F_VEC_MATH_TERNARY_POS: OP_VEC_MATH_TERNARY (Fused Multiply-Add)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float VEC_A = [1.0, 2.0, 3.0, 4.0]
+.array_float VEC_B = [2.0, 2.0, 2.0, 2.0]
+.array_float VEC_C = [5.0, 5.0, 5.0, 5.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_B
+0x02: OP_LOAD_INLINE_ARRAY   R2, VEC_C
+0x03: OP_VEC_MATH_TERNARY    R3, R0, R1, R2, 0
+0x04: OP_HALT

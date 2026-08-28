@@ -1,0 +1,11 @@
+; ====================================================================
+; COV_0x0B_INIT_MOCK_NODE_ATTR_POS: OP_INIT_MOCK_NODE_ATTR
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float ATTR_WEIGHT = [10.5, 20.25, 30.75]
+
+.text
+0x00: OP_INIT_MOCK_NODE_ATTR R0, ATTR_WEIGHT
+0x01: OP_HALT

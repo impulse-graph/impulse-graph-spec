@@ -1,0 +1,19 @@
+; ====================================================================
+; COV_0x09_INIT_MOCK_GRAPH_POS: OP_INIT_MOCK_GRAPH (Multiple Slots)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline  GRAPH_A = {
+    0: [1, 2],
+    1: [2]
+}
+.csr_inline  GRAPH_B = {
+    0: [3],
+    1: [0, 1]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_A
+0x01: OP_INIT_MOCK_GRAPH     R1, GRAPH_B
+0x02: OP_HALT

@@ -1,0 +1,11 @@
+; ====================================================================
+; COV_0x0A_LOAD_INLINE_SET_POS: OP_LOAD_INLINE_SET (Valid Inline Set)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.set  SEED_NODES = [0, 1, 4, 9, 16]
+
+.text
+0x00: OP_LOAD_INLINE_SET     R0, SEED_NODES
+0x01: OP_HALT

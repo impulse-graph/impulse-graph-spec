@@ -1,0 +1,11 @@
+; ====================================================================
+; COV_0x04_LOAD_CONST_INT_EDGE_POS: OP_LOAD_CONST_INT (Edge Constants)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R0 = 0}
+; {EXPECT: R1 = 2147483647}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 0
+0x01: OP_LOAD_CONST_INT      R1, 2147483647
+0x02: OP_HALT

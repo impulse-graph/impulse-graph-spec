@@ -1,0 +1,20 @@
+; ====================================================================
+; COV_0x65_ISLAND_KCORE_LOUVAIN_POS: OP_ISLAND_DETECT, OP_SPARSE_MATVEC, OP_LOUVAIN_MODULARITY, OP_KCORE_DECOMPOSITION
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_CLUSTERS = {
+    0: [1],
+    1: [0],
+    2: [3],
+    3: [2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R10, GRAPH_CLUSTERS
+0x01: OP_ISLAND_DETECT       R0, R10
+0x02: OP_SPARSE_MATVEC       R1, R10
+0x03: OP_LOUVAIN_MODULARITY  R2, R10
+0x04: OP_KCORE_DECOMPOSITION R3, R10
+0x05: OP_HALT

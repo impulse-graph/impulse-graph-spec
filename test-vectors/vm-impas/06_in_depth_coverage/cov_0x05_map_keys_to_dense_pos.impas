@@ -1,0 +1,9 @@
+; ====================================================================
+; COV_0x05_MAP_KEYS_TO_DENSE_POS: OP_MAP_KEYS_TO_DENSE (Empty / Missing Catalog)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG = ZF}
+
+.text
+0x00: OP_MAP_KEYS_TO_DENSE   R0, 0
+0x01: OP_HALT

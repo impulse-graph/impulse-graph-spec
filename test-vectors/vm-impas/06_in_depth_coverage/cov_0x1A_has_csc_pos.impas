@@ -1,0 +1,14 @@
+; ====================================================================
+; COV_0x1A_HAS_CSC_POS: OP_HAS_CSC
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline  GRAPH_HAS_CSC = {
+    0: [1]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_HAS_CSC
+0x01: OP_HAS_CSC             R0, 0
+0x02: OP_HALT

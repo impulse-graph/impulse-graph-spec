@@ -1,0 +1,15 @@
+; ====================================================================
+; COV_0x16_CSR_WALK_REDUCE_SUM_POS: OP_CSR_WALK_REDUCE_SUM
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline  GRAPH_SUM = {
+    0: [1, 2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_SUM
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_CSR_WALK_REDUCE_SUM R2, R1, R0
+0x03: OP_HALT

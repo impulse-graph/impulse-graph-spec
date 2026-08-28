@@ -1,0 +1,15 @@
+; ====================================================================
+; COV_0x2E_VEC_MATH_BINARY_POS: OP_VEC_MATH_BINARY (Addition & Multiply)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.array_float VEC_A = [1.0, 2.0, 3.0, 4.0]
+.array_float VEC_B = [10.0, 20.0, 30.0, 40.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_B
+0x02: OP_VEC_MATH_BINARY     R2, R0, R1, 0
+0x03: OP_VEC_MATH_BINARY     R3, R0, R1, 2
+0x04: OP_HALT
