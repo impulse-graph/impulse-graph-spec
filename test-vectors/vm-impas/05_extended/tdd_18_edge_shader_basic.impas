@@ -1,0 +1,29 @@
+; ====================================================================
+; TDD_18_EDGE_SHADER_BASIC: Test the Edge Shader Architecture
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+; {EXPECT: R4 = 1101004800}
+
+.data
+.csr_inline  GRAPH_A = {
+    0: [1, 2],
+    1: [2]
+}
+.array_float ATTR_SOURCE = [10.0, 20.0, 30.0]
+
+.text
+OP_INIT_MOCK_GRAPH R0, GRAPH_A
+OP_LOAD_INLINE_ARRAY R1, ATTR_SOURCE
+OP_INIT_MOCK_NODE_ATTR R1, R1, 63
+OP_INIT_INPUT_NODE R2, 0
+OP_CLEAR_REG R3
+OP_CLEAR_REG R4
+OP_LOAD_CONST_INT R10, 9
+OP_COO_WALK_STREAM R0, R2, 0, 9
+OP_VECTOR_REDUCE_SUM R4, R3
+OP_HALT
+
+OP_STREAM_FUNC_BEGIN
+OP_STREAM_LOAD_SRC 0, 1
+OP_STREAM_REDUCE 0, 3, 0
+OP_STREAM_FUNC_END
