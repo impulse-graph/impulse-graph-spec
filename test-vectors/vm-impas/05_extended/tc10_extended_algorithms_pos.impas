@@ -3,7 +3,7 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 ; {EXPECT: R0 = 200}
-; {EXPECT: FLAG = ZF}
+; {EXPECT: FLAG = !ZF}
 
 .data
 .csr_inline  GRAPH_EXT = {
