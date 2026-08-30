@@ -81,7 +81,7 @@ def run_ocaml(test_file, impb_file, impb_data_file):
     except Exception as e:
         raise Exception(f"OCaml execution failed. stdout: {res.stdout}, stderr: {res.stderr}")
 
-def compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state):
+def compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state, expectations=None):
     diffs = []
     
     # Compare Status
@@ -111,6 +111,41 @@ def compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state):
         if c_on_val != j_val or c_on_val != o_val or c_off_val != j_val:
             diffs.append(f"{reg} mismatch: C++(ON)={c_on_val}, C++(OFF)={c_off_val}, Java={j_val}, OCaml={o_val}")
             
+    # Validate against .impas header expectations
+    if expectations:
+        if "status" in expectations and expectations["status"]:
+            exp_status = expectations["status"]
+            if exp_status in ("IMPULSE_VM_SUCCESS", "SUCCESS", "0"):
+                exp_status = "IMPULSE_VM_OK"
+            for name, st in [("C++(ON)", cpp_on_state), ("C++(OFF)", cpp_off_state), ("Java", java_state), ("OCaml", ocaml_state)]:
+                if st["status"] != exp_status:
+                    diffs.append(f"Expectation status mismatch: {name} got '{st['status']}', expected '{exp_status}'")
+
+        if "pc" in expectations:
+            exp_pc = expectations["pc"]
+            for name, st in [("C++(ON)", cpp_on_state), ("C++(OFF)", cpp_off_state), ("Java", java_state), ("OCaml", ocaml_state)]:
+                if st["pc"] != exp_pc:
+                    diffs.append(f"Expectation PC mismatch: {name} got PC={st['pc']}, expected PC={exp_pc}")
+
+        if expectations.get("flag_zf") is not None:
+            exp_zf = expectations["flag_zf"]
+            for name, st in [("C++(ON)", cpp_on_state), ("C++(OFF)", cpp_off_state), ("Java", java_state), ("OCaml", ocaml_state)]:
+                if st["flags"].get("zf", False) != exp_zf:
+                    diffs.append(f"Expectation Flag ZF mismatch: {name} got ZF={st['flags'].get('zf', False)}, expected ZF={exp_zf}")
+
+        if expectations.get("flag_st") is not None:
+            exp_st = expectations["flag_st"]
+            for name, st in [("C++(ON)", cpp_on_state), ("C++(OFF)", cpp_off_state), ("Java", java_state), ("OCaml", ocaml_state)]:
+                if st["flags"].get("st", False) != exp_st:
+                    diffs.append(f"Expectation Flag ST mismatch: {name} got ST={st['flags'].get('st', False)}, expected ST={exp_st}")
+
+        for r_idx, exp_val in expectations.get("registers", {}).items():
+            reg = f"R{r_idx}"
+            for name, st in [("C++(ON)", cpp_on_state), ("C++(OFF)", cpp_off_state), ("Java", java_state), ("OCaml", ocaml_state)]:
+                act_val = st["registers"].get(reg, 0)
+                if act_val != exp_val:
+                    diffs.append(f"Expectation {reg} mismatch: {name} got {act_val}, expected {exp_val}")
+
     return diffs
 
 def main():
@@ -180,7 +215,7 @@ def main():
                 continue
                 
             # Write instructions to .impb for Java
-            instrs, data_bytes, _, _ = parse_impas_file(test_file)
+            instrs, data_bytes, expectations, _ = parse_impas_file(test_file)
             
             c_instrs = (Instruction * len(instrs))(*instrs)
             impb_file = test_file.with_suffix('.impb')
@@ -194,7 +229,7 @@ def main():
             java_state = run_java(test_file, impb_file, impb_data_file, cp)
             ocaml_state = run_ocaml(test_file, impb_file, impb_data_file)
             
-            diffs = compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state)
+            diffs = compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state, expectations)
             
             if not diffs:
                 print(f"{GREEN}[PASS]{RESET} {rel_path} (All 4 match)")
