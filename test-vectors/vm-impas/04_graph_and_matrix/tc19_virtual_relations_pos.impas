@@ -14,16 +14,17 @@
 .vrel VREL_USER_TO_POST     = [REL_USER_POSTS_POST, REL_USER_LIKES_POST, REL_USER_COMMENTS_POST]
 
 .csr_inline POSTS_GRAPH = {
-    0: [100],
-    1: [100],
-    2: [100]
+    0: [3],
+    1: [3],
+    2: [3],
+    3: []
 }
 
 .text
 0x00: OP_INIT_MOCK_GRAPH     R0, POSTS_GRAPH
 0x01: OP_INIT_MOCK_GRAPH     R1, POSTS_GRAPH
 0x02: OP_INIT_MOCK_GRAPH     R2, POSTS_GRAPH
-0x03: OP_INIT_INPUT_NODE     R1, 100                     ; Post Node ID 100
+0x03: OP_INIT_INPUT_NODE     R1, 3                       ; Post Node ID 3
 0x04: OP_CSC_WALK            R2, R1, REL_USER_POSTS_POST  ; Bitset R2 of posters
 0x05: OP_CSC_WALK            R3, R1, REL_USER_LIKES_POST  ; Bitset R3 of likers
 0x06: OP_CSC_WALK            R4, R1, REL_USER_COMMENTS_POST ; Bitset R4 of commenters
