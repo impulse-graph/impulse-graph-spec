@@ -63,9 +63,9 @@ def run_java(test_file, impb_file, impb_data_file, cp):
         "--add-modules", "jdk.incubator.vector",
         "-cp", cp,
         "org.impulsegraph.vm.JavaVmJsonRunner",
-        str(test_file),
-        str(impb_file),
-        str(impb_data_file)
+        str(test_file.resolve()),
+        str(impb_file.resolve()),
+        str(impb_data_file.resolve())
     ]
     res = subprocess.run(cmd, cwd=java_dir, capture_output=True, text=True)
     if res.returncode != 0:
@@ -74,7 +74,7 @@ def run_java(test_file, impb_file, impb_data_file, cp):
 
 def run_ocaml(test_file, impb_file, impb_data_file):
     ocaml_bin = Path(__file__).resolve().parent.parent.parent / "impulse-ocaml" / "_build" / "install" / "default" / "bin" / "impulse-ocaml"
-    cmd = [str(ocaml_bin), "--bin", str(impb_file), "--bindata", str(impb_data_file)]
+    cmd = [str(ocaml_bin), "--bin", str(impb_file.resolve()), "--bindata", str(impb_data_file.resolve())]
     res = subprocess.run(cmd, capture_output=True, text=True)
     try:
         return json.loads(res.stdout.strip())
