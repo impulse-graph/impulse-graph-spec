@@ -408,11 +408,49 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_RESERVED_5D`** through **`OP_RESERVED_5F`** (`0x5D`–`0x5F`)
 - **`OP_RESERVED_6D`** through **`OP_RESERVED_6F`** (`0x6D`–`0x6F`)
 - **`OP_RESERVED_76`** through **`OP_RESERVED_8F`** (`0x76`–`0x8F`)
+- **`OP_RESERVED_90_9F`** (`0x90`–`0x9F`)
+- **`OP_RESERVED_BE_FF`** (`0xBE`–`0xFF`)
   - **Behavior**: Execution of any reserved opcode **MUST** immediately halt virtual machine execution and return the status `IMPULSE_VM_ERR_RESERVED_OPCODE` (`10`).
+
+### 6.10 Edge Stream Shader Instructions (`0xA0` - `0xBD`)
+Edge Stream Shaders enable execution of inline Common Expression Language (CEL) pipelines, per-edge predicates, and mathematical reductions natively during graph traversal loops without manifesting intermediate buffers.
+
+- **`OP_COO_WALK_STREAM`** (`0xA0`), **`OP_CSR_WALK_STREAM`** (`0xA9`), **`OP_CSC_WALK_STREAM`** (`0xAA`)
+  - **Behavior**: Executes an edge shader pipeline over an adjacency matrix (COO, CSR, or CSC respectively).
+  - **Usage**: Expects `dst_reg` (the graph/relation handle loaded via `OP_INIT_MOCK_GRAPH` or similar), `src_reg` (source vector or node set passed in `payload_low`), `rel_id` (relationship ID in `payload_high`), and `flags` containing the `shader_pc` (the instruction index where the shader pipeline begins).
+- **`OP_STREAM_FUNC_BEGIN`** (`0xA1`), **`OP_STREAM_FUNC_END`** (`0xA2`)
+  - **Behavior**: Lexical delimiters defining the boundaries of an edge shader pipeline. The VM **MUST** ensure execution remains bounded within these markers.
+- **`OP_STREAM_LOAD_SRC`** (`0xA3`), **`OP_STREAM_LOAD_TGT`** (`0xAB`), **`OP_STREAM_LOAD_EDGE`** (`0xA4`)
+  - **Behavior**: Loads data attributes associated with the current Source Node, Target Node, or Edge into a shader register (`S0-S15`).
+  - **Usage**: `dst_reg` points to the destination shader register. Payload indicates the `attr_id`.
+- **`OP_STREAM_LOAD_SRC_ID`** (`0xBA`), **`OP_STREAM_LOAD_TGT_ID`** (`0xBB`), **`OP_STREAM_LOAD_EDGE_ID`** (`0xBC`)
+  - **Behavior**: Loads the exact physical topological integer ID (source node ID, target node ID, or edge offset ID) as a float into the shader register.
+- **`OP_STREAM_LOAD_CONST`** (`0xBD`)
+  - **Behavior**: Loads an inline scalar constant into a shader register.
+  - **Usage**: `dst_reg` is the target shader register. The 32-bit payload is interpreted dynamically as an exact IEEE-754 single-precision float (`f32`) bitcast.
+- **`OP_STREAM_MATH_ADD`** (`0xA5`), **`SUB`** (`0xAC`), **`MUL`** (`0xAD`), **`DIV`** (`0xA6`), **`MOD`** (`0xAE`)
+  - **Behavior**: Scalar binary math operations executed strictly between two shader registers.
+  - **Usage**: `dst_reg` = Output. `payload_low` = `src1`. `payload_high` = `src2`.
+  - **Safety**: `DIV` and `MOD` **MUST** adhere to `SAFE_DIV` semantics (if the divisor is `0.0`, the result evaluates to `0.0` instead of `Infinity` or trapping the VM).
+- **`OP_STREAM_MATH_UNARY`** (`0xAF`)
+  - **Behavior**: Maps standard scalar operations (trigonometric, exponential, algebraic, neural activations).
+  - **Usage**: `dst_reg` = Output. `payload_low` = `src`. `payload_high` = `func_id`. The `func_id` **MUST** strictly correlate to the canonical subset declared in `impulse_math_ops.h` (e.g. `0x01` = ABS, `0x02` = SQRT, `0x34` = ISNAN). Out of domain bounds (e.g. `SQRT(-1.0)`) **MUST** yield an IEEE-754 `NaN` propagating natively without throwing an exception.
+- **`OP_STREAM_CMP_EQ`** (`0xB0`), **`NEQ`** (`0xB1`), **`GT`** (`0xB2`), **`LT`** (`0xB3`)
+  - **Behavior**: Binary comparison ops. Evaluate to `1.0` if true, `0.0` if false.
+- **`OP_STREAM_LOGIC_AND`** (`0xB4`), **`OR`** (`0xB5`), **`NOT`** (`0xB6`)
+  - **Behavior**: Boolean logic ops evaluating on shader float values (`0.0` = False, otherwise True).
+- **`OP_STREAM_FILTER`** (`0xA7`)
+  - **Behavior**: Evaluates a stream predicate (`0.0` or `1.0`). If `0.0`, the shader pipeline unconditionally aborts for the current edge context, preventing further execution and skipping reductions.
+- **`OP_STREAM_SELECT`** (`0xB7`)
+  - **Behavior**: Ternary conditional select (multiplexer). `S[dst] = (S[cond] != 0.0) ? S[val] : S[dst]`.
+- **`OP_STREAM_REDUCE`** (`0xA8`)
+  - **Behavior**: Accumulates a computed scalar result from the shader register bank back into a global vector register handle using a defined Monoid (`0 = SUM, 1 = MAX, 2 = MIN`).
+- **`OP_STREAM_REDUCE_ARGMIN`** (`0xB8`), **`OP_STREAM_REDUCE_ARGMAX`** (`0xB9`)
+  - **Behavior**: Fuses topological reduction with index tracking, updating a global vector while capturing the node identifier that resulted in the extrema.
 
 ---
 
-## 7. Concurrency ## 6. Concurrency & Execution Design Factors Execution Design Factors
+## 7. Concurrency & Execution Design Factors
 
 Any implementation of the ImpulseVM query interpreter **MUST** conform to the following performance, alignment, and multi-threading invariants:
 

@@ -26,8 +26,10 @@ The data section begins with the literal line `.data`. All following lines until
 * **`.vrel <NAME> = <ID>`**: Defines a virtual (composed) relationship ID.
 * **`.fuel <AMOUNT>`**: Sets the initial gas/fuel limit for the VM execution (e.g., `.fuel 1000`).
 
-#### 1.1.2 Inline Arrays
-Arrays are packed directly into the VM's `inline_data` context buffer and can be loaded dynamically.
+#### 1.1.2 Inline Arrays and Graphs
+Arrays and graphs are packed directly into the VM's `inline_data` context buffer and can be loaded dynamically.
+* **`.csr_inline <NAME> = { <src>: [<tgt>, ...], ... }`**: Defines a mock graph explicitly mapping source nodes to target nodes.
+* **`.array_float <NAME> = [<float>, <float>, ...]`**: Defines a 32-bit floating-point array.
 * **`.array_float <NAME> = [<float>, <float>, ...]`**: Defines a 32-bit floating-point array.
 * **`.array_int <NAME> = [<int64>, <int64>, ...]`**: Defines a 64-bit integer array.
 * **`.array_node <NAME> = [<uint64>, <uint64>, ...]`**: Defines an array of unsigned 64-bit node IDs.
@@ -62,8 +64,8 @@ Instructions are formatted as:
 
 Testing graph algorithms requires mocking out the storage layer without reading physical `.imps` snapshot files.
 
-1. **`OP_INIT_MOCK_GRAPH R_src, R_dst, R_weights, REL_ID`**
-   Binds inline CSR graph topology arrays (sources, targets, and optional weights) to a specific relationship ID so that `OP_CSR_WALK` operations can traverse it.
+1. **`OP_INIT_MOCK_GRAPH R_dst, GRAPH_NAME`**
+   Loads an inline `.csr_inline` graph topology into `R_dst` as a mock graph handle. Used by stream opcodes (e.g. `OP_COO_WALK_STREAM`) to traverse the topology.
 
 2. **`OP_INIT_MOCK_NODE_ATTR ATTR_ID, R_data, R_validity`**
    Binds an inline array (loaded in `R_data`) and an optional validity BitSet (`R_validity`) to a globally resolvable Node Attribute ID. If no validity BitSet is needed, `R255` (or any invalid register) can be passed.

@@ -155,6 +155,37 @@ OPCODES = {
     "OP_COLLECT_VALUE_MAP": 0x93,
     "OP_DENSE_WALK_REDUCE": 0x94,
     "OP_DENSE_WALK_DIRECT_STORE": 0x95,
+
+    "OP_COO_WALK_STREAM": 0xA0,
+    "OP_STREAM_FUNC_BEGIN": 0xA1,
+    "OP_STREAM_FUNC_END": 0xA2,
+    "OP_STREAM_LOAD_SRC": 0xA3,
+    "OP_STREAM_LOAD_EDGE": 0xA4,
+    "OP_STREAM_MATH_ADD": 0xA5,
+    "OP_STREAM_MATH_DIV": 0xA6,
+    "OP_STREAM_FILTER": 0xA7,
+    "OP_STREAM_REDUCE": 0xA8,
+    "OP_CSR_WALK_STREAM": 0xA9,
+    "OP_CSC_WALK_STREAM": 0xAA,
+    "OP_STREAM_LOAD_TGT": 0xAB,
+    "OP_STREAM_MATH_SUB": 0xAC,
+    "OP_STREAM_MATH_MUL": 0xAD,
+    "OP_STREAM_MATH_MOD": 0xAE,
+    "OP_STREAM_MATH_UNARY": 0xAF,
+    "OP_STREAM_CMP_EQ": 0xB0,
+    "OP_STREAM_CMP_NEQ": 0xB1,
+    "OP_STREAM_CMP_GT": 0xB2,
+    "OP_STREAM_CMP_LT": 0xB3,
+    "OP_STREAM_LOGIC_AND": 0xB4,
+    "OP_STREAM_LOGIC_OR": 0xB5,
+    "OP_STREAM_LOGIC_NOT": 0xBD,
+    "OP_STREAM_YIELD": 0xB6,
+    "OP_STREAM_SCATTER_REDUCE": 0xB7,
+    "OP_STREAM_SELECT": 0xB8,
+    "OP_STREAM_LOAD_CONST": 0xB9,
+    "OP_STREAM_LOAD_SRC_ID": 0xBA,
+    "OP_STREAM_LOAD_TGT_ID": 0xBB,
+    "OP_STREAM_LOAD_EDGE_ID": 0xBC,
 }
 
 OPCODE_ALIASES = {
@@ -501,6 +532,19 @@ def parse_impas_file(file_path):
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
                 if len(tokens) > 4: flags = parse_val(tokens[4])
+            elif op_name in ("OP_COO_WALK_STREAM", "OP_CSR_WALK_STREAM", "OP_CSC_WALK_STREAM"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                if len(tokens) > 4: flags = parse_val(tokens[4])
+            elif op_name == "OP_STREAM_LOAD_CONST":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload = parse_val(tokens[2])
+            elif op_name.startswith("OP_STREAM_"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 16)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 24)
             elif op_name == "OP_VEC_MATH_BINARY":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
