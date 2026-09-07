@@ -45,15 +45,18 @@ def run_cpp(lib, test_file):
     st = bool(state.flags & (1 << 4))
     
     regs = {}
+    reg_types = {}
     for i in range(64):
         regs[f"R{i}"] = state.registers[i]
+        reg_types[f"R{i}"] = state.register_types[i]
         
     lib.impulse_vm_context_destroy(ctx)
     return {
         "status": status_name,
         "pc": state.pc,
         "flags": {"zf": zf, "st": st},
-        "registers": regs
+        "registers": regs,
+        "register_types": reg_types
     }
 
 def run_java(test_file, impb_file, impb_data_file, cp):
@@ -104,6 +107,12 @@ def compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state, expectat
     # Compare Registers
     for i in range(64):
         reg = f"R{i}"
+        
+        # Skip pointer/handle registers (type >= 4)
+        c_on_type = cpp_on_state.get("register_types", {}).get(reg, 0)
+        if c_on_type >= 4:
+            continue
+            
         c_on_val = cpp_on_state["registers"].get(reg, 0)
         c_off_val = cpp_off_state["registers"].get(reg, 0)
         j_val = java_state["registers"].get(reg, 0)
