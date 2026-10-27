@@ -1,0 +1,39 @@
+; ====================================================================
+; TDD_DELTA_FRONTIER_FIXPOINT_POS: Delta-Frontier CSR Walk & Bitset Reuse
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R5 = 4}
+
+.data
+.csr_inline CORRIDOR_GRAPH = {
+    0: [0, 1],
+    1: [0, 1, 2],
+    2: [1, 2, 3],
+    3: [2, 3],
+    4: [4]
+}
+.set SEED_SET = [0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, CORRIDOR_GRAPH
+0x01: OP_LOAD_INLINE_SET     R1, SEED_SET
+0x02: OP_MOV                 R2, R1
+; Hop 1: Walk R1 ({0}) -> R4 ({0, 1}), extract delta R1 = R4 \ R2 ({1}), union R2 = R2 | R1 ({0, 1})
+0x03: OP_CSR_WALK            R4, R1, 0
+0x04: OP_SET_DIFFERENCE      R1, R4, R2
+0x05: OP_SET_UNION           R2, R2, R1
+; Hop 2: Walk R1 ({1}) -> R4 ({0, 1, 2}) [reuses R4 bitset handle], delta R1 = R4 \ R2 ({2}), union R2 = {0, 1, 2}
+0x06: OP_CSR_WALK            R4, R1, 0
+0x07: OP_SET_DIFFERENCE      R1, R4, R2
+0x08: OP_SET_UNION           R2, R2, R1
+; Hop 3: Walk R1 ({2}) -> R4 ({1, 2, 3}) [reuses R4 bitset handle], delta R1 = R4 \ R2 ({3}), union R2 = {0, 1, 2, 3}
+0x09: OP_CSR_WALK            R4, R1, 0
+0x0A: OP_SET_DIFFERENCE      R1, R4, R2
+0x0B: OP_SET_UNION           R2, R2, R1
+; Hop 4: Walk R1 ({3}) -> R4 ({2, 3}), check stability against R2 ({0, 1, 2, 3})
+0x0C: OP_CSR_WALK            R4, R1, 0
+0x0D: OP_MOV                 R3, R2
+0x0E: OP_MOV                 R3, R4
+0x0F: OP_SET_CARDINALITY     R5, R2
+0x10: OP_ASSERT              R5, 4
+0x11: OP_HALT
