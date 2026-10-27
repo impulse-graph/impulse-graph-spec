@@ -1,0 +1,32 @@
+; ====================================================================
+; TDD_23_STREAM_SELECT_LOGIC: Test Logic and Select Ops
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+; {EXPECT: R5 = 1077936128} ; 3.0 (Target IDs: 1, 2) -> 1.0 + 2.0 = 3.0
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2, 3]
+}
+
+.text
+OP_INIT_MOCK_GRAPH R0, GRAPH_A
+OP_INIT_INPUT_NODE R3, 0
+OP_CLEAR_REG R4
+OP_CLEAR_REG R5
+OP_LOAD_CONST_INT R10, 8
+OP_COO_WALK_STREAM R0, R3, 0, 9
+OP_VECTOR_REDUCE_SUM R5, R4
+OP_HALT
+
+OP_STREAM_FUNC_BEGIN
+OP_STREAM_LOAD_TGT_ID 0
+OP_STREAM_LOAD_CONST 1, 0x40000000 ; 2.0
+OP_STREAM_CMP_LT 2, 0, 1
+OP_STREAM_CMP_EQ 3, 0, 1
+OP_STREAM_LOGIC_OR 4, 2, 3
+OP_STREAM_LOGIC_NOT 5, 4
+OP_STREAM_FILTER 4
+OP_STREAM_SELECT 6, 4, 0
+OP_STREAM_REDUCE 6, 4, 0
+OP_STREAM_FUNC_END

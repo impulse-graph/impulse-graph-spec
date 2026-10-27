@@ -1,0 +1,13 @@
+; ====================================================================
+; TDD 28: Math Binary Domain Issues - Wrong Types
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.array_float VEC_FLT = [1.0, 2.0, 3.0]
+
+.text
+0x00: OP_INIT_INPUT_NODE R0, 42
+0x01: OP_LOAD_INLINE_ARRAY R1, VEC_FLT
+0x02: OP_VEC_MATH_BINARY R2, R0, R1, 0x00 ; add(node_id, flt) -> throws IMPULSE_VM_ERR_INVALID_REGISTER
+0x03: OP_HALT

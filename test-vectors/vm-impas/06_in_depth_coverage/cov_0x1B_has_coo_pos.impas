@@ -3,6 +3,12 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 
+.data
+.csr_inline  GRAPH_HAS_COO = {
+    0: [1]
+}
+
 .text
-0x00: OP_HAS_COO             R0, 0
-0x01: OP_HALT
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_HAS_COO
+0x01: OP_HAS_COO             R0, 0
+0x02: OP_HALT

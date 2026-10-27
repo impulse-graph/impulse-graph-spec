@@ -1,0 +1,33 @@
+; ====================================================================
+; TDD_22_STREAM_FILTER_CEL: Filter and CMP
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+; {EXPECT: R5 = 1088421888} ; 7.0
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2, 3, 4]
+}
+.array_float ATTR_EDGE = [1.0, 2.0, 3.0, 4.0]
+
+.text
+OP_INIT_MOCK_GRAPH R0, GRAPH_A
+OP_LOAD_INLINE_ARRAY R2, ATTR_EDGE
+OP_INIT_MOCK_NODE_ATTR R2, R2, 63
+
+OP_INIT_INPUT_NODE R3, 0
+OP_CLEAR_REG R4
+OP_CLEAR_REG R5
+OP_LOAD_CONST_INT R10, 10
+OP_COO_WALK_STREAM R0, R3, 0, 9
+OP_VECTOR_REDUCE_SUM R5, R4
+OP_HALT
+
+OP_STREAM_FUNC_BEGIN
+OP_STREAM_LOAD_EDGE 0, 2
+OP_STREAM_LOAD_CONST 1, 0x40200000 ; 2.5
+OP_STREAM_CMP_GT 2, 0, 1
+OP_STREAM_FILTER 2
+OP_STREAM_MATH_UNARY 3, 0, 0x01
+OP_STREAM_REDUCE 3, 4, 0
+OP_STREAM_FUNC_END
