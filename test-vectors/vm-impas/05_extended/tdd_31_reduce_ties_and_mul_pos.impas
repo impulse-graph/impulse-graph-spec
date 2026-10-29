@@ -1,0 +1,21 @@
+; ====================================================================
+; TDD_31_REDUCE_TIES_AND_MUL_POS: Test OP_REDUCE (0x45) MUL & Ties
+; Verifies BINARY_OP_MUL (1) over active inline vector elements and
+; deterministic lowest-index tie-breaking for BINARY_OP_ARGMAX (7)
+; and BINARY_OP_ARGMIN (6) with ZF flag update when argmin == 0.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R1 = 1125515264} ; 150.0f (2.0 * 5.0 * 3.0 * 5.0)
+; {EXPECT: R2 = 1}          ; argmax index (tie between 1 and 3 -> lowest index 1)
+; {EXPECT: R3 = 0}          ; argmin index (2.0f at index 0)
+; {EXPECT: FLAG = ZF}
+
+.data
+.array_float VEC_FACTORS = [2.0, 5.0, 3.0, 5.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_FACTORS
+0x01: OP_REDUCE              R1, R0, BINARY_OP_MUL
+0x02: OP_REDUCE              R2, R0, BINARY_OP_ARGMAX
+0x03: OP_REDUCE              R3, R0, BINARY_OP_ARGMIN
+0x04: OP_HALT

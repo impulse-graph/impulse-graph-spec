@@ -1,0 +1,24 @@
+; ====================================================================
+; TDD_30_REDUCE_MIN_MAX_ARGMIN_ARGMAX_POS: Test OP_REDUCE (0x45)
+; Verifies canonical BINARY_OP_ADD (0), BINARY_OP_MIN (2),
+; BINARY_OP_MAX (3), BINARY_OP_ARGMIN (6), and BINARY_OP_ARGMAX (7)
+; with dst_reg != src_reg and lowest-index tie-breaking.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R1 = 1123024896} ; 120.0f (30 + 10 + 50 + 10 + 20)
+; {EXPECT: R2 = 1092616192} ; 10.0f  (min)
+; {EXPECT: R3 = 1112014848} ; 50.0f  (max)
+; {EXPECT: R4 = 1}          ; argmin index (tie between 1 and 3 -> lowest index 1)
+; {EXPECT: R5 = 2}          ; argmax index (50.0f at index 2)
+
+.data
+.array_float VEC_SCORES = [30.0, 10.0, 50.0, 10.0, 20.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_SCORES
+0x01: OP_REDUCE              R1, R0, BINARY_OP_ADD
+0x02: OP_REDUCE              R2, R0, BINARY_OP_MIN
+0x03: OP_REDUCE              R3, R0, BINARY_OP_MAX
+0x04: OP_REDUCE              R4, R0, BINARY_OP_ARGMIN
+0x05: OP_REDUCE              R5, R0, BINARY_OP_ARGMAX
+0x06: OP_HALT

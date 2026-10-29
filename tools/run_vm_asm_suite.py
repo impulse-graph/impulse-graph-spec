@@ -507,7 +507,7 @@ def parse_impas_file(file_path):
                     payload |= (parse_val(tokens[2]) & 0xFF)
                     payload |= ((parse_val(tokens[3]) & 0xFFFF) << 8)
                     payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
-            elif op_name in ("OP_MXV", "OP_VXM"):
+            elif op_name in ("OP_MXV", "OP_VXM", "OP_EWISE_ADD", "OP_EWISE_MULT"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
