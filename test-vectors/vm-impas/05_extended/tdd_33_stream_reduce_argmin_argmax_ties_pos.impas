@@ -1,0 +1,41 @@
+; ====================================================================
+; TDD_33_STREAM_REDUCE_ARGMIN_ARGMAX_TIES_POS:
+; Test deterministic lowest-source-ID tie-breaking in
+; OP_STREAM_REDUCE_ARGMIN (0xB8) and OP_STREAM_REDUCE_ARGMAX (0xB9).
+; Sources 0 (25.0), 1 (10.0), 2 (10.0) walk to target 3.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 1}          ; argmin source ID (tie between 1 and 2 -> 1 wins)
+; {EXPECT: R6 = 0}          ; argmax source ID (node 0 has 25.0)
+; {EXPECT: R7 = 1092616192} ; 10.0f
+; {EXPECT: R8 = 1103626240} ; 25.0f
+
+.data
+.csr_inline GRAPH_A = {
+    0: [3],
+    1: [3],
+    2: [3],
+    3: []
+}
+.array_float ATTR_SOURCE = [25.0, 10.0, 10.0, 0.0]
+.set SEEDS = [0, 1, 2]
+
+.text
+OP_INIT_MOCK_GRAPH R0, GRAPH_A
+OP_LOAD_INLINE_ARRAY R1, ATTR_SOURCE
+OP_INIT_MOCK_NODE_ATTR R1, R1, 63
+OP_LOAD_INLINE_SET R2, SEEDS
+OP_CLEAR_REG R3
+OP_CLEAR_REG R4
+OP_CLEAR_REG R5
+OP_CLEAR_REG R6
+OP_CSR_WALK_STREAM R0, R2, 0, 12
+OP_VECTOR_REDUCE_SUM R7, R3
+OP_VECTOR_REDUCE_SUM R8, R5
+OP_HALT
+
+OP_STREAM_FUNC_BEGIN
+OP_STREAM_LOAD_SRC 0, 1
+OP_STREAM_REDUCE_ARGMIN 0, 3, 4
+OP_STREAM_REDUCE_ARGMAX 0, 5, 6
+OP_STREAM_FUNC_END
