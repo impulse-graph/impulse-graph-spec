@@ -1,0 +1,42 @@
+; ====================================================================
+; TDD_53_VECTOR_RERANK_METRICS_POS:
+; Tests OP_VECTOR_RERANK_DOT (0xCB) across all 4 similarity metrics (flags 0..3):
+; - flags = 0 (MetricDot):     Dot([1.0, 0.0], [1.0, 0.0]) = 1.0 (0x3F800000 = 1065353216)
+; - flags = 1 (MetricL2):      -L2([1.0, 0.0], [0.0, 1.0]) = -2.0 (0xC0000000 = 3221225472)
+; - flags = 2 (MetricCosine):  Cos([1.0, 0.0], [1.0, 0.0]) = 1.0 (0x3F800000 = 1065353216)
+; - flags = 3 (MetricHamming): -Hamming([1.0, -1.0], [-1.0, 1.0]) = -2.0 (0xC0000000 = 3221225472)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1065353216}
+; {EXPECT: R11 = 3221225472}
+; {EXPECT: R12 = 1065353216}
+; {EXPECT: R13 = 3221225472}
+
+.data
+.csr_inline GRAPH_2 = {
+    0: [1],
+    1: []
+}
+.array_float EMBS = [1.0, 0.0, -1.0, 1.0]
+.array_float Q_UNIT = [1.0, 0.0]
+.array_float Q_ORTH = [0.0, 1.0]
+.array_float Q_SIGN = [1.0, -1.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_2
+0x01: OP_LOAD_INLINE_ARRAY       R1, EMBS
+0x02: OP_INIT_MOCK_NODE_ATTR     R0, R1, 0
+0x03: OP_LOAD_INLINE_ARRAY       R2, Q_UNIT
+0x04: OP_LOAD_INLINE_ARRAY       R3, Q_ORTH
+0x05: OP_LOAD_INLINE_ARRAY       R4, Q_SIGN
+0x06: OP_VECTOR_ANN_SEARCH       R5, R2, 1, 0, 0
+0x07: OP_VECTOR_RERANK_DOT       R6, R5, R2, 0, 0
+0x08: OP_VECTOR_REDUCE_SUM       R10, R6
+0x09: OP_VECTOR_RERANK_DOT       R7, R5, R3, 0, 1
+0x0A: OP_VECTOR_REDUCE_SUM       R11, R7
+0x0B: OP_VECTOR_RERANK_DOT       R8, R5, R2, 0, 2
+0x0C: OP_VECTOR_REDUCE_SUM       R12, R8
+0x0D: OP_VECTOR_ANN_SEARCH       R9, R3, 1, 0, 0
+0x0E: OP_VECTOR_RERANK_DOT       R14, R9, R4, 0, 3
+0x0F: OP_VECTOR_REDUCE_SUM       R13, R14
+0x10: OP_HALT

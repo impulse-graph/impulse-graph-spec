@@ -1,0 +1,52 @@
+; ====================================================================
+; TDD_52_VECTOR_ANN_MULTILANE_HANDSHAKE_POS:
+; Tests Phase 2 Hybrid Vector Search & Multi-Lane Handshake (0xCA..0xCB):
+; 1. 4-node x 2D embedding matrix in mock node attr 0:
+;    - Node 0: [1.0, 0.0]
+;    - Node 1: [0.75, 0.25]
+;    - Node 2: [0.0, 1.0]
+;    - Node 3: [0.0, 0.0]
+; 2. Query Q = [0.8125, 0.1875] (exact dyadic rationals):
+;    - Squared L2 to Node 1 = (0.0625)^2 + (-0.0625)^2 = 0.0078125 (closest!)
+;    - Squared L2 to Node 0 = (-0.1875)^2 + (0.1875)^2 = 0.0703125 (2nd closest!)
+;    (Note: Dot product would pick Node 0 [0.8125] over Node 1 [0.65625], so
+;     top_k=1 selecting Node 1 proves MetricL2 distance ranking!)
+; 3. OP_VECTOR_ANN_SEARCH (flags=0, top_k=1) -> R3 = BitSet {1} (card R10 = 1)
+; 4. OP_VECTOR_ANN_SEARCH (flags=1, top_k=2) -> R4 = Fused TYPE_LANE_FRONTIER
+;    with Lane 0 = Node 1, Lane 1 = Node 0.
+; 5. OP_LANE_CSR_WALK R5, R4, 0 -> walks 0->[2], 1->[2, 3]:
+;    Node 2 receives both Lane 0 and Lane 1 (popcount >= 2).
+; 6. OP_LANE_FILTER_QUORUM R6, R5, 2 -> R6 = BitSet {2} (card R11 = 1).
+; 7. OP_VECTOR_RERANK_DOT (flags=1 MetricL2) on R6 {2}:
+;    -L2([0.8125, 0.1875], [0.0, 1.0]) = -((0.8125)^2 + (-0.8125)^2) = -1.3203125
+;    (IEEE-754 float32 bits of -1.3203125 = 0xBFA90000 = 3215523840)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1}
+; {EXPECT: R11 = 1}
+; {EXPECT: R12 = 3215523840}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float EMBS = [1.0, 0.0, 0.75, 0.25, 0.0, 1.0, 0.0, 0.0]
+.array_float QUERY = [0.8125, 0.1875]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+0x01: OP_LOAD_INLINE_ARRAY       R1, EMBS
+0x02: OP_INIT_MOCK_NODE_ATTR     R0, R1, 0
+0x03: OP_LOAD_INLINE_ARRAY       R2, QUERY
+0x04: OP_VECTOR_ANN_SEARCH       R3, R2, 1, 0, 0
+0x05: OP_SET_CARDINALITY         R10, R3
+0x06: OP_VECTOR_ANN_SEARCH       R4, R2, 2, 0, 1
+0x07: OP_LANE_CSR_WALK           R5, R4, 0
+0x08: OP_LANE_FILTER_QUORUM      R6, R5, 2
+0x09: OP_SET_CARDINALITY         R11, R6
+0x0A: OP_VECTOR_RERANK_DOT       R7, R6, R2, 0, 1
+0x0B: OP_VECTOR_REDUCE_SUM       R12, R7
+0x0C: OP_HALT
