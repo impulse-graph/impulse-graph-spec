@@ -1,0 +1,32 @@
+; ====================================================================
+; TDD_37_AFFOREST_GIANT_ROOT_POS: Issue #19 - OP_CC_AFFOREST (0x40)
+; Tests that OP_CC_AFFOREST does not prematurely break on giant_root
+; before linking remaining neighbors (e.g., node 4 -> [3, 4, 0, 5]),
+; and that OP_REDUCE reduces TYPE_NODE_VECTOR / TYPE_UINT64_VECTOR
+; identically across C++, Java, and OCaml.
+; Component {0,1,2,3,4,5} has root 0; Component {6,7} has root 6.
+; Sum of roots = 0*6 + 6*2 = 12; Max of roots = 6.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R2 = 12}
+; {EXPECT: R3 = 6}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.csr_inline GRAPH_AFFOREST = {
+    0: [1, 2],
+    1: [0, 2],
+    2: [0, 1],
+    3: [4],
+    4: [3, 4, 0, 5],
+    5: [],
+    6: [7],
+    7: [6]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_AFFOREST
+0x01: OP_CC_AFFOREST         R1, R0
+0x02: OP_REDUCE              R2, R1, BINARY_OP_ADD
+0x03: OP_REDUCE              R3, R1, BINARY_OP_MAX
+0x04: OP_HALT

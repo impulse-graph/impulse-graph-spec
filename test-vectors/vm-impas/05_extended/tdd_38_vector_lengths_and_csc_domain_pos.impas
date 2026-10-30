@@ -1,0 +1,44 @@
+; ====================================================================
+; TDD_38_VECTOR_LENGTHS_AND_CSC_DOMAIN_POS: Issue #20
+; Tests active vector length propagation in OP_EWISE_ADD and OP_EWISE_MULT
+; into OP_REDUCE (BINARY_OP_MIN), and separate node_count vs csc_node_count
+; in BoundRelationSlot for asymmetric multi-domain CSR/CSC walks.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1094713344}
+; {EXPECT: R11 = 1101004800}
+; {EXPECT: R12 = 2}
+; {EXPECT: R13 = 0}
+
+.data
+.array_float VEC_A = [10.0, 20.0, 30.0]
+.array_float VEC_B = [2.0, 3.0, 4.0]
+.csr_inline GRAPH_CSC_ASYM = {
+    0: [4],
+    1: [4]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_CSC_ASYM
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_A
+0x02: OP_LOAD_INLINE_ARRAY   R2, VEC_B
+
+; 1. OP_EWISE_ADD length propagation -> OP_REDUCE MIN = 12.0 (0x41400000 = 1094713344)
+0x03: OP_EWISE_ADD           R3, R1, R2
+0x04: OP_REDUCE              R10, R3, BINARY_OP_MIN
+
+; 2. OP_EWISE_MULT length propagation -> OP_REDUCE MIN = 20.0 (0x41A00000 = 1101004800)
+0x05: OP_EWISE_MULT          R4, R1, R2
+0x06: OP_REDUCE              R11, R4, BINARY_OP_MIN
+
+; 3. OP_CSC_WALK from target node 4 (where csc_node_count=5 > node_count=2) -> {0, 1} (card=2)
+0x07: OP_INIT_INPUT_NODE     R5, 4
+0x08: OP_CSC_WALK            R6, R5, R0
+0x09: OP_SET_CARDINALITY     R12, R6
+
+; 4. OP_CSR_WALK from node 3 (>= csr node_count=2) -> empty (card=0)
+0x0A: OP_INIT_INPUT_NODE     R7, 3
+0x0B: OP_CSR_WALK            R8, R7, R0
+0x0C: OP_SET_CARDINALITY     R13, R8
+
+0x0D: OP_HALT

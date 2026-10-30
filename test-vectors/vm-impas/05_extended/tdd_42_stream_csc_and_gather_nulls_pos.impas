@@ -1,0 +1,44 @@
+; ====================================================================
+; TDD_42_STREAM_CSC_AND_GATHER_NULLS_POS: Issue #24
+; Tests:
+; 1. Inline stream shader block (OP_STREAM_FUNC_BEGIN .. OP_STREAM_FUNC_END)
+;    placed inline before OP_HALT without faulting on 0xA1..0xBF.
+; 2. OP_GATHER_NODE_ATTR with TYPE_NODE_ID frontier register and
+;    validity mask (setting invalid entries to NaN), verified via
+;    OP_EXTRACT_VALIDITY + OP_SET_CARDINALITY.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1077936128}
+; {EXPECT: R11 = 2}
+
+.data
+.csr_inline GRAPH_STREAM = {
+    0: [1, 2]
+}
+.array_float ATTR_VALS = [10.0, 20.0, 30.0, 40.0]
+.set VALID_MASK = [0, 2]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH       R0, GRAPH_STREAM
+0x01: OP_LOAD_INLINE_ARRAY     R1, ATTR_VALS
+0x02: OP_LOAD_INLINE_SET       R2, VALID_MASK
+0x03: OP_INIT_MOCK_NODE_ATTR   5, R1, R2
+
+; 1. Inline stream shader block placed BEFORE post-stream instructions
+0x04: OP_INIT_INPUT_NODE       R6, 0
+0x05: OP_CLEAR_REG             R7
+0x06: OP_CSR_WALK_STREAM       R8, R6, 0, 7
+0x07: OP_STREAM_FUNC_BEGIN
+0x08: OP_STREAM_LOAD_TGT_ID    0
+0x09: OP_STREAM_REDUCE         0, 7, 0
+0x0A: OP_STREAM_FUNC_END
+
+; Execution must continue past OP_STREAM_FUNC_END (0x0A) to 0x0B:
+; Target nodes 1 and 2 have IDs 1.0 + 2.0 = 3.0 (0x40400000 = 1077936128)
+0x0B: OP_VECTOR_REDUCE_SUM     R10, R7
+
+; 2. OP_GATHER_NODE_ATTR on attr 5 (valid mask {0, 2}) with TYPE_NODE_ID R6
+0x0C: OP_GATHER_NODE_ATTR      R9, R6, 0, 5
+0x0D: OP_EXTRACT_VALIDITY      R12, R9
+0x0E: OP_SET_CARDINALITY       R11, R12
+0x0F: OP_HALT

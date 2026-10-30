@@ -1,0 +1,100 @@
+; ====================================================================
+; TDD_36_REGISTER_ALIASING_POS:
+; Verifies that dst_reg == src_reg (register aliasing) does not clobber
+; source register types, values, or bitsets before reading them across:
+; 1. OP_VEC_CMP_EQ (dst == src1), OP_VEC_CMP_GT (dst == src2),
+;    OP_VEC_CMP_LT (dst == src1), OP_VEC_CMP_BETWEEN (dst == src_vec)
+; 2. OP_SET_UNION (dst == src1 scalar), OP_SET_INTERSECT (dst == src2 scalar),
+;    OP_SET_DIFFERENCE (dst == src1 scalar)
+; 3. OP_CSR_WALK_DIRECT_STORE (dst == src scalar),
+;    OP_COO_WALK (dst == src bitset),
+;    OP_FIXPOINT_KLEENE_STAR (dst == src scalar)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1} ; OP_VEC_CMP_EQ R1, R1, R2 (VEC_A == 30.0 -> {2})
+; {EXPECT: R11 = 3} ; OP_VEC_CMP_GT R2, R1, R2 (VEC_A > 25.0 -> {2, 3, 4})
+; {EXPECT: R12 = 2} ; OP_VEC_CMP_LT R1, R1, R2 (VEC_A < 25.0 -> {0, 1})
+; {EXPECT: R13 = 3} ; OP_VEC_CMP_BETWEEN R1, R1, R2, R3 (20.0 <= VEC_A <= 40.0 -> {1, 2, 3})
+; {EXPECT: R14 = 2} ; OP_SET_UNION R4, R4, R5 ({1} U {2} -> {1, 2})
+; {EXPECT: R15 = 1} ; OP_SET_INTERSECT R5, R4, R5 ({1, 2} n {2} -> {2})
+; {EXPECT: R16 = 1} ; OP_SET_DIFFERENCE R6, R6, R7 ({3} \ {4} -> {3})
+; {EXPECT: R17 = 2} ; OP_CSR_WALK_DIRECT_STORE R8, R8, R0 (0 -> {1, 2})
+; {EXPECT: R18 = 2} ; OP_COO_WALK R8, R8, R0 ({1, 2} -> {3, 4})
+; {EXPECT: R19 = 5} ; OP_FIXPOINT_KLEENE_STAR R9, R9, R0 (0* -> {0, 1, 2, 3, 4})
+; {EXPECT: R20 = 4} ; OP_FIXPOINT_KLEENE_STAR R7, R7, R0 ({1, 2}* -> {1, 2, 3, 4})
+; {EXPECT: R21 = 4} ; OP_MASK_OR R7, R7, R8 ({1, 2, 3, 4} | {3, 4} -> {1, 2, 3, 4})
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [3],
+    2: [3, 4],
+    3: [4]
+}
+.array_float VEC_A = [10.0, 20.0, 30.0, 40.0, 50.0]
+
+.text
+OP_INIT_MOCK_GRAPH       R0, GRAPH_A
+
+; 1. OP_VEC_CMP_EQ with dst == src1
+OP_LOAD_INLINE_ARRAY     R1, VEC_A
+OP_LOAD_CONST_FLOAT      R2, 30.0
+OP_VEC_CMP_EQ            R1, R1, R2
+OP_SET_CARDINALITY       R10, R1
+
+; 2. OP_VEC_CMP_GT with dst == src2
+OP_LOAD_INLINE_ARRAY     R1, VEC_A
+OP_LOAD_CONST_FLOAT      R2, 25.0
+OP_VEC_CMP_GT            R2, R1, R2
+OP_SET_CARDINALITY       R11, R2
+
+; 3. OP_VEC_CMP_LT with dst == src1
+OP_LOAD_INLINE_ARRAY     R1, VEC_A
+OP_LOAD_CONST_FLOAT      R2, 25.0
+OP_VEC_CMP_LT            R1, R1, R2
+OP_SET_CARDINALITY       R12, R1
+
+; 4. OP_VEC_CMP_BETWEEN with dst == src_vec
+OP_LOAD_INLINE_ARRAY     R1, VEC_A
+OP_LOAD_CONST_FLOAT      R2, 20.0
+OP_LOAD_CONST_FLOAT      R3, 40.0
+OP_VEC_CMP_BETWEEN       R1, R1, R2, R3
+OP_SET_CARDINALITY       R13, R1
+
+; 5. OP_SET_UNION with dst == src1 (scalar node ID)
+OP_INIT_INPUT_NODE       R4, 1
+OP_INIT_INPUT_NODE       R5, 2
+OP_SET_UNION             R4, R4, R5
+OP_SET_CARDINALITY       R14, R4
+
+; 6. OP_SET_INTERSECT with dst == src2 (scalar node ID)
+OP_SET_INTERSECT         R5, R4, R5
+OP_SET_CARDINALITY       R15, R5
+
+; 7. OP_SET_DIFFERENCE with dst == src1 (scalar node ID)
+OP_INIT_INPUT_NODE       R6, 3
+OP_INIT_INPUT_NODE       R7, 4
+OP_SET_DIFFERENCE        R6, R6, R7
+OP_SET_CARDINALITY       R16, R6
+
+; 8. Multi-layout walks with dst == src
+OP_INIT_INPUT_NODE       R8, 0
+OP_CSR_WALK_DIRECT_STORE R8, R8, R0
+OP_SET_CARDINALITY       R17, R8
+
+OP_COO_WALK              R8, R8, R0
+OP_SET_CARDINALITY       R18, R8
+
+OP_INIT_INPUT_NODE       R9, 0
+OP_FIXPOINT_KLEENE_STAR  R9, R9, R0
+OP_SET_CARDINALITY       R19, R9
+
+OP_INIT_INPUT_NODE       R7, 0
+OP_CSR_WALK              R7, R7, R0
+OP_FIXPOINT_KLEENE_STAR  R7, R7, R0
+OP_SET_CARDINALITY       R20, R7
+
+OP_MASK_OR               R7, R7, R8
+OP_SET_CARDINALITY       R21, R7
+
+OP_HALT
