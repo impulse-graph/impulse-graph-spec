@@ -64,14 +64,29 @@ Instructions are formatted as:
 
 Testing graph algorithms requires mocking out the storage layer without reading physical `.imps` snapshot files.
 
-1. **`OP_INIT_MOCK_GRAPH R_dst, GRAPH_NAME`**
-   Loads an inline `.csr_inline` graph topology into `R_dst` as a mock graph handle. Used by stream opcodes (e.g. `OP_COO_WALK_STREAM`) to traverse the topology.
+1. **`OP_INIT_MOCK_GRAPH R_slot, GRAPH_NAME`**
+   Loads an inline `.csr_inline` graph topology into relation slot `slot_id` (specified by `R_slot`, `0..15`) in the VM query context. Per `VM_SPECIFICATION.md` §6.1, `OP_INIT_MOCK_GRAPH` configures the context relation slot and **does not modify the value or type tag of register `R_slot`**.
 
 2. **`OP_INIT_MOCK_NODE_ATTR ATTR_ID, R_data, R_validity`**
    Binds an inline array (loaded in `R_data`) and an optional validity BitSet (`R_validity`) to a globally resolvable Node Attribute ID. If no validity BitSet is needed, `R255` (or any invalid register) can be passed.
 
 3. **`OP_INIT_MOCK_EDGE_ATTR R_rel, R_data, R_validity, ATTR_ID`**
    Extended 128-bit instruction. Identical to node attributes, but binds the attribute to a specific `REL_ID` for edge property gathers.
+
+### 2.1 Multi-Lane Bit-Sliced & Hybrid Vector ANN Instructions (`0xC0` - `0xCB`)
+
+* **`OP_LANE_INIT_SEEDS R_dst, R_src, K_OR_DOM, FLAGS`** (`0xC0`)
+* **`OP_LANE_INIT_GROUPS R_dst, R_nodes, R_groups, NUM_GROUPS, FLAGS`** (`0xC1`)
+* **`OP_LANE_SET_EDGE_MASK R_dst, R_src, R_edge, REL_ID, FLAGS`** (`0xC2`)
+* **`OP_LANE_CSR_WALK R_dst, R_src, REL_ID, FLAGS`** (`0xC3`)
+* **`OP_LANE_CSC_WALK R_dst, R_src, REL_ID, FLAGS`** (`0xC4`)
+* **`OP_LANE_PRUNE_MASK R_dst, R_src, ARG1, [ARG2, REL_ID,] FLAGS`** (`0xC5`)
+* **`OP_LANE_FILTER_QUORUM R_dst, R_src, MIN_K, [R_req_mask, R_forbid_mask,] FLAGS`** (`0xC6`)
+* **`OP_LANE_REDUCE_AND R_dst, R_src, MAX_NODES, FLAGS`** (`0xC7`)
+* **`OP_LANE_REDUCE_ATTR R_dst, R_src, ATTR_OR_REG, BINARY_OP, FLAGS`** (`0xC8`)
+* **`OP_LANE_SET_COVER R_dst, R_src, R_cost, MAX_K, FLAGS`** (`0xC9`)
+* **`OP_VECTOR_ANN_SEARCH R_dst, R_query, TOP_K, FLAGS`** (`0xCA`)
+* **`OP_VECTOR_RERANK_DOT R_dst, R_cand, R_query, ATTR_ID, FLAGS`** (`0xCB`)
 
 ---
 

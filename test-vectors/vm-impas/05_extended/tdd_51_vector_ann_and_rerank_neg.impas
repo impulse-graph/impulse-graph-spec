@@ -1,0 +1,17 @@
+; ====================================================================
+; TDD_51_VECTOR_ANN_AND_RERANK_NEG: Hybrid Vector ANN & Rerank Type Trap
+; Tests OP_VECTOR_ANN_SEARCH (0xCA) followed by OP_VECTOR_RERANK_DOT (0xCB)
+; with an invalid non-float-vector query register (R0 = INT64), trapping
+; with IMPULSE_VM_ERR_INVALID_REGISTER across all 4 polyglot VM engines.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.array_float QUERY = [2.0, 3.0]
+
+.text
+0x00: OP_LOAD_CONST_INT          R0, 99
+0x01: OP_LOAD_INLINE_ARRAY       R1, QUERY
+0x02: OP_VECTOR_ANN_SEARCH       R2, R1, 1, 0
+0x03: OP_VECTOR_RERANK_DOT       R3, R2, R0, 0, 0
+0x04: OP_HALT

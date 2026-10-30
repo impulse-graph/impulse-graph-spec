@@ -188,6 +188,19 @@ OPCODES = {
     "OP_STREAM_LOAD_CONST": 0xBD,
     "OP_STREAM_YIELD": 0xBE,
     "OP_STREAM_SCATTER_REDUCE": 0xBF,
+
+    "OP_LANE_INIT_SEEDS": 0xC0,
+    "OP_LANE_INIT_GROUPS": 0xC1,
+    "OP_LANE_SET_EDGE_MASK": 0xC2,
+    "OP_LANE_CSR_WALK": 0xC3,
+    "OP_LANE_CSC_WALK": 0xC4,
+    "OP_LANE_PRUNE_MASK": 0xC5,
+    "OP_LANE_FILTER_QUORUM": 0xC6,
+    "OP_LANE_REDUCE_AND": 0xC7,
+    "OP_LANE_REDUCE_ATTR": 0xC8,
+    "OP_LANE_SET_COVER": 0xC9,
+    "OP_VECTOR_ANN_SEARCH": 0xCA,
+    "OP_VECTOR_RERANK_DOT": 0xCB,
 }
 
 OPCODE_ALIASES = {
@@ -246,6 +259,9 @@ def load_native_library():
     repo_root = Path(__file__).resolve().parent.parent.parent
     this_repo = Path(__file__).resolve().parent.parent
     possible_paths = [
+        repo_root / "impulse-graph-core" / "impulse-cpp" / "build_on" / "libimpulse_graph.dylib",
+        repo_root / "impulse-graph-core" / "impulse-cpp" / "build_on" / "libimpulse_graph.so",
+        repo_root / "impulse-graph-core" / "impulse-cpp" / "build_on" / "impulse_graph.dll",
         repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.dylib",
         repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.so",
         repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "impulse_graph.dll",
@@ -336,7 +352,8 @@ def parse_impas_file(file_path):
         symbols[sym_name] = (offset_start, node_count)
 
     # Parse all .array_float blocks
-    for arr_match in re.finditer(r"\.array_float\s+(\w+)\s*=\s*\[([^\]]+)\]", full_text):
+    float_symbols = set()
+    for arr_match in re.finditer(r"\.array_float\s+(\w+)\s*=\s*\[([^\]]*)\]", full_text):
         sym_name = arr_match.group(1)
         arr_body = arr_match.group(2)
         while len(data_bytes) % 4 != 0:
@@ -353,6 +370,7 @@ def parse_impas_file(file_path):
         for flt in floats:
             data_bytes.extend(struct.pack("<f", flt))
         symbols[sym_name] = (offset_start, len(floats))
+        float_symbols.add(sym_name)
 
     # Parse all .array_int / .array_uint32 / .array_node / .set / .set_dense / .set_roaring / .set_bitset blocks
     for arr_match in re.finditer(r"\.(?:array_int|array_uint32|array_node|set|set_dense|set_roaring|set_bitset)\s+(\w+)\s*=\s*\[([^\]]*)\]", full_text):
@@ -466,6 +484,8 @@ def parse_impas_file(file_path):
                     if sym_name in symbols:
                         off_b, cnt = symbols[sym_name]
                         payload = off_b | (cnt << 16)
+                    if op_name == "OP_LOAD_INLINE_INT_ARRAY" or (op_name == "OP_LOAD_INLINE_ARRAY" and sym_name not in float_symbols):
+                        flags = 1
             elif op_name == "OP_LOAD_CONST_FLOAT":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2:
@@ -606,6 +626,33 @@ def parse_impas_file(file_path):
             elif op_name in ("OP_ALLOC_SCRATCH", "OP_ASSERT_SCRATCH_BYTES", "OP_SET_MAX_DOP"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload = parse_val(tokens[2])
+            elif op_name in ("OP_LANE_INIT_GROUPS", "OP_LANE_SET_EDGE_MASK", "OP_LANE_REDUCE_ATTR", "OP_LANE_SET_COVER", "OP_VECTOR_ANN_SEARCH", "OP_VECTOR_RERANK_DOT"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 4:
+                    payload = (parse_val(tokens[2]) & 0xFFFF) | ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                elif len(tokens) >= 5:
+                    payload = (parse_val(tokens[2]) & 0xFF) | ((parse_val(tokens[3]) & 0xFF) << 8) | ((parse_val(tokens[4]) & 0xFFFF) << 16)
+                    if len(tokens) > 5: flags = parse_val(tokens[5])
+                elif len(tokens) == 3:
+                    payload = parse_val(tokens[2]) & 0xFFFF
+            elif op_name == "OP_LANE_PRUNE_MASK":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) >= 6:
+                    payload = (parse_val(tokens[2]) & 0xFF) | ((parse_val(tokens[3]) & 0xFF) << 8) | ((parse_val(tokens[4]) & 0xFF) << 16) | ((parse_val(tokens[5]) & 0xFF) << 24)
+                    if len(tokens) > 6: flags = parse_val(tokens[6])
+                else:
+                    if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                    if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                    if len(tokens) > 4: flags = parse_val(tokens[4])
+            elif op_name == "OP_LANE_FILTER_QUORUM":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) >= 6:
+                    payload = (parse_val(tokens[2]) & 0xFF) | ((parse_val(tokens[3]) & 0xFF) << 8) | ((parse_val(tokens[4]) & 0xFF) << 16) | ((parse_val(tokens[5]) & 0xFF) << 24)
+                    flags = parse_val(tokens[6]) if len(tokens) > 6 else 1
+                else:
+                    if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
+                    if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                    if len(tokens) > 4: flags = parse_val(tokens[4])
             else:
                 if len(tokens) > 1:
                     if tokens[1].startswith("R"):

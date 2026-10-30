@@ -1,0 +1,35 @@
+; ====================================================================
+; GEN_DOMAIN_LANE_PRUNE_MODES_POS
+; Exercises OP_LANE_PRUNE_MASK (0xC5) Mode 0 (Global Deny Mask),
+; Mode 1 (Intra-Word ALLOW & ~DENY), and Mode 2 (Degree-Gated Hub Quorum).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 2}
+; {EXPECT: R11 = 3}
+; {EXPECT: R12 = 3}
+
+.data
+.csr_inline HUB_GRAPH = {
+    0: [1, 2, 3],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.set SEEDS_4 = [0, 1, 2, 3]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, HUB_GRAPH
+0x01: OP_LOAD_INLINE_SET         R13, SEEDS_4
+0x02: OP_LANE_INIT_SEEDS         R1, R13, 0
+0x03: OP_LANE_CSR_WALK           R2, R1, 0, 4
+0x04: OP_LOAD_CONST_INT          R3, 1
+0x05: OP_LANE_PRUNE_MASK         R4, R2, R3, 0, 0, 0
+0x06: OP_LANE_FILTER_QUORUM      R5, R4, 2, 0
+0x07: OP_SET_CARDINALITY         R10, R5
+0x08: OP_LANE_PRUNE_MASK         R6, R2, 2, 0, 0, 1
+0x09: OP_LANE_FILTER_QUORUM      R7, R6, 1, 0
+0x0A: OP_SET_CARDINALITY         R11, R7
+0x0B: OP_LANE_PRUNE_MASK         R8, R2, 2, 2, 0, 2
+0x0C: OP_LANE_FILTER_QUORUM      R9, R8, 2, 0
+0x0D: OP_SET_CARDINALITY         R12, R9
+0x0E: OP_HALT

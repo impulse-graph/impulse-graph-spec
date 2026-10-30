@@ -1,0 +1,38 @@
+; ====================================================================
+; TDD_49_MULTILANE_PRUNE_MODES_AND_REDUCE_POS:
+; Ported from impulse-ocaml/test/test_runner.ml multi-lane suite:
+; 1. OP_LANE_REDUCE_AND (0xC7) Modes 0, 1, 2:
+;    - R4 = 1 (Mode 0: Lane 0 reaches all 4 nodes)
+;    - R5 = 2 (Mode 1: Lane 1 failed to reach node 0)
+;    - R6 = 3 (Mode 2: 3 nodes {1, 2, 3} universally reached by both lanes)
+; 2. OP_LANE_PRUNE_MASK (0xC5) Mode 2 (Degree-Gated Hub Quorum Pruning):
+;    - Node 0 has out-degree 3 > max_deg(2) and popcount(1) < min_quorum(2) -> pruned!
+;    - Nodes {1, 2, 3} survive -> cardinality R9 = 3.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 1}
+; {EXPECT: R5 = 2}
+; {EXPECT: R6 = 3}
+; {EXPECT: R9 = 3}
+
+.data
+.csr_inline GRAPH_HUB = {
+    0: [1, 2, 3],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.set SEEDS = [0, 1]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_HUB
+0x01: OP_LOAD_INLINE_SET         R1, SEEDS
+0x02: OP_LANE_INIT_SEEDS         R2, R1, 0, 0
+0x03: OP_LANE_CSR_WALK           R2, R2, 0, 2
+0x04: OP_LANE_REDUCE_AND         R4, R2, 4, 0
+0x05: OP_LANE_REDUCE_AND         R5, R2, 4, 1
+0x06: OP_LANE_REDUCE_AND         R6, R2, 4, 2
+0x07: OP_LANE_PRUNE_MASK         R7, R2, 2, 2, 0, 2
+0x08: OP_LANE_FILTER_QUORUM      R8, R7, 1, 0
+0x09: OP_SET_CARDINALITY         R9, R8
+0x0A: OP_HALT
