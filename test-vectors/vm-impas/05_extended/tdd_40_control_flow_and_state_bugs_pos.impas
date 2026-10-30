@@ -1,0 +1,50 @@
+; ====================================================================
+; TDD_40_CONTROL_FLOW_AND_STATE_BUGS_POS: Issue #22
+; Tests:
+; 1. OP_LOAD_INLINE_ARRAY does not corrupt node_vectors[h] allocated by
+;    OP_LOAD_INLINE_INT_ARRAY.
+; 2. OP_CALL copies register_types[12..15] to register_types[0..3].
+; 3. OP_ASSERT sign-extends negative 32-bit integer constants.
+; 4. OP_STABLE_CHECK with dst=R0 and src=R14 compares R0 subset-of R14
+;    instead of clobbering dst = src.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 600}
+; {EXPECT: R11 = 3}
+; {EXPECT: R13 = 7}
+; {EXPECT: R15 = 42}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.array_int INT_VALS = [100, 200, 300]
+.array_float FLT_VALS = [1.0, 2.0, 3.0]
+.set SET_THREE = [1, 2, 3]
+.set SET_ONE = [1]
+
+.text
+; 1. OP_LOAD_INLINE_INT_ARRAY + OP_LOAD_INLINE_ARRAY non-corruption
+0x00: OP_LOAD_INLINE_INT_ARRAY R5, INT_VALS
+0x01: OP_LOAD_INLINE_ARRAY     R6, FLT_VALS
+0x02: OP_REDUCE                R10, R5, BINARY_OP_ADD
+
+; 2. OP_CALL copies register_types[12] (TYPE_BITSET_HANDLE) into R0
+0x03: OP_LOAD_CONST_INT        R0, 99
+0x04: OP_LOAD_INLINE_SET       R12, SET_THREE
+0x05: OP_CALL                  0x10
+
+; 3. OP_ASSERT with negative integer constant (-7), then set R13 = 7
+0x06: OP_LOAD_CONST_INT        R13, -7
+0x07: OP_ASSERT                R13, -7
+0x08: OP_LOAD_CONST_INT        R13, 7
+
+; 4. OP_STABLE_CHECK R0, R14 where R0={1,2,3} is NOT a subset of R14={1}
+0x09: OP_LOAD_INLINE_SET       R14, SET_ONE
+0x0A: OP_STABLE_CHECK          R0, R14
+0x0B: OP_JZ                    2
+0x0C: OP_LOAD_CONST_INT        R15, 42
+0x0D: OP_JMP                   2
+0x0E: OP_LOAD_CONST_INT        R15, 999
+0x0F: OP_HALT
+
+0x10: OP_SET_CARDINALITY       R11, R0
+0x11: OP_RET

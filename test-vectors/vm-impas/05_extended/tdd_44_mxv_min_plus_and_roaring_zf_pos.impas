@@ -1,0 +1,55 @@
+; ====================================================================
+; TDD_44_MXV_MIN_PLUS_AND_ROARING_ZF_POS: Issue #26
+; Tests:
+; 1. OP_MXV with SEMIRING_MIN_PLUS (1): nodes with 0 outgoing edges get
+;    +infinity identity (not 0.0), so OP_REDUCE BINARY_OP_MIN over
+;    [5.0, 10.0, +inf] yields 5.0 (1084227584).
+; 2. OP_VXM with SEMIRING_PLUS_TIMES (0) pulls along CSC incoming edges
+;    (node 0: 0, node 1: 10, node 2: 10+4=14 -> sum = 24.0 = 1103101952).
+; 3. OP_ROARING_BITMAP_AND and OP_ROARING_BITMAP_AND_NOT set ZF = 1 when
+;    the resulting bitmap is empty.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1084227584}
+; {EXPECT: R11 = 1103101952}
+; {EXPECT: R12 = 1}
+; {EXPECT: R13 = 1}
+
+.data
+.csr_inline GRAPH_3 = {
+    0: [1, 2],
+    1: [2],
+    2: []
+}
+.array_float SRC_VEC = [10.0, 4.0, 9.0]
+.set SET_A = [0, 1]
+.set SET_B = [2]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_3
+0x01: OP_LOAD_INLINE_ARRAY       R1, SRC_VEC
+
+; 1. OP_MXV with SEMIRING_MIN_PLUS (1) -> [5.0, 10.0, +inf], MIN = 5.0 (1084227584)
+0x02: OP_MXV                     R2, R1, R0, SEMIRING_MIN_PLUS
+0x03: OP_REDUCE                  R10, R2, BINARY_OP_MIN
+
+; 2. OP_VXM with SEMIRING_PLUS_TIMES (0) -> [0.0, 10.0, 14.0], SUM = 24.0 (1103101952)
+0x04: OP_VXM                     R3, R1, R0, SEMIRING_PLUS_TIMES
+0x05: OP_VECTOR_REDUCE_SUM       R11, R3
+
+; 3. OP_ROARING_BITMAP_AND empty result sets ZF = 1
+0x06: OP_LOAD_INLINE_SET         R4, SET_A
+0x07: OP_LOAD_INLINE_SET         R5, SET_B
+0x08: OP_ROARING_BITMAP_AND      R6, R4, R5
+0x09: OP_JZ                      3
+0x0A: OP_LOAD_CONST_INT          R12, 0
+0x0B: OP_JMP                     2
+0x0C: OP_LOAD_CONST_INT          R12, 1
+
+; 4. OP_ROARING_BITMAP_AND_NOT empty result sets ZF = 1
+0x0D: OP_ROARING_BITMAP_AND_NOT  R7, R4, R4
+0x0E: OP_JZ                      3
+0x0F: OP_LOAD_CONST_INT          R13, 0
+0x10: OP_JMP                     2
+0x11: OP_LOAD_CONST_INT          R13, 1
+0x12: OP_HALT

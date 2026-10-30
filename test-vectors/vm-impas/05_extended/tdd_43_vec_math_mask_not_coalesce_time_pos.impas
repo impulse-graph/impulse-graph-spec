@@ -1,0 +1,62 @@
+; ====================================================================
+; TDD_43_VEC_MATH_MASK_NOT_COALESCE_TIME_POS: Issue #25
+; Tests:
+; 1. OP_VEC_MATH_UNARY (func_id=1 ABS on src=R2) when R1 also holds a
+;    TYPE_FLOAT_VECTOR (exposing the p0_is_vec heuristic swap bug).
+; 2. OP_MASK_NOT masks off trailing bits >= node_count (card = 2).
+; 3. OP_COALESCE with scalar TYPE_FLOAT fallback (10.0) replaces NaNs
+;    from OP_GATHER_NODE_ATTR (1.5 + 10.0 + 3.5 + 10.0 = 25.0).
+; 4. OP_VECTOR_TIME_VALID_AT includes node 0 when valid at timestamp 210
+;    without activating trailing phantom nodes (card = 2 for {0, 2}).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1094713344}
+; {EXPECT: R11 = 2}
+; {EXPECT: R12 = 1103626240}
+; {EXPECT: R13 = 2}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [1, 2, 3],
+    1: [0],
+    2: [3],
+    3: [0]
+}
+.array_float DUMMY_VEC = [100.0, 100.0, 100.0, 100.0]
+.array_float NEG_VEC = [-4.0, -6.0, 2.0, 0.0]
+.array_float ATTR_PRICES = [1.5, 0.0, 3.5, 0.0]
+.set MASK_02 = [0, 2]
+.array_int T_START = [200, 100, 200, 300]
+.array_int T_END   = [250, 150, 250, 350]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+
+; 1. OP_VEC_MATH_UNARY with func_id=1 (ABS) on R2 while R1 holds a float vector
+0x01: OP_LOAD_INLINE_ARRAY       R1, DUMMY_VEC
+0x02: OP_LOAD_INLINE_ARRAY       R2, NEG_VEC
+0x03: OP_VEC_MATH_UNARY          R3, R2, 1
+0x04: OP_VECTOR_REDUCE_SUM       R10, R3
+
+; 2. OP_MASK_NOT on 4-node graph with {0, 2} -> {1, 3} (card = 2)
+0x05: OP_LOAD_INLINE_SET         R4, MASK_02
+0x06: OP_MASK_NOT                R5, R4
+0x07: OP_SET_CARDINALITY         R11, R5
+
+; 3. OP_COALESCE with scalar TYPE_FLOAT fallback (10.0) -> sum = 25.0 (1103626240)
+0x08: OP_LOAD_INLINE_ARRAY       R6, ATTR_PRICES
+0x09: OP_INIT_MOCK_NODE_ATTR     5, R6, R4
+0x0A: OP_GATHER_NODE_ATTR        R7, R4, 0, 5
+0x0B: OP_LOAD_CONST_FLOAT        R8, 10.0
+0x0C: OP_COALESCE                R9, R7, R8
+0x0D: OP_VECTOR_REDUCE_SUM       R12, R9
+
+; 4. OP_VECTOR_TIME_VALID_AT at t=210 where target nodes {0, 2} are active (card = 2)
+0x0E: OP_LOAD_INLINE_INT_ARRAY   R14, T_START
+0x0F: OP_INIT_MOCK_NODE_ATTR     10, R14, R255
+0x10: OP_LOAD_INLINE_INT_ARRAY   R15, T_END
+0x11: OP_INIT_MOCK_NODE_ATTR     20, R15, R255
+0x12: OP_LOAD_CONST_INT          R16, 210
+0x13: OP_VECTOR_TIME_VALID_AT    R17, R16, 0, 10, 20
+0x14: OP_SET_CARDINALITY         R13, R17
+0x15: OP_HALT

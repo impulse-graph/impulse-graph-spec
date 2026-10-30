@@ -449,9 +449,15 @@ def parse_impas_file(file_path):
             payload = 0
             flags = 0
 
-            if op_name in ("OP_JMP", "OP_JZ", "OP_JNZ", "OP_CALL", "OP_TRAP", "OP_NOP", "OP_HALT", "OP_RET", "OP_STABLE_CHECK", "OP_LEAVE_FRAME"):
+            if op_name in ("OP_JMP", "OP_JZ", "OP_JNZ", "OP_CALL", "OP_TRAP", "OP_NOP", "OP_HALT", "OP_RET", "OP_LEAVE_FRAME"):
                 if len(tokens) > 1:
                     payload = parse_val(tokens[1])
+            elif op_name == "OP_STABLE_CHECK":
+                if len(tokens) == 2:
+                    payload = parse_val(tokens[1]) & 0xFFFF
+                elif len(tokens) > 2:
+                    dst_reg = parse_val(tokens[1])
+                    payload = (parse_val(tokens[1]) & 0xFFFF) | ((parse_val(tokens[2]) & 0xFFFF) << 16)
             elif op_name in ("OP_INIT_MOCK_GRAPH", "OP_LOAD_INLINE_ARRAY", "OP_LOAD_INLINE_INT_ARRAY", "OP_LOAD_INLINE_SET", "OP_LOAD_INLINE_SET_DENSE", "OP_LOAD_INLINE_SET_ROARING", "OP_LOAD_INLINE_NODE_ARRAY"):
                 if len(tokens) > 1:
                     dst_reg = parse_val(tokens[1])
@@ -493,6 +499,15 @@ def parse_impas_file(file_path):
                 elif len(tokens) > 4:
                     payload |= ((parse_val(tokens[3]) & 0xFF) << 16)
                     payload |= ((parse_val(tokens[4]) & 0xFF) << 24)
+            elif op_name == "OP_CSR_WALK_FILTERED":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 4:
+                    payload |= (parse_val(tokens[2]) & 0xFFFF)
+                    payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                elif len(tokens) > 4:
+                    payload |= (parse_val(tokens[2]) & 0xFF)
+                    payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                    payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
             elif op_name == "OP_CSR_WALK_PREDICATE":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
@@ -575,7 +590,15 @@ def parse_impas_file(file_path):
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
                 if len(tokens) > 4: flags = parse_val(tokens[4])
-            elif op_name in ("OP_LOAD_INDIRECT", "OP_ASSERT", "OP_ENTER_FRAME"):
+            elif op_name == "OP_ASSERT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 3:
+                    payload = parse_val(tokens[2]) & 0xFFFFFFFF
+                elif len(tokens) > 3:
+                    payload |= (parse_val(tokens[2]) & 0xFFFF)
+                    payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                if len(tokens) > 4: flags = parse_val(tokens[4])
+            elif op_name in ("OP_LOAD_INDIRECT", "OP_ENTER_FRAME"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 16)
@@ -596,8 +619,8 @@ def parse_impas_file(file_path):
                 if len(tokens) > 4:
                     flags = parse_val(tokens[4])
 
-            # Check if 128-bit extended encoding is needed for relation IDs > 255
-            if (payload >> 16) > 255 and op_name in ("OP_CSR_WALK", "OP_CSR_WALK_FILTERED", "OP_CSR_DEGREE", "OP_CSR_WALK_2HOP", "OP_CSR_WALK_STATE", "OP_CSR_WALK_REDUCE_SUM", "OP_CSR_WALK_PREDICATE", "OP_CSC_WALK"):
+            # Check if 128-bit extended encoding is needed for relation/attr IDs > 255
+            if (payload >> 16) > 255 and op_name in ("OP_CSR_WALK", "OP_CSR_WALK_FILTERED", "OP_CSR_DEGREE", "OP_CSR_WALK_2HOP", "OP_CSR_WALK_STATE", "OP_CSR_WALK_REDUCE_SUM", "OP_CSR_WALK_PREDICATE", "OP_CSC_WALK", "OP_GATHER_NODE_ATTR"):
                 # Word 1: opcode, flags | 0x80, dst_reg, (payload & 0xFFFF), 0
                 arg1 = payload & 0xFFFF
                 arg2 = 0
