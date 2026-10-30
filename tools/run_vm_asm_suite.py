@@ -372,6 +372,7 @@ def parse_impas_file(file_path):
         symbols[sym_name] = (offset_start, len(floats))
         float_symbols.add(sym_name)
 
+    int_symbols = set()
     # Parse all .array_int / .array_uint32 / .array_node / .set / .set_dense / .set_roaring / .set_bitset blocks
     for arr_match in re.finditer(r"\.(?:array_int|array_uint32|array_node|set|set_dense|set_roaring|set_bitset)\s+(\w+)\s*=\s*\[([^\]]*)\]", full_text):
         sym_name = arr_match.group(1)
@@ -383,6 +384,7 @@ def parse_impas_file(file_path):
         for val in ints:
             data_bytes.extend(struct.pack("<I", val))
         symbols[sym_name] = (offset_start, len(ints))
+        int_symbols.add(sym_name)
 
     # Parse all .rel directives: .rel <name> = <id> [, multiplicity = <m1|1m|11|mn>]
     for rel_match in re.finditer(r"\.rel\s+(\w+)\s*=\s*(\d+)(?:\s*,\s*multiplicity\s*=\s*(\w+))?", full_text):
@@ -484,7 +486,7 @@ def parse_impas_file(file_path):
                     if sym_name in symbols:
                         off_b, cnt = symbols[sym_name]
                         payload = off_b | (cnt << 16)
-                    if op_name == "OP_LOAD_INLINE_INT_ARRAY" or (op_name == "OP_LOAD_INLINE_ARRAY" and sym_name not in float_symbols):
+                    if op_name == "OP_LOAD_INLINE_INT_ARRAY" or (op_name == "OP_LOAD_INLINE_ARRAY" and sym_name in int_symbols):
                         flags = 1
             elif op_name == "OP_LOAD_CONST_FLOAT":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
