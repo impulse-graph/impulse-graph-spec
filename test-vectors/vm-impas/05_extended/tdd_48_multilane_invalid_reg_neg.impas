@@ -1,0 +1,18 @@
+; ====================================================================
+; TDD_48_MULTILANE_INVALID_REG_NEG: Multi-Lane Invalid Register Trap
+; Passing a scalar INT64 register to OP_LANE_CSR_WALK (0xC3) traps with
+; IMPULSE_VM_ERR_INVALID_REGISTER across all 4 polyglot VM engines.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.csr_inline GRAPH_2 = {
+    0: [1],
+    1: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_2
+0x01: OP_LOAD_CONST_INT          R1, 42
+0x02: OP_LANE_CSR_WALK           R2, R1, 0, 0
+0x03: OP_HALT

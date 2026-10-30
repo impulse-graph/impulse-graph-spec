@@ -1,0 +1,43 @@
+; ====================================================================
+; OCAML AUTO-GENERATED POSITIVE TYPE CONTRACT SUITE: 0x70 OP_MOV
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline g0 = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+.array_int seed_arr = [0, 1]
+.array_float flt_arr = [1.0, 4.0, 2.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, g0
+0x01: OP_CLEAR_REG R1
+0x02: OP_MOV R5, R1
+0x03: OP_LOAD_CONST_INT R1, 1
+0x04: OP_MOV R5, R1
+0x05: OP_INIT_INPUT_NODE R1, 0
+0x06: OP_MOV R5, R1
+0x07: OP_LOAD_INLINE_SET R1, seed_arr
+0x08: OP_MOV R5, R1
+0x09: OP_LOAD_INLINE_SET R30, seed_arr
+0x0A: OP_LANE_INIT_SEEDS R31, R30, 0
+0x0B: OP_LANE_SET_COVER R1, R31, 0, 2, 0
+0x0C: OP_MOV R5, R1
+0x0D: OP_LOAD_CONST_FLOAT R1, 2.5
+0x0E: OP_MOV R5, R1
+0x0F: OP_LOAD_INLINE_ARRAY R1, flt_arr
+0x10: OP_MOV R5, R1
+0x11: OP_LOAD_INLINE_SET R30, seed_arr
+0x12: OP_LANE_INIT_SEEDS R31, R30, 0
+0x13: OP_LANE_REDUCE_ATTR R1, R31, 0, BINARY_OP_ARGMIN
+0x14: OP_MOV R5, R1
+0x15: OP_INIT_INPUT_NODE R30, 0
+0x16: OP_CSR_WALK_STATE R1, R30, 0
+0x17: OP_MOV R5, R1
+0x18: OP_LOAD_INLINE_SET R30, seed_arr
+0x19: OP_LANE_INIT_SEEDS R1, R30, 0
+0x1A: OP_MOV R5, R1
+0x1B: OP_HALT

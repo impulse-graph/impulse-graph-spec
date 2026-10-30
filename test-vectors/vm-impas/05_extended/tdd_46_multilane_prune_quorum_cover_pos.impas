@@ -1,0 +1,37 @@
+; ====================================================================
+; TDD_46_MULTILANE_PRUNE_QUORUM_COVER_POS: Multi-Lane Opcodes 0xC0, 0xC1, 0xC5, 0xC6, 0xC8, 0xC9
+; Tests:
+; 1. OP_LANE_INIT_SEEDS (0xC0) & OP_LANE_INIT_GROUPS (0xC1)
+; 2. OP_LANE_PRUNE_MASK (0xC5) mode 0 bitset pruning (prunes node 1)
+; 3. OP_LANE_FILTER_QUORUM (0xC6) min_k = 1 -> nodes {0, 2} (cardinality = 2)
+; 4. OP_LANE_REDUCE_ATTR (0xC8) per-lane SUM over [10.0, 20.0, 5.0, 40.0] -> [10.0, 0.0, 5.0] (sum = 15.0 = 1097859072)
+; 5. OP_LANE_SET_COVER (0xC9) greedy set cover over R4 (covers all 3 lanes -> !ZF)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 2}
+; {EXPECT: R11 = 1097859072}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [1, 2, 3],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float WEIGHTS = [10.0, 20.0, 5.0, 40.0]
+.set DENY_SET = [1]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+0x01: OP_LOAD_INLINE_ARRAY       R1, WEIGHTS
+0x02: OP_LOAD_INLINE_SET         R2, DENY_SET
+0x03: OP_LOAD_CONST_INT          R3, 0
+0x04: OP_LANE_INIT_SEEDS         R4, R3, 3, 1
+0x05: OP_LANE_INIT_GROUPS        R5, R15, R15, 3, 0
+0x06: OP_LANE_PRUNE_MASK         R6, R4, R2, 0
+0x07: OP_LANE_FILTER_QUORUM      R7, R6, 1, 0
+0x08: OP_SET_CARDINALITY         R10, R7
+0x09: OP_LANE_REDUCE_ATTR        R8, R6, R1, BINARY_OP_ADD, 1
+0x0A: OP_VECTOR_REDUCE_SUM       R11, R8
+0x0B: OP_LANE_SET_COVER          R9, R4, R15, 4, 0
+0x0C: OP_HALT

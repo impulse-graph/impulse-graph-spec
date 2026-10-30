@@ -1,0 +1,44 @@
+; ====================================================================
+; GEN_DOMAIN_ONCOLOGY_12LANE_QUORUM_POS
+; Precision Oncology 10-Gene Driver Quorum (0x03FF) + 2-Cardiotoxicity Off-Target Pruning (0x0C00)
+; - Lanes 0..9: Oncology driver genes (req_mask = 0x03FF = 1023)
+; - Lanes 10..11: Cardiac safety off-targets hERG, SCN5A (forbid_mask = 0x0C00 = 3072)
+; - Node 12: Safe multi-target candidate hitting 7 oncology lanes (0..6) & 0 cardiac lanes
+; - Node 13: Cardiotoxic candidate hitting 8 oncology lanes (0..7) + lane 10 (hERG)
+; - Node 14: Weak candidate hitting only 3 oncology lanes (0..2)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R7 = 1}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.csr_inline ONCOLOGY_GRAPH = {
+    0: [12, 13, 14],
+    1: [12, 13, 14],
+    2: [12, 13, 14],
+    3: [12, 13],
+    4: [12, 13],
+    5: [12, 13],
+    6: [12, 13],
+    7: [13],
+    8: [],
+    9: [],
+    10: [13],
+    11: [],
+    12: [],
+    13: [],
+    14: [],
+    15: []
+}
+.set SEEDS_12 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, ONCOLOGY_GRAPH
+0x01: OP_LOAD_INLINE_SET         R1, SEEDS_12
+0x02: OP_LANE_INIT_SEEDS         R2, R1, 0
+0x03: OP_LANE_CSR_WALK           R3, R2, 0
+0x04: OP_LOAD_CONST_INT          R4, 1023
+0x05: OP_LOAD_CONST_INT          R5, 3072
+0x06: OP_LANE_FILTER_QUORUM      R6, R3, 6, R4, R5, 1
+0x07: OP_SET_CARDINALITY         R7, R6
+0x08: OP_HALT

@@ -1,0 +1,27 @@
+; ====================================================================
+; GEN_DOMAIN_SET_COVER_TIES_AND_PAIRS_POS
+; Exercises OP_LANE_INIT_GROUPS (0xC1), OP_LANE_CSC_WALK (0xC4), and
+; OP_LANE_SET_COVER (0xC9) Mode 0 (Greedy Minimum Set Cover with lowest-ID tie-breaking)
+; and Mode 1 (Exact 2-Node Cover Pairs).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 2}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.csr_inline COVER_GRAPH = {
+    0: [1, 2, 3],
+    1: [0, 2, 3],
+    2: [3],
+    3: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, COVER_GRAPH
+0x01: OP_LANE_INIT_GROUPS        R1, R0, R0, 4, 0
+0x02: OP_LANE_CSC_WALK           R2, R1, 0, 2
+0x03: OP_LANE_SET_COVER          R3, R2, R0, 4, 0
+0x04: OP_LANE_SET_COVER          R4, R2, R0, 4, 1
+0x05: OP_LANE_FILTER_QUORUM      R5, R2, 1, 0
+0x06: OP_SET_CARDINALITY         R10, R5
+0x07: OP_HALT

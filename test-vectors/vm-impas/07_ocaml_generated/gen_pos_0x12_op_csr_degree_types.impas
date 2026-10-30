@@ -1,0 +1,23 @@
+; ====================================================================
+; OCAML AUTO-GENERATED POSITIVE TYPE CONTRACT SUITE: 0x12 OP_CSR_DEGREE
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline g0 = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+.array_int seed_arr = [0, 1]
+.array_float flt_arr = [1.0, 4.0, 2.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, g0
+0x01: OP_CLEAR_REG R1
+0x02: OP_CSR_DEGREE R5, R1, 0
+0x03: OP_INIT_INPUT_NODE R1, 0
+0x04: OP_CSR_DEGREE R5, R1, 0
+0x05: OP_LOAD_CONST_INT R1, 1
+0x06: OP_CSR_DEGREE R5, R1, 0
+0x07: OP_HALT

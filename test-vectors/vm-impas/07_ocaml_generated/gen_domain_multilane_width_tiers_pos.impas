@@ -1,0 +1,36 @@
+; ====================================================================
+; GEN_DOMAIN_MULTILANE_WIDTH_TIERS_POS
+; Exercises Multi-Lane Width Tiers (WIDTH_8 = 8, WIDTH_16 = 16, WIDTH_32 = 32, WIDTH_64 = 64)
+; including 64-lane quorum cardinality in R12.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R9 = 255}
+; {EXPECT: R10 = 65535}
+; {EXPECT: R11 = 4294967295}
+; {EXPECT: R12 = 3}
+
+.data
+.csr_inline TIER_4 = {
+    0: [1, 2],
+    1: [2],
+    2: [0],
+    3: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, TIER_4
+0x01: OP_LOAD_CONST_INT          R1, 0
+0x02: OP_LANE_INIT_SEEDS         R2, R1, 8, 1
+0x03: OP_LANE_CSR_WALK           R3, R2, 0, 4
+0x04: OP_LANE_REDUCE_AND         R9, R3, 4, 1
+0x05: OP_LANE_INIT_SEEDS         R4, R1, 16, 1
+0x06: OP_LANE_CSR_WALK           R5, R4, 0, 4
+0x07: OP_LANE_REDUCE_AND         R10, R5, 4, 1
+0x08: OP_LANE_INIT_SEEDS         R6, R1, 32, 1
+0x09: OP_LANE_CSR_WALK           R7, R6, 0, 4
+0x0A: OP_LANE_REDUCE_AND         R11, R7, 4, 1
+0x0B: OP_LANE_INIT_SEEDS         R8, R1, 64, 1
+0x0C: OP_LANE_CSR_WALK           R13, R8, 0, 4
+0x0D: OP_LANE_FILTER_QUORUM      R15, R13, 3, 0
+0x0E: OP_SET_CARDINALITY         R12, R15
+0x0F: OP_HALT

@@ -1,0 +1,17 @@
+; ====================================================================
+; OCAML AUTO-GENERATED POSITIVE TYPE CONTRACT SUITE: 0x00 OP_HALT
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline g0 = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+.array_int seed_arr = [0, 1]
+.array_float flt_arr = [1.0, 4.0, 2.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, g0
+0x01: OP_HALT

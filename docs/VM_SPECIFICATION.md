@@ -59,6 +59,8 @@ To ensure off-heap memory safety and prevent undefined behavior during FFI calls
 | `0x0C` | `TYPE_FLOAT_VECTOR` | Integer handle pointing to an off-heap float array. |
 | `0x0D` | `TYPE_DOUBLE_VECTOR` | Integer handle pointing to an off-heap double array. |
 | `0x0E` | `TYPE_UINT64_VECTOR` | Integer handle pointing to an off-heap uint64 array. |
+| `0x0F` | `TYPE_FRONTIER_STATE` | Integer handle pointing to a frontier with attached per-node state. |
+| `0x10` | `TYPE_LANE_FRONTIER` | Integer handle pointing to a pooled multi-lane bit-sliced frontier buffer (`uint8_t[N]`..`uint64_t[N]`). |
 
 ---
 
@@ -408,11 +410,11 @@ Set math and algebraic instructions are classified based on the number and struc
 - **`OP_RESERVED_5D`** through **`OP_RESERVED_5F`** (`0x5D`–`0x5F`)
 - **`OP_RESERVED_6D`** through **`OP_RESERVED_6F`** (`0x6D`–`0x6F`)
 - **`OP_RESERVED_76`** through **`OP_RESERVED_8F`** (`0x76`–`0x8F`)
-- **`OP_RESERVED_90_9F`** (`0x90`–`0x9F`)
-- **`OP_RESERVED_BE_FF`** (`0xBE`–`0xFF`)
+- **`OP_RESERVED_90_9F`** (`0x96`–`0x9F`)
+- **`OP_RESERVED_CC_FE`** (`0xCC`–`0xFE`)
   - **Behavior**: Execution of any reserved opcode **MUST** immediately halt virtual machine execution and return the status `IMPULSE_VM_ERR_RESERVED_OPCODE` (`10`).
 
-### 6.10 Edge Stream Shader Instructions (`0xA0` - `0xBD`)
+### 6.10 Edge Stream Shader Instructions (`0xA0` - `0xBF`)
 Edge Stream Shaders enable execution of inline Common Expression Language (CEL) pipelines, per-edge predicates, and mathematical reductions natively during graph traversal loops without manifesting intermediate buffers.
 
 - **`OP_COO_WALK_STREAM`** (`0xA0`), **`OP_CSR_WALK_STREAM`** (`0xA9`), **`OP_CSC_WALK_STREAM`** (`0xAA`)
@@ -447,6 +449,85 @@ Edge Stream Shaders enable execution of inline Common Expression Language (CEL) 
   - **Behavior**: Accumulates a computed scalar result from the shader register bank back into a global vector register handle using a defined Monoid (`0 = SUM, 1 = MAX, 2 = MIN`).
 - **`OP_STREAM_REDUCE_ARGMIN`** (`0xB8`), **`OP_STREAM_REDUCE_ARGMAX`** (`0xB9`)
   - **Behavior**: Fuses topological reduction with index tracking, updating a global vector while capturing the node identifier that resulted in the extrema.
+- **`OP_STREAM_YIELD`** (`0xBE`)
+  - **Behavior**: Emits the current target node ID `v` into the destination BitSet handle when `S[src]` is non-zero (`!= 0.0` and `!NaN`).
+- **`OP_STREAM_SCATTER_REDUCE`** (`0xBF`)
+  - **Behavior**: Scatters and accumulates `S[src]` into `float_vector[v]` using the specified monoid (`0 = SUM, 1 = MAX, 2 = MIN`).
+
+### 6.11 Multi-Lane Bit-Sliced Execution & Hybrid Vector ANN Instructions (`0xC0` - `0xCB`)
+
+Multi-Lane Bit-Sliced Execution generalizes single-bit frontier propagation (`1` bit per node) into $W$-bit lane masks ($W \in \{8, 16, 32, 64\}$ bits per node), enabling up to 64 independent traversals, counterfactual edge-outage contingencies, or concept-group expansions in a single memory-bandwidth-bound pass over the CSR/CSC topology.
+
+#### 6.11.1 `TYPE_LANE_FRONTIER` (`0x10`) Invariants
+- **Width Tier Selection**: Given $k \in [0, 64]$ active lanes, the physical lane width tier is `WIDTH_8` ($k \le 8$), `WIDTH_16` ($9 \le k \le 16$), `WIDTH_32` ($17 \le k \le 32$), or `WIDTH_64` ($33 \le k \le 64$).
+- **64-Bit Safe Active Mask**: The active lane bitmask **MUST** be computed without undefined 64-bit shift behavior (`1ULL << 64`):
+  $$\text{active\_mask}(k) = \begin{cases} 0 & \text{if } k \le 0 \\ \texttt{0xFFFFFFFFFFFFFFFF} & \text{if } k \ge 64 \\ (1 \ll k) - 1 & \text{if } 1 \le k < 64 \end{cases}$$
+- **Strict Type Separation**: Passing a `TYPE_BITSET_HANDLE` (`0x04`) or scalar register to an opcode requiring `TYPE_LANE_FRONTIER` (`0x10`), or passing a `TYPE_LANE_FRONTIER` to a 1-bit set/walk opcode without an explicit bridge (`OP_LANE_FILTER_QUORUM`), **MUST** trap with `IMPULSE_VM_ERR_INVALID_REGISTER` (`6`).
+- **Unused Upper Bits Invariant**: For every node $u \in [0, N)$, `(lanes[u] & ~active_mask) == 0` **MUST** hold after every instruction.
+
+#### 6.11.2 Multi-Lane & Hybrid ANN Opcodes
+- **`OP_LANE_INIT_SEEDS`** (`0xC0`)
+  - **Behavior**: Initializes a `TYPE_LANE_FRONTIER` handle in `dst_reg` by assigning up to 64 distinct seed nodes $s_0, \dots, s_{k-1}$ to lanes $b = 0 \dots k-1$ (`lanes[s_b] |= (1ULL << b)`).
+  - **Encoding**: `src_reg = payload & 0xFFFF`, `k_or_dom = (payload >> 16) & 0xFFFF`.
+  - **Allowed `src_reg` Types**:
+    - `TYPE_NODE_VECTOR` / `TYPE_UINT64_VECTOR`: Reads $k = \min(64, \text{len})$ seed node IDs from the vector.
+    - `TYPE_BITSET_HANDLE`: Extracts the first $k \le 64$ set bits in ascending node ID order.
+    - `TYPE_NODE_ID` / `TYPE_INT64`: Reads base seed $s_0$; if `(flags & 1) != 0` and `k_or_dom > 1`, initializes $k = \min(64, \text{k\_or\_dom})$ contiguous seeds $s_0 + b$; otherwise initializes $k = 1$ lane at $s_0$.
+    - `TYPE_NULL`: Initializes $k = \min(64, \text{k\_or\_dom} > 0 \text{ ? k\_or\_dom : } 8)$ lanes (if `(flags & 1) != 0`, seeds $0 \dots k-1$; else seed $0$ in lane $0$).
+  - **Type Transition**: `dst_reg` becomes `TYPE_LANE_FRONTIER`. Sets `flags[ZF] = 1` iff all `lanes[u] == 0`.
+- **`OP_LANE_INIT_GROUPS`** (`0xC1`)
+  - **Behavior**: Initializes a `TYPE_LANE_FRONTIER` handle in `dst_reg` where multiple seed nodes may map to the same group/concept lane $g \in [0, 63]$ (`lanes[u] |= (1ULL << g)`).
+  - **Encoding**: `nodes_reg = payload & 0xFF`, `groups_reg = (payload >> 8) & 0xFF`, `num_groups = (payload >> 16) & 0xFFFF`.
+  - **Allowed `nodes_reg` Types**: `TYPE_NODE_VECTOR` / `TYPE_UINT64_VECTOR` (paired with `groups_reg` vector or packed `(group_id << 32) | node_id` when `groups_reg == 0` or `flags & 1 != 0`) or `TYPE_NULL`.
+  - **Type Transition**: `dst_reg` becomes `TYPE_LANE_FRONTIER`. Sets `flags[ZF] = 1` iff no lane bits are set.
+- **`OP_LANE_SET_EDGE_MASK`** (`0xC2`)
+  - **Behavior**: Clones the source `TYPE_LANE_FRONTIER` and attaches per-edge counterfactual trip masks (`edge_trip_mask[rel_id][e] |= (1ULL << b)`), causing lane $b$ to treat edge index $e$ as removed/tripped during subsequent `OP_LANE_CSR_WALK` / `OP_LANE_CSC_WALK` traversals.
+  - **Encoding**: `src_reg = payload & 0xFF`, `edge_reg = (payload >> 8) & 0xFF`, `rel_id = (payload >> 16) & 0xFFFF`.
+  - **Allowed `edge_reg` Types**: `TYPE_INT64` / `TYPE_NODE_ID` (trips edge `registers[edge_reg]` in lane `flags & 0x3F`), `TYPE_NODE_VECTOR` / `TYPE_UINT64_VECTOR` (if `(flags & 1) != 0`, unpacks `(lane_b << 32) | edge_idx`; else trips `vec[b]` in lane $b$), or `TYPE_NULL`.
+  - **Type Transition**: `dst_reg` becomes `TYPE_LANE_FRONTIER`.
+- **`OP_LANE_CSR_WALK`** (`0xC3`) & **`OP_LANE_CSC_WALK`** (`0xC4`)
+  - **Behavior**: Executes a bit-sliced forward (`0xC3` CSR) or reverse (`0xC4` CSC) step across all active lanes simultaneously:
+    $$\text{next\_lanes}[v] \;\mathrel{\vert}=\; (\text{current\_lanes}[u] \land \text{active\_mask}) \land \neg\text{edge\_trip\_mask}[\text{rel\_id}][e]$$
+  - **Encoding**: `src_reg = payload & 0xFFFF` (**MUST** be `TYPE_LANE_FRONTIER`), `rel_id = (payload >> 16) & 0xFFFF`.
+  - **Modifier Flags**:
+    - `flags & 0x03 != 0` (`ACCUMULATE`): Preserves existing `current_lanes[u]` bits in `next_lanes[u]`.
+    - `flags & 0x04 != 0` (`FIXPOINT`): Iterates delta-frontier propagation (`newly_reached = step_out[v] & ~out_lanes[v]`) until `newly_reached == 0` for all $v \in [0, N)$, with zero per-iteration heap allocations.
+  - **Type Transition**: `dst_reg` becomes `TYPE_LANE_FRONTIER`. Sets `flags[ZF] = 1` iff all `out_lanes[u] == 0`.
+- **`OP_LANE_PRUNE_MASK`** (`0xC5`)
+  - **Behavior**: Prunes lane bits from a `TYPE_LANE_FRONTIER` according to `mode = flags & 0x03`:
+    - **Mode `0` (Explicit Deny Set / Per-Node Mask)**: Clears all lanes on nodes in a `TYPE_BITSET_HANDLE`, or clears `lanes[u] &= ~deny_vec[u]` for a vector, or clears `lanes[u] &= ~scalar_mask` for `TYPE_INT64`.
+    - **Mode `1` (Disjoint Split-Half Collision Prune)**: Splits active lanes into low half $[0, \text{half})$ and high half $[\text{half}, k)$; zeroes `lanes[u]` if node $u$ is not reached by at least one lane in both halves.
+    - **Mode `2` (Degree-Gated Hub Quorum Prune)**: For `max_deg = (payload >> 8) & 0xFF`, `min_quorum = (payload >> 16) & 0xFF`, `rel_id = (payload >> 24) & 0xFF`, zeroes `lanes[u]` whenever $\text{deg}(u) > \text{max\_deg}$ and $\text{popcount}(\text{lanes}[u]) < \text{min\_quorum}$.
+  - **Type Transition**: `dst_reg` becomes `TYPE_LANE_FRONTIER`. Sets `flags[ZF] = 1` iff all `out_lanes[u] == 0`.
+- **`OP_LANE_FILTER_QUORUM`** (`0xC6`)
+  - **Behavior**: Bridges from `TYPE_LANE_FRONTIER` (`0x10`) to a 1-bit `TYPE_BITSET_HANDLE` (`0x04`) by selecting nodes $u$ where at least `min_k` required lanes are set and zero forbidden lanes are set:
+    $$\text{popcount}(\text{lanes}[u] \land \text{req\_mask}) \ge \text{min\_k} \;\land\; (\text{lanes}[u] \land \text{forbid\_mask}) = 0$$
+  - **Encoding**: Standard mode (`(flags & 1) == 0`): `src_reg = payload & 0xFFFF`, `min_k = (payload >> 16) & 0xFFFF` (defaults to `1` if `0`). Extended mask mode (`(flags & 1) != 0`): `src_reg = payload & 0xFF`, `min_k = (payload >> 8) & 0xFF`, `req_mask_reg = (payload >> 16) & 0xFF`, `forbid_mask_reg = (payload >> 24) & 0xFF`.
+  - **Type Transition**: `dst_reg` becomes `TYPE_BITSET_HANDLE`. Sets `flags[ZF] = 1` iff the output BitSet is empty.
+- **`OP_LANE_REDUCE_AND`** (`0xC7`)
+  - **Behavior**: Reduces a `TYPE_LANE_FRONTIER` across $n_{\text{check}} = (\text{payload\_high} > 0) \text{ ? } \min(N, \text{payload\_high}) \text{ : } N$ nodes into a 64-bit integer in `dst_reg`:
+    - `flags == 0`: Bitwise AND of `lanes[u] & active_mask` across all $u \in [0, n_{\text{check}})$ (mask of lanes reaching *every* checked node).
+    - `(flags & 1) != 0`: Complement `active_mask & ~all_reached` (mask of lanes failing to reach at least one node, e.g., islanded contingencies).
+    - `(flags & 2) != 0`: Count of universal nodes $u \in [0, n_{\text{check}})$ where `(lanes[u] & active_mask) == active_mask`.
+  - **Type Transition**: `dst_reg` becomes `TYPE_INT64`. Sets `flags[ZF] = 1` iff result is `0`.
+- **`OP_LANE_REDUCE_ATTR`** (`0xC8`)
+  - **Behavior**: Performs a single-pass bit-sliced reduction of a node attribute array (`attr_id` or vector register when `(flags & 1) != 0`) across all $k$ active lanes simultaneously.
+  - **Encoding**: `src_reg = payload & 0xFF`, `attr_or_reg = (payload >> 8) & 0xFF`, `red_op = (payload >> 16) & 0xFFFF`.
+  - **Reduction Modes (`red_op`)**:
+    - `0` (`BINARY_OP_ADD` / `SUM`), `1` (`MUL`), `2` (`MIN`), `3` (`MAX`), `4`/`5` (`COUNT`): Outputs `TYPE_FLOAT_VECTOR` of length $k$. Untouched lanes receive `0.0f`. `NaN` attribute values are skipped.
+    - `6` (`BINARY_OP_ARGMIN`), `7` (`BINARY_OP_ARGMAX`): Outputs `TYPE_UINT64_VECTOR` / `TYPE_NODE_VECTOR` of length $k$ containing the witness node ID for each lane (`-1` if untouched). **Deterministic Tie-Breaking**: Strictly uses `<` (for `ARGMIN`) or `>` (for `ARGMAX`) in ascending node ID order $u = 0 \dots N-1$ so the lowest node ID wins ties.
+- **`OP_LANE_SET_COVER`** (`0xC9`)
+  - **Behavior**: Computes a greedy minimum witness node cover over `src_reg` (`TYPE_LANE_FRONTIER`). At each step (up to `max_k`), selects the node $u$ that covers the maximum number of remaining uncovered lanes in `uncovered_mask` (with optional positive cost weighting from `cost_reg` when `(flags & 1) != 0`). **Deterministic Tie-Breaking**: Lowest node ID $u$ wins ties.
+  - **Encoding**: `src_reg = payload & 0xFF`, `cost_reg = (payload >> 8) & 0xFF`, `max_k = (payload >> 16) & 0xFFFF`.
+  - **Type Transition**: `dst_reg` becomes `TYPE_NODE_VECTOR` containing the selected witness node IDs. Sets `flags[ZF] = 1` iff `uncovered_mask != 0` after termination (i.e., full cover was not achieved).
+- **`OP_VECTOR_ANN_SEARCH`** (`0xCA`)
+  - **Behavior**: Executes top-$k$ approximate nearest neighbor seed retrieval from a query embedding vector in `q_reg` (`TYPE_FLOAT_VECTOR`).
+  - **Encoding**: `q_reg = payload & 0xFF`, `top_k = (payload >> 8) & 0xFF` (or `(payload >> 16) & 0xFFFF`).
+  - **Type Transition**: If `(flags & 1) != 0`, initializes a `TYPE_LANE_FRONTIER` with $k = \text{top\_k}$ lanes; otherwise outputs a `TYPE_BITSET_HANDLE`.
+- **`OP_VECTOR_RERANK_DOT`** (`0xCB`)
+  - **Behavior**: Computes exact dot-product reranking scores for candidate nodes in `cand_reg` (`TYPE_BITSET_HANDLE` or `TYPE_LANE_FRONTIER`) against query vector `q_reg` (`TYPE_FLOAT_VECTOR`).
+  - **Encoding**: `cand_reg = payload & 0xFF`, `q_reg = (payload >> 8) & 0xFF`, `attr_id = (payload >> 16) & 0xFFFF`.
+  - **Type Transition**: `dst_reg` becomes `TYPE_FLOAT_VECTOR`. Sets `flags[ZF] = 1` iff candidate set is empty.
 
 ---
 
