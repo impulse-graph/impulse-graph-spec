@@ -1,0 +1,31 @@
+; ====================================================================
+; ALGO08: Multi-Domain Bipartite Projection & Attribute Filter
+; Chains cross-domain relation traversal from User to Product,
+; followed by attribute value matching and candidate extraction.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1}
+; {EXPECT: R11 = 1}
+
+.data
+.csr_inline USER_PRODUCT_GRAPH = {
+    0: [0, 2],
+    1: [1]
+}
+.array_int PRODUCT_PRICES = [10, 20, 30]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, USER_PRODUCT_GRAPH
+0x01: OP_LOAD_INLINE_INT_ARRAY   R1, PRODUCT_PRICES
+0x02: OP_INIT_MOCK_NODE_ATTR     0, R1, 0
+0x03: OP_INIT_INPUT_NODE         R2, 0
+0x04: OP_CSR_WALK                R3, R2, 0
+0x05: OP_LOAD_CONST_INT          R4, 30
+0x06: OP_NODE_FILTER             R5, R3, R4, 0, 0
+0x07: OP_SET_CARDINALITY         R10, R5
+0x08: OP_LOAD_CONST_INT          R6, 10
+0x09: OP_NODE_FILTER             R7, R3, R6, 0, 0
+0x0A: OP_SET_CARDINALITY         R11, R7
+0x0B: OP_ASSERT                  R10, 1
+0x0C: OP_ASSERT                  R11, 1
+0x0D: OP_HALT

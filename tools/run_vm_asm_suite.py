@@ -507,7 +507,7 @@ def parse_impas_file(file_path):
             elif op_name == "OP_EXTRACT_VALIDITY":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
-            elif op_name == "OP_VECTOR_TIME_VALID_AT":
+            elif op_name in ("OP_NODE_FILTER", "OP_NODE_FILTER_STR_PREFIX", "OP_VECTOR_TIME_VALID_AT"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)

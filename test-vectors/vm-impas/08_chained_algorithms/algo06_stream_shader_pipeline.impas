@@ -1,0 +1,36 @@
+; ====================================================================
+; ALGO06: Edge Stream Shader Pipeline with Custom Math & Reduction
+; Fused edge kernel computing weighted message passing:
+; for each active edge (u, v, e): out[v] += attr_src[u] * attr_edge[e]
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R5 = 1112014848}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [2],
+    2: []
+}
+.array_float ATTR_SOURCE = [10.0, 20.0, 30.0]
+.array_float ATTR_EDGE = [2.0, 3.0, 4.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_A
+0x01: OP_LOAD_INLINE_ARRAY       R1, ATTR_SOURCE
+0x02: OP_INIT_MOCK_NODE_ATTR     R1, R1, 0
+0x03: OP_LOAD_INLINE_ARRAY       R2, ATTR_EDGE
+0x04: OP_INIT_MOCK_EDGE_ATTR     R2, R2, 0
+0x05: OP_INIT_INPUT_NODE         R3, 0
+0x06: OP_CLEAR_REG               R4
+0x07: OP_CLEAR_REG               R5
+0x08: OP_COO_WALK_STREAM         R0, R3, 0, 11
+0x09: OP_VECTOR_REDUCE_SUM       R5, R4
+0x0A: OP_HALT
+
+0x0B: OP_STREAM_FUNC_BEGIN
+0x0C: OP_STREAM_LOAD_SRC         0, 1
+0x0D: OP_STREAM_LOAD_EDGE        1, 2
+0x0E: OP_STREAM_MATH_MUL         2, 0, 1
+0x0F: OP_STREAM_REDUCE           2, 4, 0
+0x10: OP_STREAM_FUNC_END

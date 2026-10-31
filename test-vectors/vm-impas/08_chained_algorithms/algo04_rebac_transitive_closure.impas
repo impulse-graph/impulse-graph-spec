@@ -1,0 +1,38 @@
+; ====================================================================
+; ALGO04: Multi-Tier ReBAC Transitive Group Authorization
+; Chains multi-relation traversal across direct membership & hierarchy.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1}
+
+.data
+.rel REL_MEMBER_OF = 0
+.rel REL_PARENT_OF = 1
+
+.csr_inline MEMBER_GRAPH = {
+    0: [1],
+    1: [],
+    2: [],
+    3: []
+}
+
+.csr_inline HIERARCHY_GRAPH = {
+    0: [],
+    1: [2],
+    2: [3],
+    3: []
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, MEMBER_GRAPH
+0x01: OP_INIT_MOCK_GRAPH     R1, HIERARCHY_GRAPH
+0x02: OP_INIT_INPUT_NODE     R2, 0
+0x03: OP_CSR_WALK            R3, R2, REL_MEMBER_OF
+0x04: OP_CSR_WALK            R4, R3, REL_PARENT_OF
+0x05: OP_CSR_WALK            R5, R4, REL_PARENT_OF
+0x06: OP_SET_UNION           R6, R3, R4
+0x07: OP_SET_UNION           R7, R6, R5
+0x08: OP_SET_CARDINALITY     R8, R7
+0x09: OP_ASSERT              R8, 3
+0x0A: OP_LOAD_CONST_INT      R10, 1
+0x0B: OP_HALT
