@@ -66,8 +66,15 @@ def run_cpp(lib, test_file):
 
 def run_java(test_file, impb_file, impb_data_file, cp):
     java_dir = Path(__file__).resolve().parent.parent.parent / "impulse-graph-java"
+    java_bin = os.environ.get("JAVA_HOME", "")
+    if java_bin and os.path.exists(os.path.join(java_bin, "bin", "java")):
+        java_cmd = os.path.join(java_bin, "bin", "java")
+    elif os.path.exists("/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/bin/java"):
+        java_cmd = "/opt/homebrew/Cellar/openjdk/25.0.2/libexec/openjdk.jdk/Contents/Home/bin/java"
+    else:
+        java_cmd = "java"
     cmd = [
-        "java",
+        java_cmd,
         "--add-modules", "jdk.incubator.vector",
         "-cp", cp,
         "org.impulsegraph.vm.JavaVmJsonRunner",
