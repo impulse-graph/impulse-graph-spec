@@ -522,6 +522,14 @@ def parse_impas_file(file_path):
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
                 if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+            elif op_name in ("OP_EWISE_ADD", "OP_EWISE_MULT"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if op_name == "OP_EWISE_ADD":
+                    payload |= (0 << 16)
+                else:
+                    payload |= (1 << 16)
             elif op_name in ("OP_VEC_CMP_EQ", "OP_VEC_CMP_GT", "OP_VEC_CMP_LT", "OP_MASK_AND", "OP_MASK_OR"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
