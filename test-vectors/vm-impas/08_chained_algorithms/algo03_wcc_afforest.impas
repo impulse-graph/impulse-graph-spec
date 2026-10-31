@@ -1,0 +1,22 @@
+; ====================================================================
+; ALGO03: Weakly Connected Components (Afforest) & Root Reductions
+; Tests OP_CC_AFFOREST on multi-component graph with MIN/MAX reductions.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline TWO_COMPONENTS = {
+    0: [1, 2],
+    1: [0, 2],
+    2: [0, 1],
+    3: [4, 5],
+    4: [3, 5],
+    5: [3, 4]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, TWO_COMPONENTS
+0x01: OP_CC_AFFOREST         R1, R0
+0x02: OP_REDUCE              R2, R1, BINARY_OP_MIN
+0x03: OP_REDUCE              R3, R1, BINARY_OP_MAX
+0x04: OP_HALT

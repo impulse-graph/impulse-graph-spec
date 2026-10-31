@@ -1,0 +1,30 @@
+; ====================================================================
+; ALGO02: PageRank Power Iteration & Vector Math Reductions
+; Tests chained MXV, vector scaling, ewise operations, and finite assert.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 42}
+
+.data
+.array_float RANK_INIT = [0.33333334, 0.33333334, 0.33333334]
+.array_float TELEPORT  = [0.05, 0.05, 0.05]
+.csr_inline CYCLE_3 = {
+    0: [1],
+    1: [2],
+    2: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, CYCLE_3
+0x01: OP_LOAD_INLINE_ARRAY   R1, RANK_INIT
+0x02: OP_MXV                 R2, R1, R0, SEMIRING_PLUS_TIMES
+0x03: OP_LOAD_INLINE_ARRAY   R3, TELEPORT
+0x04: OP_EWISE_ADD           R4, R2, R3
+0x05: OP_ASSERT_FINITE       R4
+0x06: OP_MXV                 R5, R4, R0, SEMIRING_PLUS_TIMES
+0x07: OP_EWISE_ADD           R6, R5, R3
+0x08: OP_ASSERT_FINITE       R6
+0x09: OP_REDUCE              R7, R6, BINARY_OP_ADD
+0x0A: OP_LOAD_CONST_INT      R10, 42
+0x0B: OP_ASSERT              R10, 42
+0x0C: OP_HALT

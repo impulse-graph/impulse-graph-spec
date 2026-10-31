@@ -40,6 +40,10 @@ def run_cpp(lib, test_file):
     c_instrs = (Instruction * len(instrs))(*instrs)
     status_code = lib.impulse_vm_execute(c_instrs, len(instrs), ctypes.byref(state), 0)
     status_name = STATUS_NAMES.get(status_code, f"UNKNOWN({status_code})")
+
+    hex_buf = ctypes.create_string_buffer(65)
+    lib.impulse_vm_state_hash_hex(ctypes.byref(state), status_code, hex_buf)
+    context_hash = hex_buf.value.decode("utf-8")
     
     zf = bool(state.flags & (1 << 0))
     st = bool(state.flags & (1 << 4))
@@ -55,6 +59,7 @@ def run_cpp(lib, test_file):
         "status": status_name,
         "pc": state.pc,
         "flags": {"zf": zf, "st": st},
+        "context_hash": context_hash,
         "registers": regs,
         "register_types": reg_types
     }
@@ -103,6 +108,14 @@ def compare_state(cpp_on_state, cpp_off_state, java_state, ocaml_state, expectat
         o_flag = ocaml_state["flags"].get(flag, False)
         if c_on_flag != j_flag or c_on_flag != o_flag or c_off_flag != j_flag:
             diffs.append(f"Flag {flag.upper()} mismatch: C++(ON)={c_on_flag}, C++(OFF)={c_off_flag}, Java={j_flag}, OCaml={o_flag}")
+
+    # Compare Deterministic Execution Context State Hash (ICTX v1)
+    c_on_hash = cpp_on_state.get("context_hash", "")
+    c_off_hash = cpp_off_state.get("context_hash", "")
+    j_hash = java_state.get("context_hash", "")
+    o_hash = ocaml_state.get("context_hash", "")
+    if c_on_hash != j_hash or c_on_hash != o_hash or c_off_hash != j_hash:
+        diffs.append(f"Context Hash mismatch: C++(ON)={c_on_hash}, C++(OFF)={c_off_hash}, Java={j_hash}, OCaml={o_hash}")
             
     # Compare Registers
     for i in range(64):
@@ -186,6 +199,8 @@ def main():
         lib.impulse_vm_context_set_fuel.restype = None
         lib.impulse_vm_execute.argtypes = [ctypes.POINTER(Instruction), ctypes.c_size_t, ctypes.POINTER(VmState), ctypes.c_uint64]
         lib.impulse_vm_execute.restype = ctypes.c_int
+        lib.impulse_vm_state_hash_hex.argtypes = [ctypes.POINTER(VmState), ctypes.c_int32, ctypes.c_char_p]
+        lib.impulse_vm_state_hash_hex.restype = ctypes.c_int
 
 
     spec_dir = Path(__file__).resolve().parent.parent
