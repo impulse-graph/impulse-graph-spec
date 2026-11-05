@@ -499,7 +499,72 @@ def parse_impas_file(file_path):
             elif op_name in ("OP_INIT_MOCK_NODE_ATTR", "OP_INIT_MOCK_EDGE_ATTR"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3:
+                    m_reg = parse_val(tokens[3]) & 0xFF
+                    if m_reg >= 64: m_reg = 0
+                    payload |= (m_reg << 8)
+            elif op_name == "OP_READ_EDGE_WEIGHT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 3:
+                    u_reg = parse_val(tokens[2]) & 0xFF
+                    payload = u_reg | (u_reg << 8)
+                elif len(tokens) == 4:
+                    u_reg = parse_val(tokens[2]) & 0xFF
+                    rel_id = parse_val(tokens[3]) & 0xFFFF
+                    payload = u_reg | (u_reg << 8) | (rel_id << 16)
+                elif len(tokens) >= 5:
+                    u_reg = parse_val(tokens[2]) & 0xFF
+                    v_reg = parse_val(tokens[3]) & 0xFF
+                    rel_id = parse_val(tokens[4]) & 0xFFFF
+                    payload = u_reg | (v_reg << 8) | (rel_id << 16)
+            elif op_name == "OP_FLOAT_VECTOR_SCALE":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 3:
+                    if tokens[2].startswith("R"):
+                        payload = struct.unpack("<I", struct.pack("<f", 1.0))[0]
+                        flags = 0
+                    else:
+                        payload = struct.unpack("<I", struct.pack("<f", float(tokens[2])))[0]
+                        flags = 0
+                elif len(tokens) >= 4:
+                    if tokens[3].startswith("R"):
+                        payload = parse_val(tokens[3]) & 0xFFFF
+                        flags = parse_val(tokens[4]) if len(tokens) > 4 else 1
+                    elif tokens[2].startswith("R"):
+                        payload = (parse_val(tokens[2]) & 0xFFFF) | ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                        flags = parse_val(tokens[4]) if len(tokens) > 4 else 1
+                    else:
+                        payload = struct.unpack("<I", struct.pack("<f", float(tokens[2])))[0]
+                        flags = 0
+            elif op_name == "OP_ISLAND_DETECT":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 3:
+                    s_reg = parse_val(tokens[2]) & 0xFF
+                    payload = s_reg | (s_reg << 8)
+                elif len(tokens) >= 4:
+                    payload = (parse_val(tokens[2]) & 0xFF) | ((parse_val(tokens[3]) & 0xFF) << 8)
+                    if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name == "OP_FRONTIER_DIFF":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+            elif op_name == "OP_MAP_DENSE_TO_KEYS":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFFFF) << 8)
+            elif op_name == "OP_COLLECT_VALUE_MAP":
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name in ("OP_VECTOR_DIV", "OP_VECTOR_STR_CONCAT", "OP_L1_NORM_DIFF", "OP_ROARING_BITMAP_AND", "OP_ROARING_BITMAP_OR", "OP_ROARING_BITMAP_AND_NOT", "OP_BITSET_AND", "OP_BITSET_OR", "OP_BITSET_AND_NOT", "OP_BITSET_XOR"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) == 3:
+                    s_reg = parse_val(tokens[2]) & 0xFFFF
+                    payload = s_reg | (s_reg << 16)
+                elif len(tokens) >= 4:
+                    payload = (parse_val(tokens[2]) & 0xFFFF) | ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                    if len(tokens) > 4: flags = parse_val(tokens[4])
             elif op_name == "OP_COALESCE":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFFFF)
@@ -544,11 +609,21 @@ def parse_impas_file(file_path):
                     payload |= (parse_val(tokens[2]) & 0xFF)
                     payload |= ((parse_val(tokens[3]) & 0xFFFF) << 8)
                     payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
-            elif op_name in ("OP_MXV", "OP_VXM", "OP_EWISE_ADD", "OP_EWISE_MULT"):
+            elif op_name in ("OP_MXV", "OP_VXM"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
                 if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
                 if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+            elif op_name in ("OP_EWISE_ADD", "OP_EWISE_MULT"):
+                if len(tokens) > 1: dst_reg = parse_val(tokens[1])
+                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) > 4:
+                    payload |= ((parse_val(tokens[4]) & 0xFFFF) << 16)
+                elif op_name == "OP_EWISE_ADD":
+                    payload |= (0 << 16)
+                else:
+                    payload |= (1 << 16)
             elif op_name == "OP_VEC_BLEND":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
@@ -556,13 +631,19 @@ def parse_impas_file(file_path):
                 if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
             elif op_name == "OP_VEC_CMP_BETWEEN":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
-                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
-                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
-                if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
+                if len(tokens) == 4 and tokens[2].startswith("0x"):
+                    payload |= (parse_val(tokens[2]) & 0xFFFF) | ((parse_val(tokens[3]) & 0xFFFF) << 16)
+                else:
+                    if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                    if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                    if len(tokens) > 4: payload |= ((parse_val(tokens[4]) & 0xFF) << 16)
             elif op_name in ("OP_VEC_CMP_EQ", "OP_VEC_CMP_GT", "OP_VEC_CMP_LT", "OP_MASK_AND", "OP_MASK_OR"):
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
-                if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
-                if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
+                if len(tokens) == 3:
+                    payload |= (parse_val(tokens[2]) & 0xFFFF)
+                else:
+                    if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
+                    if len(tokens) > 3: payload |= ((parse_val(tokens[3]) & 0xFF) << 8)
             elif op_name == "OP_MASK_NOT":
                 if len(tokens) > 1: dst_reg = parse_val(tokens[1])
                 if len(tokens) > 2: payload |= (parse_val(tokens[2]) & 0xFF)
