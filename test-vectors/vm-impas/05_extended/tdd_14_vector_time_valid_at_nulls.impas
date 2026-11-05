@@ -10,6 +10,8 @@
 }
 .array_int ATTR_START = [0, 200, 200, 200]
 .array_int ATTR_END   = [0, 220, 220, 220]
+.set MASK_START = [2]
+.set MASK_END   = [1]
 
 .text
 0x00: OP_INIT_MOCK_GRAPH         R0, TIME_GRAPH
@@ -22,11 +24,11 @@
 ; Bitmap value for Node 1 End (bit 1) = 1. Node 2 End (bit 2) = 0. Node 3 End (bit 3) = 0. So bitmap = 2 -> 0b0010 -> (R10 = 2)
 
 0x01: OP_LOAD_INLINE_INT_ARRAY   R1, ATTR_START
-0x02: OP_LOAD_CONST_INT          R9, 4 ; Binary 100
+0x02: OP_LOAD_INLINE_SET         R9, MASK_START
 0x03: OP_INIT_MOCK_NODE_ATTR     10, R1, R9
 
 0x04: OP_LOAD_INLINE_INT_ARRAY   R2, ATTR_END
-0x05: OP_LOAD_CONST_INT          R10, 2 ; Binary 010
+0x05: OP_LOAD_INLINE_SET         R10, MASK_END
 0x06: OP_INIT_MOCK_NODE_ATTR     20, R2, R10
 
 0x07: OP_LOAD_CONST_INT          R3, 210
