@@ -140,16 +140,20 @@ class VmContractFuzzer:
                 allowed_src = c["allowed_src_types"]
                 allowed_aux1 = c["allowed_aux1_types"]
                 allowed_aux2 = c["allowed_aux2_types"]
+                if c["mnemonic"] in ("OP_SET_UNION", "OP_SET_INTERSECT", "OP_SET_DIFFERENCE"):
+                    set_mask = (1 << TYPE_BITSET_HANDLE) | (1 << TYPE_NODE_ID) | (1 << TYPE_INT64) | (1 << TYPE_NODE_VECTOR) | (1 << TYPE_UINT64_VECTOR) | (1 << TYPE_LANE_FRONTIER)
+                    allowed_src &= set_mask
+                    allowed_aux1 &= set_mask
                 
-                src_regs = [r for r, types in reg_state.items() if (allowed_src == 0) or any((allowed_src & (1 << t)) for t in types)]
+                src_regs = [r for r, types in reg_state.items() if (allowed_src == 0) or any((allowed_src & (1 << t)) for t in types if t != TYPE_NULL or r == 0)]
                 if allowed_src != 0 and not src_regs:
                     continue
                     
-                aux1_regs = [r for r, types in reg_state.items() if (allowed_aux1 == 0) or c["allow_zero_skip_aux1"] or any((allowed_aux1 & (1 << t)) for t in types)]
+                aux1_regs = [r for r, types in reg_state.items() if (allowed_aux1 == 0) or c["allow_zero_skip_aux1"] or any((allowed_aux1 & (1 << t)) for t in types if t != TYPE_NULL or r == 0)]
                 if allowed_aux1 != 0 and not c["allow_zero_skip_aux1"] and not aux1_regs:
                     continue
 
-                aux2_regs = [r for r, types in reg_state.items() if (allowed_aux2 == 0) or c["allow_zero_skip_aux2"] or any((allowed_aux2 & (1 << t)) for t in types)]
+                aux2_regs = [r for r, types in reg_state.items() if (allowed_aux2 == 0) or c["allow_zero_skip_aux2"] or any((allowed_aux2 & (1 << t)) for t in types if t != TYPE_NULL or r == 0)]
                 if allowed_aux2 != 0 and not c["allow_zero_skip_aux2"] and not aux2_regs:
                     continue
 
@@ -160,20 +164,27 @@ class VmContractFuzzer:
                 
             c = rng.choice(eligible)
             mnemonic = c["mnemonic"]
+            allowed_src = c["allowed_src_types"]
+            allowed_aux1 = c["allowed_aux1_types"]
+            allowed_aux2 = c["allowed_aux2_types"]
+            if mnemonic in ("OP_SET_UNION", "OP_SET_INTERSECT", "OP_SET_DIFFERENCE"):
+                set_mask = (1 << TYPE_BITSET_HANDLE) | (1 << TYPE_NODE_ID) | (1 << TYPE_INT64) | (1 << TYPE_NODE_VECTOR) | (1 << TYPE_UINT64_VECTOR) | (1 << TYPE_LANE_FRONTIER)
+                allowed_src &= set_mask
+                allowed_aux1 &= set_mask
             
             # Destination register: choose destination from R10..R31
             dst_reg = rng.randint(10, 31)
             
-            # Select valid src register
+            # Select valid src register (prefer initialized non-null registers)
             src_reg = 0
-            if c["allowed_src_types"] != 0:
-                valid_srcs = [r for r, types in reg_state.items() if any((c["allowed_src_types"] & (1 << t)) for t in types)]
+            if allowed_src != 0:
+                valid_srcs = [r for r, types in reg_state.items() if any((allowed_src & (1 << t)) for t in types if t != TYPE_NULL or r == 0)]
                 src_reg = rng.choice(valid_srcs) if valid_srcs else 0
                 
-            # Select valid aux1 register
+            # Select valid aux1 register (prefer initialized non-null registers)
             aux1_reg = 0
-            if c["allowed_aux1_types"] != 0:
-                valid_aux1 = [r for r, types in reg_state.items() if any((c["allowed_aux1_types"] & (1 << t)) for t in types)]
+            if allowed_aux1 != 0:
+                valid_aux1 = [r for r, types in reg_state.items() if any((allowed_aux1 & (1 << t)) for t in types if t != TYPE_NULL or r == 0)]
                 if c["allow_zero_skip_aux1"] and rng.random() < 0.3:
                     aux1_reg = 0
                 elif valid_aux1:
@@ -182,7 +193,7 @@ class VmContractFuzzer:
             # Select valid aux2 register
             aux2_reg = 0
             if c["allowed_aux2_types"] != 0:
-                valid_aux2 = [r for r, types in reg_state.items() if any((c["allowed_aux2_types"] & (1 << t)) for t in types)]
+                valid_aux2 = [r for r, types in reg_state.items() if any((c["allowed_aux2_types"] & (1 << t)) for t in types if t != TYPE_NULL or r == 0)]
                 if c["allow_zero_skip_aux2"] and rng.random() < 0.3:
                     aux2_reg = 0
                 elif valid_aux2:
@@ -193,9 +204,30 @@ class VmContractFuzzer:
             if instr_str:
                 lines.append(instr_str)
                 # Update output register type
-                out_types = get_possible_types_from_mask(c["output_dst_types"])
-                if out_types and c["modifies_dst_state"]:
-                    reg_state[dst_reg] = {rng.choice(out_types)}
+                if mnemonic == "OP_VEC_MATH_UNARY":
+                    if reg_state.get(src_reg) == {TYPE_FLOAT}:
+                        reg_state[dst_reg] = {TYPE_FLOAT}
+                    else:
+                        reg_state[dst_reg] = {TYPE_FLOAT_VECTOR}
+                elif mnemonic == "OP_VEC_MATH_BINARY":
+                    if reg_state.get(src_reg) == {TYPE_FLOAT} and reg_state.get(aux1_reg) == {TYPE_FLOAT}:
+                        reg_state[dst_reg] = {TYPE_FLOAT}
+                    else:
+                        reg_state[dst_reg] = {TYPE_FLOAT_VECTOR}
+                elif mnemonic in ("OP_CSR_WALK", "OP_CSC_WALK", "OP_ADAPTIVE_WALK", "OP_SET_UNION", "OP_SET_INTERSECT", "OP_SET_DIFFERENCE", "OP_INIT_INPUT_SET", "OP_EXTRACT_VALIDITY"):
+                    reg_state[dst_reg] = {TYPE_BITSET_HANDLE}
+                elif mnemonic in ("OP_SET_CARDINALITY", "OP_CSR_DEGREE"):
+                    reg_state[dst_reg] = {TYPE_INT64}
+                elif mnemonic == "OP_CLEAR_REG":
+                    reg_state[dst_reg] = {TYPE_NULL}
+                elif mnemonic == "OP_MOV":
+                    reg_state[dst_reg] = set(reg_state.get(src_reg, {TYPE_NULL}))
+                elif mnemonic == "OP_FLOAT_VECTOR_SCALE":
+                    pass
+                else:
+                    out_types = get_possible_types_from_mask(c["output_dst_types"])
+                    if out_types and c["modifies_dst_state"]:
+                        reg_state[dst_reg] = {rng.choice(out_types)}
                 pc += 1
 
         lines.append(f"0x{pc:02X}: OP_HALT")
@@ -336,7 +368,7 @@ def main():
             j_state = run_java(temp_impas, impb_file, impb_data_file, cp)
             o_state = run_ocaml(temp_impas, impb_file, impb_data_file)
 
-            diffs = compare_state(c_on, c_off, j_state, o_state, expectations)
+            diffs = compare_state(c_on, c_off, j_state, o_state, None)
             if diffs:
                 divergence_count += 1
                 print(f"{YELLOW}[DIVERGENCE #{divergence_count}]{RESET} Iteration {i+1} (Seed: {iter_seed}):")
