@@ -1,0 +1,2 @@
+# Damped PageRank step on 3-component block-stochastic network
+pr = pagerank(MAT100_STOCHASTIC_CSR, pr_init_f32, 0.85)

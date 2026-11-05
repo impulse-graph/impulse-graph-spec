@@ -1,0 +1,7 @@
+src,tgt,confidence_f32
+tag0,tag1,0.90
+tag1,tag2,0.85
+tag2,tag3,0.80
+tag3,tag4,0.75
+tag4,tag5,0.70
+tag5,tag6,0.65

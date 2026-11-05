@@ -1,0 +1,2 @@
+# Afforest Connected Components on 3-component network
+cc = afforest(MAT100_STOCHASTIC_CSR)

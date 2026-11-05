@@ -1,0 +1,9 @@
+id,weight_f32,category_str
+tag0,0.25,analytics
+tag1,0.50,simd
+tag2,0.75,storage
+tag3,1.00,security
+tag4,1.25,graphblas
+tag5,1.50,datalog
+tag6,1.75,cypher
+tag7,2.00,cloud

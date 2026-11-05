@@ -1,0 +1,5 @@
+(program
+  (lane-init-seeds 0 0)
+  (lane-walk-csr "USER_FOLLOWS")
+  (lane-filter-quorum 2 255)
+  (collect-bitset))

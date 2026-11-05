@@ -1,0 +1,10 @@
+src,tgt,delegated_i8
+g0,g1,1
+g1,g2,1
+g2,g0,1
+g0,g2,1
+g1,g3,1
+g2,g3,1
+g3,g4,1
+g5,g6,0
+g6,g7,0

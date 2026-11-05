@@ -1,0 +1,4 @@
+# 64-lane SpMM + Greedy Set Cover over USER_FOLLOWS
+L0 = lane_seeds([0, 1, 2])
+L1 = lane_spmm(USER_FOLLOWS, L0)
+cover = lane_set_cover(L1, 7)

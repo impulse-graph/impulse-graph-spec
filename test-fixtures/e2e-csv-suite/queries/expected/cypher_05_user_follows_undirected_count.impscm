@@ -1,0 +1,3 @@
+(program
+  (set:union (csr-walk "USER_FOLLOWS") (csc-walk "USER_FOLLOWS"))
+  (collect-count))

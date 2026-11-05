@@ -1,0 +1,978 @@
+{
+  "version": "0.9.0",
+  "domains": [
+    {
+      "id": 0,
+      "name": "User",
+      "key_type": "string",
+      "file": "domains/users.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "age_i32",
+          "column": "age_i32",
+          "type": "int32"
+        },
+        {
+          "name": "tier_i8",
+          "column": "tier_i8",
+          "type": "int8"
+        },
+        {
+          "name": "score_f64",
+          "column": "score_f64",
+          "type": "float64"
+        },
+        {
+          "name": "opt_nickname_str",
+          "column": "opt_nickname_str",
+          "type": "string?"
+        },
+        {
+          "name": "active_flag_i8",
+          "column": "active_flag_i8",
+          "type": "int8"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Profile",
+      "key_type": "string",
+      "file": "domains/profiles.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "bio_str",
+          "column": "bio_str",
+          "type": "string"
+        },
+        {
+          "name": "verified_i16",
+          "column": "verified_i16",
+          "type": "int16"
+        },
+        {
+          "name": "opt_tema_i32",
+          "column": "opt_tema_i32",
+          "type": "int32?"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Department",
+      "key_type": "string",
+      "file": "domains/departments.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "budget_i64",
+          "column": "budget_i64",
+          "type": "int64"
+        },
+        {
+          "name": "floor_i16",
+          "column": "floor_i16",
+          "type": "int16"
+        },
+        {
+          "name": "dept_name_str",
+          "column": "dept_name_str",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Product",
+      "key_type": "string",
+      "file": "domains/products.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "price_f32",
+          "column": "price_f32",
+          "type": "float32"
+        },
+        {
+          "name": "stock_i32",
+          "column": "stock_i32",
+          "type": "int32"
+        },
+        {
+          "name": "opt_promo_str",
+          "column": "opt_promo_str",
+          "type": "string?"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Order",
+      "key_type": "uint64",
+      "file": "domains/orders.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "total_f64",
+          "column": "total_f64",
+          "type": "float64"
+        },
+        {
+          "name": "status_i8",
+          "column": "status_i8",
+          "type": "int8"
+        },
+        {
+          "name": "opt_coupon_i32",
+          "column": "opt_coupon_i32",
+          "type": "int32?"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Tag",
+      "key_type": "string",
+      "file": "domains/tags.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "weight_f32",
+          "column": "weight_f32",
+          "type": "float32"
+        },
+        {
+          "name": "category_str",
+          "column": "category_str",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Task",
+      "key_type": "string",
+      "file": "domains/tasks.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "priority_i32",
+          "column": "priority_i32",
+          "type": "int32"
+        },
+        {
+          "name": "estimate_hours_f32",
+          "column": "estimate_hours_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_note_str",
+          "column": "opt_note_str",
+          "type": "string?"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Group",
+      "key_type": "string",
+      "file": "domains/groups.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "security_level_i8",
+          "column": "security_level_i8",
+          "type": "int8"
+        },
+        {
+          "name": "group_label_str",
+          "column": "group_label_str",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Resource",
+      "key_type": "string",
+      "file": "domains/resources.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "sensitivity_i16",
+          "column": "sensitivity_i16",
+          "type": "int16"
+        },
+        {
+          "name": "owner_dept_i32",
+          "column": "owner_dept_i32",
+          "type": "int32"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Sensor",
+      "key_type": "uint32",
+      "file": "domains/sensors.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "voltage_f64",
+          "column": "voltage_f64",
+          "type": "float64"
+        },
+        {
+          "name": "phase_angle_f64",
+          "column": "phase_angle_f64",
+          "type": "float64"
+        },
+        {
+          "name": "reading_f32",
+          "column": "reading_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_calibration_f64",
+          "column": "opt_calibration_f64",
+          "type": "float64?"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "name": "MatEmpty0",
+      "key_type": "uint32",
+      "file": "domains/mat_empty0.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "vec_f32",
+          "column": "vec_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_vec_f32",
+          "column": "opt_vec_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "name": "MatVec10",
+      "key_type": "uint32",
+      "file": "domains/mat_vec10.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "x_f32",
+          "column": "x_f32",
+          "type": "float32"
+        },
+        {
+          "name": "y_f32",
+          "column": "y_f32",
+          "type": "float32"
+        },
+        {
+          "name": "z_f64",
+          "column": "z_f64",
+          "type": "float64"
+        },
+        {
+          "name": "bits_i8",
+          "column": "bits_i8",
+          "type": "int8"
+        },
+        {
+          "name": "counts_i32",
+          "column": "counts_i32",
+          "type": "int32"
+        },
+        {
+          "name": "opt_mask_f32",
+          "column": "opt_mask_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "name": "MatGrid50",
+      "key_type": "uint32",
+      "file": "domains/mat_grid50.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "x_f32",
+          "column": "x_f32",
+          "type": "float32"
+        },
+        {
+          "name": "y_f32",
+          "column": "y_f32",
+          "type": "float32"
+        },
+        {
+          "name": "bias_f32",
+          "column": "bias_f32",
+          "type": "float32"
+        },
+        {
+          "name": "inv_sqrt_deg_f32",
+          "column": "inv_sqrt_deg_f32",
+          "type": "float32"
+        },
+        {
+          "name": "heat0_f32",
+          "column": "heat0_f32",
+          "type": "float32"
+        },
+        {
+          "name": "mask_b8",
+          "column": "mask_b8",
+          "type": "int8"
+        },
+        {
+          "name": "deg_i32",
+          "column": "deg_i32",
+          "type": "int32"
+        },
+        {
+          "name": "opt_obs_f32",
+          "column": "opt_obs_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "name": "MatBit64",
+      "key_type": "uint32",
+      "file": "domains/mat_bit64.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "seed_b8",
+          "column": "seed_b8",
+          "type": "int8"
+        },
+        {
+          "name": "threshold_i16",
+          "column": "threshold_i16",
+          "type": "int16"
+        },
+        {
+          "name": "weight_f32",
+          "column": "weight_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_cap_f32",
+          "column": "opt_cap_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "id": 14,
+      "name": "MatNet100",
+      "key_type": "uint32",
+      "file": "domains/mat_net100.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "pr_init_f32",
+          "column": "pr_init_f32",
+          "type": "float32"
+        },
+        {
+          "name": "signal_f32",
+          "column": "signal_f32",
+          "type": "float32"
+        },
+        {
+          "name": "potential_f64",
+          "column": "potential_f64",
+          "type": "float64"
+        },
+        {
+          "name": "supply_i64",
+          "column": "supply_i64",
+          "type": "int64"
+        },
+        {
+          "name": "flag_b8",
+          "column": "flag_b8",
+          "type": "int8"
+        },
+        {
+          "name": "opt_prior_f32",
+          "column": "opt_prior_f32",
+          "type": "float32?"
+        },
+        {
+          "name": "opt_cost_i32",
+          "column": "opt_cost_i32",
+          "type": "int32?"
+        }
+      ]
+    },
+    {
+      "id": 15,
+      "name": "MatFeature50",
+      "key_type": "uint32",
+      "file": "domains/mat_feature50.csv",
+      "id_column": "id",
+      "attributes": [
+        {
+          "name": "feat_a_f32",
+          "column": "feat_a_f32",
+          "type": "float32"
+        },
+        {
+          "name": "feat_b_f32",
+          "column": "feat_b_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_weight_f32",
+          "column": "opt_weight_f32",
+          "type": "float32?"
+        }
+      ]
+    }
+  ],
+  "relations": [
+    {
+      "name": "USER_FOLLOWS",
+      "src_domain": 0,
+      "tgt_domain": 0,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/user_follows.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "strength_f32",
+          "column": "strength_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_note_str",
+          "column": "opt_note_str",
+          "type": "string?"
+        }
+      ]
+    },
+    {
+      "name": "USER_HAS_PROFILE",
+      "src_domain": 0,
+      "tgt_domain": 1,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/user_has_profile.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "linked_epoch_i64",
+          "column": "linked_epoch_i64",
+          "type": "int64"
+        }
+      ]
+    },
+    {
+      "name": "USER_WORKS_IN",
+      "src_domain": 0,
+      "tgt_domain": 2,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/user_works_in.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "since_year_i16",
+          "column": "since_year_i16",
+          "type": "int16"
+        }
+      ]
+    },
+    {
+      "name": "USER_RATED_PRODUCT",
+      "src_domain": 0,
+      "tgt_domain": 3,
+      "encoding": "csr",
+      "include_csc": false,
+      "file": "relations/user_rated_product.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "rating_i8",
+          "column": "rating_i8",
+          "type": "int8"
+        },
+        {
+          "name": "opt_review_str",
+          "column": "opt_review_str",
+          "type": "string?"
+        }
+      ]
+    },
+    {
+      "name": "USER_IN_GROUP",
+      "src_domain": 0,
+      "tgt_domain": 7,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/user_in_group.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "granted_epoch_i64",
+          "column": "granted_epoch_i64",
+          "type": "int64"
+        }
+      ]
+    },
+    {
+      "name": "PROFILE_PRIMARY_USER",
+      "src_domain": 1,
+      "tgt_domain": 0,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/profile_primary_user.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "is_primary_i8",
+          "column": "is_primary_i8",
+          "type": "int8"
+        }
+      ]
+    },
+    {
+      "name": "DEPT_HAS_MEMBER",
+      "src_domain": 2,
+      "tgt_domain": 0,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/dept_has_member.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "role_code_i8",
+          "column": "role_code_i8",
+          "type": "int8"
+        },
+        {
+          "name": "opt_alloc_f32",
+          "column": "opt_alloc_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "DEPT_PARENT",
+      "src_domain": 2,
+      "tgt_domain": 2,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/dept_parent.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "cost_share_f64",
+          "column": "cost_share_f64",
+          "type": "float64"
+        }
+      ]
+    },
+    {
+      "name": "PRODUCT_HAS_TAG",
+      "src_domain": 3,
+      "tgt_domain": 5,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/product_has_tag.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "relevance_f32",
+          "column": "relevance_f32",
+          "type": "float32"
+        }
+      ]
+    },
+    {
+      "name": "ORDER_PLACED_BY",
+      "src_domain": 4,
+      "tgt_domain": 0,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/order_placed_by.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "channel_i8",
+          "column": "channel_i8",
+          "type": "int8"
+        }
+      ]
+    },
+    {
+      "name": "ORDER_CONTAINS_PRODUCT",
+      "src_domain": 4,
+      "tgt_domain": 3,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/order_contains_product.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "quantity_i32",
+          "column": "quantity_i32",
+          "type": "int32"
+        },
+        {
+          "name": "unit_price_f32",
+          "column": "unit_price_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_discount_f32",
+          "column": "opt_discount_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "TAG_IMPLIED_BY",
+      "src_domain": 5,
+      "tgt_domain": 5,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/tag_implied_by.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "confidence_f32",
+          "column": "confidence_f32",
+          "type": "float32"
+        }
+      ]
+    },
+    {
+      "name": "TASK_DEPENDS_ON",
+      "src_domain": 6,
+      "tgt_domain": 6,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/task_depends_on.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "lag_hours_f32",
+          "column": "lag_hours_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_blocker_i16",
+          "column": "opt_blocker_i16",
+          "type": "int16?"
+        }
+      ]
+    },
+    {
+      "name": "GROUP_INCLUDES",
+      "src_domain": 7,
+      "tgt_domain": 7,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/group_includes.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "delegated_i8",
+          "column": "delegated_i8",
+          "type": "int8"
+        }
+      ]
+    },
+    {
+      "name": "GROUP_CAN_ACCESS",
+      "src_domain": 7,
+      "tgt_domain": 8,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/group_can_access.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "perm_mask_i32",
+          "column": "perm_mask_i32",
+          "type": "int32"
+        },
+        {
+          "name": "opt_expires_i64",
+          "column": "opt_expires_i64",
+          "type": "int64?"
+        }
+      ]
+    },
+    {
+      "name": "RESOURCE_LINKED_TO",
+      "src_domain": 8,
+      "tgt_domain": 8,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/resource_linked_to.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "link_type_i8",
+          "column": "link_type_i8",
+          "type": "int8"
+        }
+      ]
+    },
+    {
+      "name": "SENSOR_FEEDS_SENSOR",
+      "src_domain": 9,
+      "tgt_domain": 9,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/sensor_feeds_sensor.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "impedance_f64",
+          "column": "impedance_f64",
+          "type": "float64"
+        },
+        {
+          "name": "capacity_f32",
+          "column": "capacity_f32",
+          "type": "float32"
+        }
+      ]
+    },
+    {
+      "name": "MAT0_EMPTY_CSR",
+      "src_domain": 10,
+      "tgt_domain": 10,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/mat0_empty_csr.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "w_f32",
+          "column": "w_f32",
+          "type": "float32"
+        }
+      ]
+    },
+    {
+      "name": "MAT10_UPPER_TRI_CSR",
+      "src_domain": 11,
+      "tgt_domain": 11,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/mat10_upper_tri_csr.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "w_f32",
+          "column": "w_f32",
+          "type": "float32"
+        },
+        {
+          "name": "cost_i32",
+          "column": "cost_i32",
+          "type": "int32"
+        },
+        {
+          "name": "opt_w_f32",
+          "column": "opt_w_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "MAT50_ZERO_CSR",
+      "src_domain": 12,
+      "tgt_domain": 12,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/mat50_zero_csr.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "w_f32",
+          "column": "w_f32",
+          "type": "float32"
+        }
+      ]
+    },
+    {
+      "name": "MAT50_IDENTITY_COO",
+      "src_domain": 12,
+      "tgt_domain": 12,
+      "encoding": "coo",
+      "include_csc": true,
+      "file": "relations/mat50_identity_coo.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "diag_f32",
+          "column": "diag_f32",
+          "type": "float32"
+        },
+        {
+          "name": "scale_f32",
+          "column": "scale_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_diag_f32",
+          "column": "opt_diag_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "MAT50_LAPLACIAN_CSR",
+      "src_domain": 12,
+      "tgt_domain": 12,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/mat50_laplacian_csr.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "conductance_f32",
+          "column": "conductance_f32",
+          "type": "float32"
+        },
+        {
+          "name": "dist_f32",
+          "column": "dist_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_flux_f32",
+          "column": "opt_flux_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "MAT64_PERM_BOOL_CSR",
+      "src_domain": 13,
+      "tgt_domain": 13,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/mat64_perm_bool_csr.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "bit_i8",
+          "column": "bit_i8",
+          "type": "int8"
+        }
+      ]
+    },
+    {
+      "name": "MAT100_STOCHASTIC_CSR",
+      "src_domain": 14,
+      "tgt_domain": 14,
+      "encoding": "csr",
+      "include_csc": true,
+      "file": "relations/mat100_stochastic_csr.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "prob_f32",
+          "column": "prob_f32",
+          "type": "float32"
+        },
+        {
+          "name": "latency_f32",
+          "column": "latency_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_bandwidth_f32",
+          "column": "opt_bandwidth_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "MAT_RECT_100x50_COO",
+      "src_domain": 14,
+      "tgt_domain": 15,
+      "encoding": "coo",
+      "include_csc": true,
+      "file": "relations/mat_rect_100x50_coo.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "proj_f32",
+          "column": "proj_f32",
+          "type": "float32"
+        },
+        {
+          "name": "opt_proj_f32",
+          "column": "opt_proj_f32",
+          "type": "float32?"
+        }
+      ]
+    },
+    {
+      "name": "MAT_RECT_50x100_COO",
+      "src_domain": 15,
+      "tgt_domain": 14,
+      "encoding": "coo",
+      "include_csc": true,
+      "file": "relations/mat_rect_50x100_coo.csv",
+      "src_column": "src",
+      "tgt_column": "tgt",
+      "attributes": [
+        {
+          "name": "back_f32",
+          "column": "back_f32",
+          "type": "float32"
+        }
+      ]
+    }
+  ]
+}

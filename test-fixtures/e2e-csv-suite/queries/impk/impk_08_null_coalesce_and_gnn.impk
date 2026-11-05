@@ -1,0 +1,2 @@
+# Bipartite rectangular 100x50 COO feature projection
+h = MAT_RECT_100x50_COO * feat_a_f32

@@ -1,0 +1,3 @@
+(program
+  (fixpoint "GROUP_INCLUDES" 100 (csr-walk "GROUP_INCLUDES"))
+  (collect-bitset))

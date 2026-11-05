@@ -1,0 +1,3 @@
+(program
+  (csr-walk "MAT100_STOCHASTIC_CSR")
+  (collect-bitset))

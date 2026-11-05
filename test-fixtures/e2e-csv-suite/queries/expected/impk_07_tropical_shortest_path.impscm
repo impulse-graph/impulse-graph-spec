@@ -1,0 +1,3 @@
+(program
+  (csr-walk "MAT10_UPPER_TRI_CSR")
+  (collect-bitset))

@@ -1,0 +1,2 @@
+dep(X, Y) :- TASK_DEPENDS_ON(X, Y).
+dep(X, Z) :- dep(X, Y), TASK_DEPENDS_ON(Y, Z).

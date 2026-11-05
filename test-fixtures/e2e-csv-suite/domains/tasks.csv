@@ -1,0 +1,13 @@
+id,priority_i32,estimate_hours_f32,opt_note_str
+t0,1,1.50,task_note_0
+t1,2,2.25,
+t2,3,3.00,task_note_2
+t3,4,3.75,task_note_3
+t4,5,4.50,
+t5,1,5.25,task_note_5
+t6,2,6.00,task_note_6
+t7,3,6.75,
+t8,4,7.50,task_note_8
+t9,5,8.25,task_note_9
+t10,1,9.00,
+t11,2,9.75,task_note_11
