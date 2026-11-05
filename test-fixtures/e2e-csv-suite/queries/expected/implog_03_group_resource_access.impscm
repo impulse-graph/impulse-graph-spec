@@ -1,0 +1,4 @@
+(program
+  (csr-walk "USER_IN_GROUP")
+  (csr-walk "GROUP_CAN_ACCESS")
+  (collect-bitset))

@@ -1,0 +1,2 @@
+# Identity COO SpMV over MatGrid50
+y_id = MAT50_IDENTITY_COO * x_f32

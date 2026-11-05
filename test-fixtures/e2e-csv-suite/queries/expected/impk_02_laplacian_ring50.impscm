@@ -1,0 +1,3 @@
+(program
+  (csr-walk "MAT50_LAPLACIAN_CSR")
+  (collect-bitset))

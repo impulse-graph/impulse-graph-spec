@@ -1,0 +1,7 @@
+id,budget_i64,floor_i16,dept_name_str
+d0,1000000,1,CoreKernel
+d1,1250000,2,CompilerIR
+d2,1500000,3,StorageEngine
+d3,1750000,4,VectorSIMD
+d4,2000000,5,CloudPlatform
+d5,2250000,6,SecurityReBAC

@@ -1,0 +1,3 @@
+(program
+  (csr-walk "MAT50_IDENTITY_COO")
+  (collect-bitset))

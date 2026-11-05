@@ -1,0 +1,17 @@
+id,bio_str,verified_i16,opt_tema_i32
+p0,Profile_Bio_0,1,100
+p1,Profile_Bio_1,0,115
+p2,Profile_Bio_2,1,130
+p3,Profile_Bio_3,0,145
+p4,Profile_Bio_4,1,
+p5,Profile_Bio_5,0,175
+p6,Profile_Bio_6,1,190
+p7,Profile_Bio_7,0,205
+p8,Profile_Bio_8,1,220
+p9,Profile_Bio_9,0,
+p10,Profile_Bio_10,1,250
+p11,Profile_Bio_11,0,265
+p12,Profile_Bio_12,1,280
+p13,Profile_Bio_13,0,295
+p14,Profile_Bio_14,1,
+p15,Profile_Bio_15,0,325

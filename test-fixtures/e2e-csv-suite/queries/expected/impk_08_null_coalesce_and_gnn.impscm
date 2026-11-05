@@ -1,0 +1,3 @@
+(program
+  (csr-walk "MAT_RECT_100x50_COO")
+  (collect-bitset))

@@ -1,0 +1,2 @@
+member_group(U, G) :- USER_IN_GROUP(U, G).
+can_access(U, R) :- member_group(U, G), GROUP_CAN_ACCESS(G, R).

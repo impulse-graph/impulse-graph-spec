@@ -1,0 +1,4 @@
+(program
+  (csr-walk "ORDER_CONTAINS_PRODUCT")
+  (csr-walk "PRODUCT_HAS_TAG")
+  (collect-bitset))

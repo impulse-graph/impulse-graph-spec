@@ -1,0 +1,13 @@
+id,price_f32,stock_i32,opt_promo_str
+prod0,9.99,12,PROMO_0
+prod1,14.99,24,PROMO_1
+prod2,19.99,36,
+prod3,24.99,48,PROMO_3
+prod4,29.99,60,PROMO_4
+prod5,34.99,72,
+prod6,39.99,84,PROMO_6
+prod7,44.99,96,PROMO_7
+prod8,49.99,108,
+prod9,54.99,120,PROMO_9
+prod10,59.99,132,PROMO_10
+prod11,64.99,144,

@@ -1,0 +1,2 @@
+# 1D Ring C_50 Laplacian walk over MatGrid50
+y_lap = MAT50_LAPLACIAN_CSR * x_f32

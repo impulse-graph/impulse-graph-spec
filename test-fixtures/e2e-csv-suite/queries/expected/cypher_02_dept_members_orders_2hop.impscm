@@ -1,0 +1,4 @@
+(program
+  (csr-walk "DEPT_HAS_MEMBER")
+  (csc-walk "ORDER_PLACED_BY")
+  (collect-bitset))

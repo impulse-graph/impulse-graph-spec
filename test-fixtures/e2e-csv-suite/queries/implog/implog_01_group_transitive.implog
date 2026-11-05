@@ -1,0 +1,2 @@
+reach(X, Y) :- GROUP_INCLUDES(X, Y).
+reach(X, Z) :- reach(X, Y), GROUP_INCLUDES(Y, Z).

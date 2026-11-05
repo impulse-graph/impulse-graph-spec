@@ -1,0 +1,3 @@
+(program
+  (csr-walk "USER_HAS_PROFILE")
+  (collect-bitset))

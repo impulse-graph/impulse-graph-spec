@@ -1,0 +1,3 @@
+(program
+  (fixpoint "TASK_DEPENDS_ON" 100 (csr-walk "TASK_DEPENDS_ON"))
+  (collect-bitset))

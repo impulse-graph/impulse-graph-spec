@@ -1,0 +1,4 @@
+# 64-lane SpMM + Quorum >= 2 over USER_FOLLOWS
+L0 = lane_seeds([0, 1, 2])
+L1 = lane_spmm(USER_FOLLOWS, L0)
+out = lane_quorum(L1, 2)

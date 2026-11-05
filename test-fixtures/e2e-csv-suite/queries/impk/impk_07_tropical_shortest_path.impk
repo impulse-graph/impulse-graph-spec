@@ -1,0 +1,2 @@
+# Upper-triangular DAG shortest-path / SpMV over MatVec10
+dist = MAT10_UPPER_TRI_CSR * x_f32

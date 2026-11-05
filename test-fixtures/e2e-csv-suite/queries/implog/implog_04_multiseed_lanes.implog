@@ -1,0 +1,2 @@
+seed(0, 1, 2).
+following(X, Y) :- USER_FOLLOWS(X, Y).
