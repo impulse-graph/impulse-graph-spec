@@ -6,6 +6,7 @@
 .text
 0x00: OP_LOAD_CONST_INT      R1, 10
 0x01: OP_LOAD_CONST_INT      R2, 20
+0x01_1: OP_LOAD_CONST_INT    R3, 30
 0x02: OP_VEC_CMP_EQ          R0, 0x0201
 0x03: OP_VEC_CMP_GT          R0, 0x0201
 0x04: OP_VEC_CMP_LT          R0, 0x0201
