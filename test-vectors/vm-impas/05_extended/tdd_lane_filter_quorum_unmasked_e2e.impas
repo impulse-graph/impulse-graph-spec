@@ -1,0 +1,38 @@
+; ====================================================================
+; TDD_LANE_FILTER_QUORUM_UNMASKED_E2E: OP_LANE_FILTER_QUORUM (0xC6)
+; Positive test vector for unmasked quorum filtering (flags = 0, 3-operand syntax)
+; over 3 initialized seed lanes {0, 1, 2} after OP_LANE_CSR_WALK:
+; - Lane 0 (seed 0) walks to {1, 2, 3}
+; - Lane 1 (seed 1) walks to {2, 3}
+; - Lane 2 (seed 2) walks to {3}
+; - Quorum >= 1 (R4): {1, 2, 3} -> cardinality R5 = 3
+; - Quorum >= 2 (R6): {2, 3}    -> cardinality R7 = 2
+; - Quorum >= 3 (R8): {3}       -> cardinality R9 = 1
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R5 = 3}
+; {EXPECT: R7 = 2}
+; {EXPECT: R9 = 1}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [1, 2, 3],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.set SEEDS_3 = [0, 1, 2]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+0x01: OP_LOAD_INLINE_SET         R1, SEEDS_3
+0x02: OP_LANE_INIT_SEEDS         R2, R1, 0
+0x03: OP_LANE_CSR_WALK           R3, R2, 0
+0x04: OP_LANE_FILTER_QUORUM      R4, R3, 1
+0x05: OP_SET_CARDINALITY         R5, R4
+0x06: OP_LANE_FILTER_QUORUM      R6, R3, 2
+0x07: OP_SET_CARDINALITY         R7, R6
+0x08: OP_LANE_FILTER_QUORUM      R8, R3, 3
+0x09: OP_SET_CARDINALITY         R9, R8
+0x0A: OP_HALT

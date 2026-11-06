@@ -1,0 +1,48 @@
+; ====================================================================
+; TDD_COALESCE_EXTRACT_VALIDITY_E2E: OP_COALESCE (0x3B), OP_EXTRACT_VALIDITY (0x3C)
+; End-to-end verification of validity bitset extraction (0x3C) and NaN coalescing (0x3B)
+; with both scalar TYPE_FLOAT fallback (-1.0) and vector TYPE_FLOAT_VECTOR fallback:
+; 1. Gather 4-element node attribute [10.0, NaN, 20.0, 30.0] (valid mask = {0, 2, 3}).
+; 2. OP_EXTRACT_VALIDITY (0x3C) before coalesce -> cardinality R5 = 3.
+; 3. OP_COALESCE (0x3B) with scalar -1.0 -> [10.0, -1.0, 20.0, 30.0], sum R10 = 59.0 (1114374144),
+;    OP_EXTRACT_VALIDITY after coalesce -> cardinality R9 = 4.
+; 4. OP_COALESCE (0x3B) with vector [100.0, 200.0, 300.0, 400.0] -> [10.0, 200.0, 20.0, 30.0],
+;    sum R13 = 260.0 (1132593152).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R5 = 3}
+; {EXPECT: R9 = 4}
+; {EXPECT: R10 = 1114374144}
+; {EXPECT: R13 = 1132593152}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [1, 2],
+    1: [2],
+    2: [3],
+    3: [0]
+}
+.set VALID_MASK = [0, 2, 3]
+.array_float ATTR_VALS = [10.0, 99.0, 20.0, 30.0]
+.array_float FALLBACK_VEC = [100.0, 200.0, 300.0, 400.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+0x01: OP_LOAD_INLINE_SET         R1, VALID_MASK
+0x02: OP_LOAD_INLINE_ARRAY       R2, ATTR_VALS
+0x03: OP_INIT_MOCK_NODE_ATTR     5, R2, R1
+0x04: OP_GATHER_NODE_ATTR        R3, R1, 0, 5
+0x05: OP_EXTRACT_VALIDITY        R4, R3
+0x06: OP_SET_CARDINALITY         R5, R4
+0x07: OP_LOAD_CONST_FLOAT        R6, -1.0
+0x08: OP_COALESCE                R7, R3, R6
+0x09: OP_ASSERT_FINITE           R7
+0x0A: OP_EXTRACT_VALIDITY        R8, R7
+0x0B: OP_SET_CARDINALITY         R9, R8
+0x0C: OP_VECTOR_REDUCE_SUM       R10, R7
+0x0D: OP_LOAD_INLINE_ARRAY       R11, FALLBACK_VEC
+0x0E: OP_COALESCE                R12, R3, R11
+0x0F: OP_ASSERT_FINITE           R12
+0x10: OP_VECTOR_REDUCE_SUM       R13, R12
+0x11: OP_HALT

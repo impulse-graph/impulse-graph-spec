@@ -1,0 +1,24 @@
+; ====================================================================
+; TDD_NEG_LANE_FILTER_QUORUM_REG255: OP_LANE_FILTER_QUORUM (0xC6)
+; Negative test vector: when flags = 1 (masked quorum mode) and
+; req_reg = R255 (out-of-bounds register >= 64), the VM must trap with
+; IMPULSE_VM_ERR_INVALID_REGISTER.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.set SEEDS_3 = [0, 1, 2]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+0x01: OP_LOAD_INLINE_SET         R1, SEEDS_3
+0x02: OP_LANE_INIT_SEEDS         R2, R1, 0
+0x03: OP_LANE_CSR_WALK           R3, R2, 0
+0x04: OP_LANE_FILTER_QUORUM      R4, R3, 2, R255, R0, 1
+0x05: OP_HALT
