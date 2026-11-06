@@ -1,0 +1,41 @@
+; ====================================================================
+; TDD_VEC_CMP_DOUBLE_SCALAR: OP_VEC_CMP_EQ (0x20), OP_VEC_CMP_GT (0x21), OP_VEC_CMP_LT (0x22)
+; Tests vector comparisons against a scalar TYPE_DOUBLE threshold (R3)
+; and TYPE_DOUBLE_VECTOR (R2) produced by OP_VEC_MATH_UNARY (flags=1) + OP_REDUCE.
+; Exposes missing IMP_TYPE_BIT(TYPE_DOUBLE) in C++ op_20..op_22 IMPULSE_CHECK_REG_TYPE.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R7 = 2}
+; {EXPECT: R8 = 1}
+; {EXPECT: R9 = 1}
+; {EXPECT: R12 = 0}
+; {EXPECT: FLAG = ZF}
+
+.data
+.csr_inline GRAPH_4 = {
+    0: [1],
+    1: [2],
+    2: [3],
+    3: [0]
+}
+.array_float VEC_VALS = [1.5, -2.5, 0.0, 4.0]
+.array_float ZERO_VEC = [0.0, 0.0, 0.0, 0.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_4
+0x01: OP_LOAD_INLINE_ARRAY       R1, VEC_VALS
+0x02: OP_LOAD_INLINE_ARRAY       R2, ZERO_VEC
+0x03: OP_VEC_MATH_UNARY          R2, R2, 1, 1
+0x04: OP_REDUCE                  R3, R2, 0
+0x05: OP_VEC_CMP_GT              R4, R1, R3
+0x06: OP_SET_CARDINALITY         R7, R4
+0x07: OP_VEC_CMP_LT              R5, R1, R3
+0x08: OP_SET_CARDINALITY         R8, R5
+0x09: OP_VEC_CMP_EQ              R6, R1, R3
+0x0A: OP_SET_CARDINALITY         R9, R6
+0x0B: OP_VEC_CMP_GT              R10, R2, R3
+0x0C: OP_VEC_CMP_LT              R11, R2, R3
+0x0D: OP_CLEAR_REG               R2
+0x0E: OP_CLEAR_REG               R3
+0x0F: OP_SET_CARDINALITY         R12, R11
+0x10: OP_HALT
