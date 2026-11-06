@@ -1,0 +1,29 @@
+; ====================================================================
+; TDD 53: OP_VEC_BLEND Strict-Typed Vector Multiplexing & ZF Flag Preservation
+; Verifies:
+; 1. Blending VEC_TRUE = [10.0, 20.0, 30.0, 40.0] and VEC_FALSE = [100.0, 200.0, 300.0, 400.0]
+;    with MASK = {0, 2} selects [10.0, 200.0, 30.0, 400.0] -> sum R8 = 640.0 (0x44200000 = 1142947840).
+; 2. OP_INIT_INPUT_SET (sets ZF = true) followed by OP_VECTOR_MUL_ATTR (0x34) and
+;    OP_VEC_BLEND (0x27) preserves ZF = true per formal contract (sets_vm_flags_mask = 0).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R8 = 1142947840}
+; {EXPECT: FLAG = ZF}
+
+.data
+.array_float VEC_TRUE  = [10.0, 20.0, 30.0, 40.0]
+.array_float VEC_FALSE = [100.0, 200.0, 300.0, 400.0]
+.set MASK_02 = [0, 2]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R4, VEC_TRUE
+0x01: OP_LOAD_INLINE_ARRAY       R5, VEC_FALSE
+0x02: OP_LOAD_INLINE_SET         R6, MASK_02
+0x03: OP_VEC_BLEND               R7, R6, R4, R5
+0x04: OP_VECTOR_REDUCE_SUM       R8, R7
+
+0x05: OP_INIT_INPUT_SET          R2, 0
+0x06: OP_VECTOR_MUL_ATTR         R0, R2
+0x07: OP_VECTOR_MUL_ATTR         R1, R2
+0x08: OP_VEC_BLEND               R3, R2, R0, R1
+0x09: OP_HALT
