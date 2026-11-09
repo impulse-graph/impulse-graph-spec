@@ -1,0 +1,37 @@
+; ====================================================================
+; TDD 52: OP_VEC_CMP_EQ, OP_VEC_CMP_GT, OP_VEC_CMP_LT, OP_VEC_CMP_BETWEEN on Float Vectors
+; Verifies:
+; 1. Vector comparisons over TYPE_FLOAT_VECTOR [10.0, 20.0, 30.0, 40.0] with scalar TYPE_FLOAT bounds:
+;    - OP_VEC_CMP_EQ (== 20.0) -> {1}, cardinality R10 = 1
+;    - OP_VEC_CMP_GT (> 20.0)  -> {2, 3}, cardinality R11 = 2
+;    - OP_VEC_CMP_LT (< 20.0)  -> {0}, cardinality R12 = 1
+;    - OP_VEC_CMP_BETWEEN ([15.0, 35.0]) -> {1, 2}, cardinality R13 = 2, ZF = false (!ZF)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 1}
+; {EXPECT: R11 = 2}
+; {EXPECT: R12 = 1}
+; {EXPECT: R13 = 2}
+; {EXPECT: FLAG = !ZF}
+
+.data
+.array_float VEC_VALS = [10.0, 20.0, 30.0, 40.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R1, VEC_VALS
+0x01: OP_LOAD_CONST_FLOAT        R2, 20.0
+0x02: OP_LOAD_CONST_FLOAT        R3, 15.0
+0x03: OP_LOAD_CONST_FLOAT        R4, 35.0
+
+0x04: OP_VEC_CMP_EQ              R5, 0x0201
+0x05: OP_SET_CARDINALITY         R10, R5
+
+0x06: OP_VEC_CMP_GT              R6, 0x0201
+0x07: OP_SET_CARDINALITY         R11, R6
+
+0x08: OP_VEC_CMP_LT              R7, 0x0201
+0x09: OP_SET_CARDINALITY         R12, R7
+
+0x0A: OP_VEC_CMP_BETWEEN         R8, 0x0301, 0x0004
+0x0B: OP_SET_CARDINALITY         R13, R8
+0x0C: OP_HALT
