@@ -360,9 +360,15 @@ The specification defines the zero-copy, memory-mapped binary snapshot layout (`
 """
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="Generate spec docs and language headers/layouts from schema.")
+    parser.add_argument("--cpp-out", default=os.environ.get("IMPULSE_CPP_INCLUDE_DIR"), help="Optional directory to output generated C++ header")
+    parser.add_argument("--java-out", default=os.environ.get("IMPULSE_JAVA_SPEC_DIR"), help="Optional directory to output generated Java FFM layouts")
+    parser.add_argument("--website-out", default=os.environ.get("IMPULSE_WEBSITE_SPEC_DIR"), help="Optional directory to output generated website markdown")
+    args = parser.parse_args()
+
     script_dir = os.path.dirname(os.path.abspath(__file__))
     spec_dir = os.path.abspath(os.path.join(script_dir, ".."))
-    website_dir = os.path.abspath(os.path.join(spec_dir, "..", "impulse-website"))
     
     schemas = [get_v0_9_schema()]
     
@@ -371,37 +377,38 @@ def main():
         ver_dot = f"v{schema['version_major']}.{schema['version_minor']}"
         print(f"Processing spec schema: {ver_dot} ({schema['version']})")
         
-        # 1. C++ Header
-        cpp_out = render_cpp_header(schema)
-        cpp_dest = os.path.abspath(os.path.join(spec_dir, "..", "impulse-graph-core", "impulse-cpp", "include", f"impulse_format_{ver_slug}.h"))
-        os.makedirs(os.path.dirname(cpp_dest), exist_ok=True)
-        with open(cpp_dest, "w") as f:
-            f.write(cpp_out)
-        print(f"  Generated C++ Header: {cpp_dest}")
-        
-        # 2. Java FFM Class
-        java_out = render_java_ffm(schema)
-        java_dest = os.path.abspath(os.path.join(spec_dir, "..", "impulse-graph-java", "impulse-spec", "src", "main", "java", "org", "impulsegraph", "spec", ver_slug, f"ImpulseLayoutsV{schema['version_major']}_{schema['version_minor']}.java"))
-        os.makedirs(os.path.dirname(java_dest), exist_ok=True)
-        with open(java_dest, "w") as f:
-            f.write(java_out)
-        print(f"  Generated Java FFM Class: {java_dest}")
-        
-        # 3. Markdown Spec Documents
+        # 1. Markdown Spec Document in docs/
         md_out = render_markdown_spec(schema)
-        
-        # In impulse-graph-spec/docs/
         spec_doc_dest = os.path.join(spec_dir, "docs", f"spec_{ver_dot}.md")
         with open(spec_doc_dest, "w") as f:
             f.write(md_out)
         print(f"  Generated Spec Doc: {spec_doc_dest}")
+
+        # 2. Optional C++ Header
+        if args.cpp_out:
+            cpp_out = render_cpp_header(schema)
+            cpp_dest = os.path.join(os.path.abspath(args.cpp_out), f"impulse_format_{ver_slug}.h")
+            os.makedirs(os.path.dirname(cpp_dest), exist_ok=True)
+            with open(cpp_dest, "w") as f:
+                f.write(cpp_out)
+            print(f"  Generated C++ Header: {cpp_dest}")
         
-        # In impulse-website/docs/reference/spec/
-        web_doc_dest = os.path.join(website_dir, "docs", "reference", "spec", f"{ver_dot}.md")
-        os.makedirs(os.path.dirname(web_doc_dest), exist_ok=True)
-        with open(web_doc_dest, "w") as f:
-            f.write(md_out)
-        print(f"  Generated Website Spec Doc: {web_doc_dest}")
+        # 3. Optional Java FFM Class
+        if args.java_out:
+            java_out = render_java_ffm(schema)
+            java_dest = os.path.join(os.path.abspath(args.java_out), f"ImpulseLayoutsV{schema['version_major']}_{schema['version_minor']}.java")
+            os.makedirs(os.path.dirname(java_dest), exist_ok=True)
+            with open(java_dest, "w") as f:
+                f.write(java_out)
+            print(f"  Generated Java FFM Class: {java_dest}")
+
+        # 4. Optional Website Spec Doc
+        if args.website_out:
+            web_doc_dest = os.path.join(os.path.abspath(args.website_out), f"{ver_dot}.md")
+            os.makedirs(os.path.dirname(web_doc_dest), exist_ok=True)
+            with open(web_doc_dest, "w") as f:
+                f.write(md_out)
+            print(f"  Generated Website Spec Doc: {web_doc_dest}")
 
     # 4. Generate Website Version Hub (index.md)
     web_hub_dest = os.path.join(website_dir, "docs", "reference", "spec", "index.md")
