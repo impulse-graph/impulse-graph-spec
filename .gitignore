@@ -27,7 +27,5 @@ ENV/
 *.impb
 *.impb_data
 *.out
-tools/fuzz_findings/*
-!tools/fuzz_findings/*.impas
 
 

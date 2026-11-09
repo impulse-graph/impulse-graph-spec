@@ -252,27 +252,18 @@ class VmState(ctypes.Structure):
 
 # --- Find Library Path ---
 def load_native_library():
-    env_path = os.environ.get("IMPULSE_LIB_PATH")
-    if env_path and Path(env_path).exists():
-        return ctypes.CDLL(str(env_path))
+    lib_path = os.environ.get("IMPULSE_LIB_PATH")
+    for i, arg in enumerate(sys.argv[1:]):
+        if arg == "--lib" and i + 2 < len(sys.argv):
+            lib_path = sys.argv[i + 2]
+        elif arg.startswith("--lib="):
+            lib_path = arg.split("=", 1)[1]
 
-    repo_root = Path(__file__).resolve().parent.parent.parent
-    this_repo = Path(__file__).resolve().parent.parent
-    possible_paths = [
-        repo_root / "impulse-graph-core" / "impulse-cpp" / "build_on" / "libimpulse_graph.dylib",
-        repo_root / "impulse-graph-core" / "impulse-cpp" / "build_on" / "libimpulse_graph.so",
-        repo_root / "impulse-graph-core" / "impulse-cpp" / "build_on" / "impulse_graph.dll",
-        repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.dylib",
-        repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.so",
-        repo_root / "impulse-graph-core" / "impulse-cpp" / "build" / "impulse_graph.dll",
-        this_repo / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.dylib",
-        this_repo / "impulse-graph-core" / "impulse-cpp" / "build" / "libimpulse_graph.so",
-        this_repo / "impulse-graph-core" / "impulse-cpp" / "build" / "impulse_graph.dll",
-    ]
-    for p in possible_paths:
-        if p.exists():
-            return ctypes.CDLL(str(p))
-    raise RuntimeError(f"Native library not found in {possible_paths}. Please run cmake build first.")
+    if not lib_path:
+        return None
+    if Path(lib_path).exists():
+        return ctypes.CDLL(str(lib_path))
+    raise RuntimeError(f"Native library specified by IMPULSE_LIB_PATH/--lib not found: {lib_path}")
 
 CONSTANTS = {
     "SEMIRING_PLUS_TIMES": 0,

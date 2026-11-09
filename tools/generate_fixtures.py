@@ -14,27 +14,18 @@ import subprocess
 from pathlib import Path
 
 def find_impulse_cli():
-    # Priority: explicit env var, then tooling debug/release binary, then PATH
+    # Priority: explicit env var IMPULSE_CLI, then PATH
     env_cli = os.environ.get("IMPULSE_CLI")
     if env_cli and os.path.isfile(env_cli) and os.access(env_cli, os.X_OK):
         return Path(env_cli).resolve()
-
-    repo_root = Path(__file__).resolve().parent.parent.parent
-    candidates = [
-        repo_root / "impulse-graph-tooling" / "target" / "debug" / "impulse-graph",
-        repo_root / "impulse-graph-tooling" / "target" / "release" / "impulse-graph",
-    ]
-    for c in candidates:
-        if c.is_file() and os.access(c, os.X_OK):
-            return c.resolve()
 
     which_cli = shutil.which("impulse-graph")
     if which_cli:
         return Path(which_cli).resolve()
 
     raise RuntimeError(
-        "Could not find 'impulse-graph' binary in tooling target directories or PATH. "
-        "Please build impulse-graph-tooling (cargo build) or set IMPULSE_CLI."
+        "Could not find 'impulse-graph' binary in PATH or IMPULSE_CLI. "
+        "Please install impulse-graph CLI or set IMPULSE_CLI."
     )
 
 def main():

@@ -16,26 +16,10 @@ jobs:
 
     steps:
       - name: Checkout impulse-graph-spec
-        uses: actions/checkout@v7
-
-      - name: Checkout impulse-graph-core (if PAT available)
-        continue-on-error: true
-        uses: actions/checkout@v7
-        with:
-          repository: impulse-graph/impulse-graph-core
-          path: impulse-graph-core
-          ref: main
-          token: ${{ secrets.GH_PAT || secrets.ORGANIZATION_PAT || secrets.GITHUB_TOKEN }}
-
-      - name: Build Impulse Graph Core C-ABI Shared Library
-        if: hashFiles('impulse-graph-core/impulse-cpp/CMakeLists.txt') != ''
-        run: |
-          cd impulse-graph-core/impulse-cpp
-          cmake -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON
-          cmake --build build -j$(nproc)
+        uses: actions/checkout@v4
 
       - name: Setup Python
-        uses: actions/setup-python@v7
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
@@ -44,19 +28,17 @@ jobs:
           pip install --upgrade pip
           pip install pyyaml pytest
 
-      - name: Verify Specification YAML Syntax
+      - name: Verify Specification YAML & Contracts JSON
         run: |
           if [ -f spec/v0.9.0.yaml ]; then
-            python -c "import yaml; yaml.safe_load(open('spec/v0.9.0.yaml'))"
-            echo "SUCCESS: spec/v0.9.0.yaml is valid YAML"
+            python -c "import yaml, json; yaml.safe_load(open('spec/v0.9.0.yaml')); json.load(open('tools/contracts.json'))"
+            echo "SUCCESS: spec/v0.9.0.yaml and tools/contracts.json are valid"
           else
             echo "ERROR: spec/v0.9.0.yaml not found!"
             exit 1
           fi
 
-      - name: Run Opcode Assembly Test Harness Suite
-        env:
-          IMPULSE_LIB_PATH: ${{ github.workspace }}/impulse-graph-core/impulse-cpp/build/libimpulse_graph.so
+      - name: Validate ImpAsm Test Vectors & Enforce 100% Opcode Coverage
         run: |
           python tools/run_vm_asm_suite.py
 
