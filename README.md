@@ -16,21 +16,24 @@ This repository contains the canonical, normative specifications and shared comp
 - **`test-vectors/`**: Shared compliance test vectors for cross-language verification:
   - `tc01_` to `tc36_`: Binary snapshot files (`*.imps`, `*.bin`) covering edge cases, alignments, keys, encodings, and corruptions.
   - [`vm-impas/`](test-vectors/vm-impas/): Self-contained ImpulseVM assembly unit test scripts (`*.impas`) organized by category (scalars, control flow, errors, graphs, and extended algorithms).
-- **`tools/`**: Verification and code generation utilities:
-  - [`codegen.py`](tools/codegen.py): Emitter for C++ headers and Java FFM layout files compiled from specification schemas.
-  - [`run_vm_asm_suite.py`](tools/run_vm_asm_suite.py): FFI-based test runner that executes the `.impas` unit tests against a compiled native engine library and verifies coverage.
+- **`tools/`**: Specification validation and code generation utilities:
+  - [`codegen.py`](tools/codegen.py): Emitter for C++ headers and Java FFM layout files compiled from specification schemas (`--cpp-dir`, `--java-dir`).
+  - [`run_vm_asm_suite.py`](tools/run_vm_asm_suite.py): Standalone `.impas` assembly validator and 100% opcode coverage verifier (with optional `--lib <path>` / `IMPULSE_LIB_PATH` native FFI execution mode).
 
 ---
 
-## Running the Assembly Compliance Suite
+## Running the Assembly Compliance & Opcode Coverage Suite
 
-To verify that a compiled native engine implementation conforms to the virtual machine specification, execute the polyglot assembly test runner:
+`impulse-graph-spec` has **zero downstream dependencies**. By default, `run_vm_asm_suite.py` parses all `.impas` assembly test vectors and verifies 100% opcode coverage and multi-file appearance thresholds statically:
 
 ```bash
 python3 tools/run_vm_asm_suite.py
 ```
 
-### Requirements
-- Python 3.8+
-- A compiled native library (`libimpulse_graph.dylib`, `libimpulse_graph.so`, or `impulse_graph.dll`) located in `../impulse-graph-core/impulse-cpp/build/`.
-- 100% instruction set opcode coverage: The test suite verifies that every defined opcode is covered in at least two distinct `.impas` files.
+To additionally execute every `.impas` vector against a compiled C-ABI shared library:
+
+```bash
+python3 tools/run_vm_asm_suite.py --lib /path/to/libimpulse_graph.dylib
+```
+
+For cross-engine four-way polyglot validation (C++ `-O3`, C++ `-O0`, Java 25, and OCaml) and contract-guided differential fuzzing, see [`impulse-verification`](https://github.com/impulse-graph/impulse-verification).
