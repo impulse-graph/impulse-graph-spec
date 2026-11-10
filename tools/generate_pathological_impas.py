@@ -1,6 +1,7 @@
 import os
 
-OUTPUT_DIR = "test-vectors/vm-impas/05_extended"
+SPEC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(SPEC_DIR, "test-vectors", "vm-impas", "05_extended")
 
 def create_pathological_tests():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
