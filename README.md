@@ -12,13 +12,14 @@ This repository contains the canonical, normative specifications and shared comp
   - [`FORMAT_SPECIFICATION.md`](docs/FORMAT_SPECIFICATION.md): The normative C-ABI Binary Snapshot Specification layout, header flags, alignment, domain key types, CSR topology rules, and SoA attribute type system.
   - [`VM_SPECIFICATION.md`](docs/VM_SPECIFICATION.md): The normative register-based virtual machine specification, registers, type tagging invariants, execution state layouts, status flags, and the `impOps` instruction set directory.
   - [`SCHEMA_SPECIFICATION.md`](docs/SCHEMA_SPECIFICATION.md): The normative specification for declarative graph schemas (`.imps.schema.yaml`).
-- **`spec/`**: Declarative schema definitions (e.g., [`v0.9.0.yaml`](spec/v0.9.0.yaml)) of the format used for automated C++ and Java FFM class code generation.
+- **`spec/`**: Declarative schema definitions (e.g., [`v0.9.0.yaml`](spec/v0.9.0.yaml)) of the binary snapshot format.
 - **`test-vectors/`**: Shared compliance test vectors for cross-language verification:
-  - `tc01_` to `tc36_`: Binary snapshot files (`*.imps`, `*.bin`) covering edge cases, alignments, keys, encodings, and corruptions.
+  - `tc01_` to `tc37_`: Binary snapshot files (`*.imps`) covering edge cases, alignments, keys, encodings, and corruptions.
   - [`vm-impas/`](test-vectors/vm-impas/): Self-contained ImpulseVM assembly unit test scripts (`*.impas`) organized by category (scalars, control flow, errors, graphs, and extended algorithms).
-- **`tools/`**: Specification validation and code generation utilities:
-  - [`codegen.py`](tools/codegen.py): Emitter for C++ headers and Java FFM layout files compiled from specification schemas (`--cpp-dir`, `--java-dir`).
+- **`tools/`**: Self-contained, engine-agnostic specification validation and test vector generation utilities:
+  - [`contracts.json`](tools/contracts.json): Machine-readable opcode contract catalog (`0x00`..`0xCB`).
   - [`run_vm_asm_suite.py`](tools/run_vm_asm_suite.py): Standalone `.impas` assembly validator and 100% opcode coverage verifier (with optional `--lib <path>` / `IMPULSE_LIB_PATH` native FFI execution mode).
+  - [`generate_frontier_matrix.py`](tools/generate_frontier_matrix.py), [`generate_pathological_impas.py`](tools/generate_pathological_impas.py), [`generate_string_fuzz_vectors.py`](tools/generate_string_fuzz_vectors.py), [`generate_null_vectors.py`](tools/generate_null_vectors.py): Self-contained test vector generators applicable to all engines.
 
 ---
 

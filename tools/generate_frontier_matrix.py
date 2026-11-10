@@ -1,5 +1,8 @@
 import os
 
+SPEC_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+OUTPUT_DIR = os.path.join(SPEC_DIR, "test-vectors", "vm-impas", "05_extended")
+
 opcodes = {
     "node_filter": {
         "op": "OP_NODE_FILTER",
@@ -50,7 +53,7 @@ template = """
 for op_name, op_info in opcodes.items():
     for rep_name, rep_info in representations.items():
         test_name = f"tc_poly_{op_name}_{rep_name}_pos"
-        filename = f"test-vectors/vm-impas/05_extended/{test_name}.impas"
+        filename = os.path.join(OUTPUT_DIR, f"{test_name}.impas")
         
         content = template.format(
             test_name=test_name.upper(),
