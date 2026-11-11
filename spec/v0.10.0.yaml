@@ -1,0 +1,309 @@
+# impulse-graph-spec/spec/v0.10.0.yaml
+version: "0.10.0"
+version_major: 0
+version_minor: 10
+magic: 0x494D5053  # 'IMPS'
+header_baseline_offset: 4096
+
+enums:
+  impulse_status_t:
+    type: uint32
+    doc: "C-ABI Status and Error Return Codes"
+    values:
+      IMPULSE_OK: 0
+      IMPULSE_ERR_INVALID_MAGIC: 1
+      IMPULSE_ERR_UNSUPPORTED_VERSION: 2
+      IMPULSE_ERR_UNSUPPORTED_GLOBAL_FEATURE: 3
+      IMPULSE_ERR_UNSUPPORTED_SECTION_FEATURE: 4
+      IMPULSE_ERR_CORRUPT_CHECKSUM: 5
+      IMPULSE_ERR_IO_FAILURE: 6
+      IMPULSE_ERR_INVALID_ARGUMENT: 7
+      IMPULSE_ERR_SIGNATURE_MISMATCH: 8
+      IMPULSE_ERR_BUFFER_OVERFLOW: 9
+
+  impulse_key_type_t:
+    type: uint8
+    doc: "Domain Catalog Key Type Enums"
+    values:
+      IMPULSE_KEY_TYPE_INT8: 0x01
+      IMPULSE_KEY_TYPE_INT16: 0x02
+      IMPULSE_KEY_TYPE_INT32: 0x03
+      IMPULSE_KEY_TYPE_INT64: 0x04
+      IMPULSE_KEY_TYPE_UINT8: 0x05
+      IMPULSE_KEY_TYPE_UINT16: 0x06
+      IMPULSE_KEY_TYPE_UINT32: 0x07
+      IMPULSE_KEY_TYPE_UINT64: 0x08
+      IMPULSE_KEY_TYPE_FLOAT32: 0x09
+      IMPULSE_KEY_TYPE_FLOAT64: 0x0A
+      IMPULSE_KEY_TYPE_VAR_STRING: 0x0B
+      IMPULSE_KEY_TYPE_UUID128: 0x0C
+
+  impulse_encoding_type_t:
+    type: uint8
+    doc: "Primary Topology CSR Encoding Enums"
+    values:
+      IMPULSE_ENC_RAW_UINT32: 0x00
+      IMPULSE_ENC_DELTA_VBYTE: 0x01
+      IMPULSE_ENC_RAW_UINT16: 0x02
+      IMPULSE_ENC_HYBRID_16_32: 0x03
+      IMPULSE_ENC_SIMDCOMP: 0x04
+      IMPULSE_ENC_SLICED_ELLPACK: 0x05
+      IMPULSE_ENC_TPU_BCOO: 0x06
+      IMPULSE_ENC_RAW_UINT64: 0x07
+      IMPULSE_ENC_ROARING_BITMAP: 0x08
+
+  impulse_index_type_t:
+    type: uint8
+    doc: "Generic Secondary Index Type Enums"
+    values:
+      IMP_INDEX_NONE: 0x00
+      IMP_INDEX_PERMUTATION: 0x01
+      IMP_INDEX_ZONE_MAP: 0x02
+      IMP_INDEX_INVERTED_BITSET: 0x03
+      IMP_INDEX_MINIMAL_PERFECT_HASH: 0x04
+      IMP_INDEX_TRIGRAM_3GRAM: 0x05
+      IMP_INDEX_DOMAIN_SPLIT_BITSET: 0x06
+      IMP_INDEX_TEMPORAL_INTERVAL: 0x07
+
+feature_flags:
+  global:
+    IMPULSE_GLOBAL_FEAT_4KB_PAGE_ALIGNED: "0x0000000000000001"
+    IMPULSE_GLOBAL_FEAT_CRYPTO_SIGNED: "0x0000000000000002"
+    IMPULSE_GLOBAL_FEAT_FOOTER_CATALOG: "0x0000000000000004"
+  section:
+    IMPULSE_SECTION_FEAT_RAW_UINT32: "0x0000000000000001"
+    IMPULSE_SECTION_FEAT_DELTA_VBYTE: "0x0000000000000002"
+    IMPULSE_SECTION_FEAT_RAW_UINT16: "0x0000000000000004"
+    IMPULSE_SECTION_FEAT_SIMDCOMP: "0x0000000000000010"
+
+structs:
+  impulse_snapshot_header_v0_10_t:
+    packed: true
+    expected_size: 4096
+    doc: "Section 1 Fixed 4KB Baseline Snapshot Header (Spec v0.10.0)"
+    fields:
+      - name: magic
+        type: uint32
+        doc: "Magic constant (0x494D5053 = 'IMPS')"
+      - name: version
+        type: uint16
+        doc: "Protocol version number (0x000A)"
+      - name: data_offset
+        type: uint32
+        doc: "Byte offset where Section 2 payload begins (4096)"
+      - name: domain_count
+        type: uint16
+        doc: "Total number of domains in catalog"
+      - name: relation_count
+        type: uint16
+        doc: "Total number of relations in matrix"
+      - name: timestamp_ms
+        type: uint64
+        doc: "Unix epoch timestamp (milliseconds)"
+      - name: required_features
+        type: uint64
+        doc: "Global feature flags bitmask"
+      - name: footer_directory_offset
+        type: uint64
+        doc: "Absolute file offset to Footer Directory Table"
+      - name: footer_directory_bytes
+        type: uint64
+        doc: "Byte size of Footer Directory Table"
+      - name: snapshot_uuid
+        type: "uint8[16]"
+        doc: "128-bit Binary UUID"
+      - name: header_checksum
+        type: uint16
+        doc: "CRC-16-CCITT checksum over bytes 0x00..0x3D"
+      - name: index_count
+        type: uint16
+        doc: "Total number of secondary indices"
+      - name: header_padding
+        type: "uint8[4030]"
+        doc: "Reserved header expansion padding"
+
+  impulse_domain_catalog_entry_v0_10_t:
+    packed: true
+    expected_size: 32
+    doc: "Section 2.2 Domain Catalog Entry (32 Bytes)"
+    fields:
+      - name: domain_id
+        type: uint16
+        doc: "Zero-indexed domain identifier"
+      - name: key_type
+        type: uint8
+        doc: "Domain key primitive type enum"
+      - name: reserved1
+        type: uint8
+        doc: "Alignment padding (0x00)"
+      - name: name_offset
+        type: uint32
+        doc: "Offset into Shared String Table"
+      - name: node_count
+        type: uint64
+        doc: "Total node count in domain"
+      - name: attr_count
+        type: uint16
+        doc: "Number of domain attribute descriptors following this entry"
+      - name: key_attr_index
+        type: uint16
+        doc: "0-indexed domain attribute index holding primary key column (0xFFFF if none)"
+      - name: reserved2
+        type: "uint8[12]"
+        doc: "Reserved expansion padding (0x00)"
+
+  impulse_relation_directory_entry_v0_10_t:
+    packed: true
+    expected_size: 128
+    doc: "Section 2.3 Relation Directory Entry (128 Bytes)"
+    fields:
+      - name: relation_id
+        type: uint16
+        doc: "Zero-indexed relation identifier"
+      - name: src_domain_id
+        type: uint16
+        doc: "Source domain ID"
+      - name: tgt_domain_id
+        type: uint16
+        doc: "Target domain ID"
+      - name: encoding_id
+        type: uint8
+        doc: "Topology encoding type enum"
+      - name: node_id_width
+        type: uint8
+        doc: "Node index width (bytes: 2, 4, or 8)"
+      - name: edge_index_width
+        type: uint8
+        doc: "Edge index width (bytes: 4 or 8)"
+      - name: reserved1
+        type: "uint8[3]"
+        doc: "Reserved alignment"
+      - name: name_offset
+        type: uint32
+        doc: "Offset into Shared String Table"
+      - name: node_count
+        type: uint64
+        doc: "Source node count"
+      - name: edge_count
+        type: uint64
+        doc: "Edge count"
+      - name: section_features
+        type: uint64
+        doc: "Section feature bitmask"
+      - name: csr_row_off_offset
+        type: uint64
+        doc: "CSR row offsets file offset"
+      - name: csr_row_off_bytes
+        type: uint64
+        doc: "CSR row offsets byte size"
+      - name: csr_col_idx_offset
+        type: uint64
+        doc: "CSR col indices file offset"
+      - name: csr_col_idx_bytes
+        type: uint64
+        doc: "CSR col indices byte size"
+      - name: csc_row_off_offset
+        type: uint64
+        doc: "CSC row offsets file offset"
+      - name: csc_row_off_bytes
+        type: uint64
+        doc: "CSC row offsets byte size"
+      - name: csc_col_idx_offset
+        type: uint64
+        doc: "CSC col indices file offset"
+      - name: csc_col_idx_bytes
+        type: uint64
+        doc: "CSC col indices byte size"
+      - name: attr_count
+        type: uint16
+        doc: "Number of edge attribute descriptors following this entry"
+      - name: reserved2
+        type: "uint8[22]"
+        doc: "Directory entry expansion padding"
+
+  impulse_attribute_descriptor_v0_10_t:
+    packed: true
+    expected_size: 44
+    doc: "Section 2.4 Node Domain & Edge Relation Attribute Descriptor Entry (44 Bytes)"
+    fields:
+      - name: name_offset
+        type: uint32
+        doc: "Offset into Shared String Table"
+      - name: type_code
+        type: uint8
+        doc: "Attribute primitive type enum (bits 0..6) + 0x80 nullable flag (bit 7)"
+      - name: reserved1
+        type: uint8
+        doc: "Alignment padding"
+      - name: reserved2
+        type: uint16
+        doc: "Alignment padding"
+      - name: dimension
+        type: uint32
+        doc: "Vector dimension (1 for scalar, 0 for variable-length)"
+      - name: data_offset
+        type: uint64
+        doc: "Absolute 128B-aligned file offset to attribute payload"
+      - name: data_bytes
+        type: uint64
+        doc: "Byte size of attribute payload"
+      - name: offsets_offset
+        type: uint64
+        doc: "Absolute 128B-aligned file offset to var-string offsets array"
+      - name: offsets_bytes
+        type: uint64
+        doc: "Byte size of var-string offsets array"
+
+  impulse_index_directory_entry_v0_10_t:
+    packed: true
+    expected_size: 64
+    doc: "Section 2.6 Secondary Index Directory Entry (64 Bytes)"
+    fields:
+      - name: index_id
+        type: uint32
+        doc: "Zero-indexed secondary index identifier"
+      - name: domain_id
+        type: uint16
+        doc: "Target Node Domain ID"
+      - name: relation_id
+        type: uint16
+        doc: "Target Relation ID (0xFFFF for Node Domain attributes)"
+      - name: attribute_index
+        type: uint16
+        doc: "0-indexed Attribute index within target relation or node domain"
+      - name: index_type
+        type: uint8
+        doc: "Generic Index Type enum (0x01..0x07)"
+      - name: reserved1
+        type: uint8
+        doc: "Alignment padding"
+      - name: name_offset
+        type: uint32
+        doc: "Offset into Shared String Table"
+      - name: data_offset
+        type: uint64
+        doc: "Absolute 128B-aligned file offset to index data payload"
+      - name: data_bytes
+        type: uint64
+        doc: "Total byte size of index data payload"
+      - name: payload_feature_mask
+        type: uint64
+        doc: "Generic Index Feature Bitmask"
+      - name: reserved_padding
+        type: "uint8[24]"
+        doc: "Reserved expansion padding"
+
+  impulse_footer_trailer_v0_10_t:
+    packed: true
+    expected_size: 16
+    doc: "16-Byte Footer Trailer at EOF"
+    fields:
+      - name: footer_length
+        type: uint64
+        doc: "Byte size of Footer Block"
+      - name: spec_version
+        type: uint32
+        doc: "Spec version (0x000A)"
+      - name: footer_magic
+        type: uint32
+        doc: "Footer magic (0x494D5053 = 'IMPS')"

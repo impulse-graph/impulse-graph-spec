@@ -1,6 +1,6 @@
 # Formal Specification: Impulse-Graph C-ABI Binary Snapshot Format
 
-* **Specification Version**: 0.9.0 (SemVer, pre-1.0 stabilization release)
+* **Specification Version**: 0.10.0 (SemVer, pre-1.0 stabilization release)
 * **Document Status**: Standard Reference Specification
 * **Byte Order**: Little-Endian (`LE`, IEEE 754 & x86-64 / ARM64 Native)
 * **Memory Alignment**: 128-Byte SIMD / GPU Boundary (`(len + 127) & ~127`) & 4KB OS Page Boundary (`(offset + 4095) & ~4095`)
@@ -10,7 +10,7 @@
 
 ## 1. Specification Overview & Modular Design Principles
 
-This document defines the formal binary protocol specification for the **Impulse-Graph C-ABI Binary Snapshot Format (Version 0.9.0)**.
+This document defines the formal binary protocol specification for the **Impulse-Graph C-ABI Binary Snapshot Format (Version 0.10.0)**.
 
 The format is organized into **4KB OS page-aligned physical blocks**, structured to support **single-pass S3/cloud streaming uploads**, **$O(1)$ zero-copy `mmap` range loading**, and **AVX-512 / GPU SIMD vectorization**.
 
@@ -19,29 +19,31 @@ The format is organized into **4KB OS page-aligned physical blocks**, structured
 ```text
 ┌───────────────────────────────────────────────────────────────────────────────────┐
 │ SECTION 1: Snapshot Header (4KB Page 0, Offset 0x0000)                             │
-│   ├── Magic ("IMPS"), Version (0x0009), DataOffset (4096)                          │
-│   └── GlobalRequiredFeatures, SnapshotUUID, HeaderChecksum                        │
+│   ├── Magic ("IMPS"), Version (0x000A), DataOffset (4096)                          │
+│   └── GlobalRequiredFeatures, SnapshotUUID, HeaderChecksum, IndexCount            │
 ├───────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 2: Catalog & Directory Directory Table (4KB Page 1, Offset 0x1000)         │
+│ SECTION 2: Catalog & Directory Table (4KB Page 1, Offset 0x1000)                  │
 │   ├── 1. String Table (Shared Null-Terminated UTF-8 String Pool Blob)              │
-│   ├── 2. Domain Catalog Array (Fixed 16-Byte POD Structs)                         │
-│   └── 3. Sorted Relation Directory Table (Fixed 128B Entries + 40B Attr Descriptors) │
+│   ├── 2. Domain Catalog Table (Fixed 32B Entries + 44B Node Attr Descriptors)     │
+│   ├── 3. Sorted Relation Directory Table (Fixed 128B Entries + 44B Attr Descr.)   │
+│   └── 4. Secondary Index Directory Table (Fixed 64B Index Descriptors)            │
+├───────────────────────────────────────────────────────────────────────────────────┤
+│ NODE DOMAIN BLOCKS [OPTIONAL, 4KB Aligned]                                        │
+│   ├── Node Validity Bitmaps (128B Aligned, Nullable Domain Attributes)            │
+│   ├── Node Fixed-width SoA Attribute Arrays (128B Aligned, K = NodeCount)         │
+│   └── Node Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
 ├───────────────────────────────────────────────────────────────────────────────────┤
 │ RELATION BLOCK 1 [MANDATORY, 4KB Aligned]                                         │
 │   ├── csrRowOffsets Array (128B Aligned, uint32/uint64)                           │
 │   ├── csrColumnIndices Stream (128B Aligned, RAW 0x00 Encoding)                   │
 │   ├── cscRowOffsets / cscColumnIndices Arrays (Optional Transpose, 128B Aligned)  │
-│   ├── Edge Fixed-width SoA Attribute Arrays (128B Aligned: weights, timestamps...)│
+│   ├── Edge Fixed-width SoA Attribute Arrays (128B Aligned, K = EdgeCount)         │
 │   └── Edge Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
 ├───────────────────────────────────────────────────────────────────────────────────┤
 │ RELATION BLOCK 2 [MANDATORY, 4KB Aligned]                                         │
 │   └── (Contiguous 128B aligned topology & attribute array sequence)               │
 ├───────────────────────────────────────────────────────────────────────────────────┤
-│ NODE DOMAIN BLOCK 1 [OPTIONAL, 4KB Aligned]                                       │
-│   ├── Node Fixed-width SoA Attribute Arrays (128B Aligned)                        │
-│   └── Node Var-length Attribute Offsets & Data Blobs (128B Aligned)               │
-├───────────────────────────────────────────────────────────────────────────────────┤
-│ SECTION 4: KEY CATALOG BLOCK [OPTIONAL, 128B Aligned]                             │
+│ SECTION 4: SECONDARY INDEX & KEY CATALOG BLOCKS [OPTIONAL, 128B Aligned]          │
 │   ├── Minimal Perfect Hash Function (MPHF) or Sorted Array Indices                 │
 │   └── (O(1) / O(log N) mapping of external string/int keys to dense Node IDs)     │
 ├───────────────────────────────────────────────────────────────────────────────────┤
@@ -57,14 +59,14 @@ The format is organized into **4KB OS page-aligned physical blocks**, structured
 
 ## 2. Section 1: Snapshot Header Layout (Fixed 4KB Page 0 Baseline)
 
-The snapshot header occupies byte offset `0x00000000` (Page 0). It contains a **64-byte active baseline** aligned to a single CPU cache line, inside a fixed 4096-byte page (`DataOffset = 4096`).
+The snapshot header occupies byte offset `0x00000000` (Page 0). It contains a **66-byte active baseline** inside a fixed 4096-byte page (`DataOffset = 4096`).
 
 ### Header Byte Offset Table
 
 | Byte Offset | Field Name | C-ABI Type | Size | Default / Constant | Description |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `0x0000` – `0x0003` | `Magic` | `uint32_t` | 4 Bytes | `0x494D5053` (`"IMPS"`) | Magic constant identifying Impulse-Graph binary snapshot file. |
-| `0x0004` – `0x0005` | `Version` | `uint16_t` | 2 Bytes | `0x0009` (`9`) | Protocol specification version number (v0.9.0 packed `0x0009`). |
+| `0x0004` – `0x0005` | `Version` | `uint16_t` | 2 Bytes | `0x000A` (`10`) | Protocol specification version number (v0.10.0 packed `0x000A`). |
 | `0x0006` – `0x0009` | `DataOffset` | `uint32_t` | 4 Bytes | `4096` (`0x00001000`) | Fixed constant (`4096`). Section 2 always starts at byte 4096 (Page 1). |
 | `0x000A` – `0x000B` | `DomainCount` | `uint16_t` | 2 Bytes | Variable | Total number of node domains in the catalog (up to 65,536). |
 | `0x000C` – `0x000D` | `RelationCount` | `uint16_t` | 2 Bytes | Variable | Total number of relations in the matrix (up to 65,536). |
@@ -74,13 +76,14 @@ The snapshot header occupies byte offset `0x00000000` (Page 0). It contains a **
 | `0x0026` – `0x002D` | `FooterDirectoryBytes` | `uint64_t` | 8 Bytes | Byte Size | Byte size of Footer Directory Table (`0` if omitted). |
 | `0x002E` – `0x003D` | `SnapshotUUID` | `uint8_t[16]` | 16 Bytes | Random Binary UUID | Unique 128-bit Binary UUID for this snapshot build artifact. |
 | `0x003E` – `0x003F` | `HeaderChecksum` | `uint16_t` | 2 Bytes | CRC-16-CCITT | Fast CRC-16 checksum calculated over bytes `0x0000..0x003D`. |
-| `0x0040` – `0x0FFF` | `ReservedPadding` | `uint8_t[4032]` | 4032 Bytes | `0x00 ...` | **Reserved Header Expansion Padding** (Aligns Header to 4KB boundary). |
+| `0x0040` – `0x0041` | `IndexCount` | `uint16_t` | 2 Bytes | Variable | Total number of secondary indices in Section 2.6 (up to 65,536). |
+| `0x0042` – `0x0FFF` | `ReservedPadding` | `uint8_t[4030]` | 4030 Bytes | `0x00 ...` | **Reserved Header Expansion Padding** (Aligns Header to 4KB boundary). |
 
 ---
 
 ## 3. Section 2: Catalog, String Table & Directory Table Layout
 
-Begins at byte offset `DataOffset` (byte 4096). Contains the **Shared String Table**, node domain definitions, and the **Relation Directory Table**.
+Begins at byte offset `DataOffset` (byte 4096). Contains the **Shared String Table**, node domain definitions (with inline node attribute descriptors), the **Relation Directory Table** (with inline edge attribute descriptors), and the **Secondary Index Directory Table**.
 
 ### 3.1 Shared String Table (String Pool Heap)
 Begins at byte offset `DataOffset` (4096):
@@ -89,19 +92,25 @@ Begins at byte offset `DataOffset` (4096):
   - String offset `0` corresponds to empty string `""`.
   - All domain names, relation names, and attribute names store a 32-bit `name_offset` pointing directly to their null-terminated UTF-8 byte stream in this pool.
 
-### 3.2 Domain Catalog Array (Fixed 16 Bytes per Domain)
-Begins immediately after String Table, aligned to a 128-byte boundary. Contains `DomainCount` fixed-size 16-byte records:
+### 3.2 Domain Catalog Table (Fixed 32 Bytes per Domain + Inline Attribute Descriptors)
+Begins immediately after String Table, aligned to a 128-byte boundary. Contains `DomainCount` domain entries. Each **32-byte** `DomainCatalogEntry` is followed immediately by `AttrCount` fixed **44-byte** `AttributeDescriptor` entries (defined in §3.4) describing the Structure-of-Arrays (SoA) node attributes belonging to that domain:
 
 | Byte Offset | Field Name | C-ABI Type | Size | Description |
 | :--- | :--- | :--- | :--- | :--- |
 | `0x0000` – `0x0001` | `DomainID` | `uint16_t` | 2 Bytes | Zero-indexed domain identifier (`0`..`DomainCount - 1`). |
-| `0x0002` | `KeyType` | `uint8_t` | 1 Byte | Domain key primitive type enum (`0x01` = INT8..`0x0B` = VAR_STRING). |
-| `0x0003` | `Reserved` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
+| `0x0002` | `KeyType` | `uint8_t` | 1 Byte | Domain key primitive type enum (`0x01` = INT8..`0x0C` = UUID128). |
+| `0x0003` | `Reserved1` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
 | `0x0004` – `0x0007` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (points to null-terminated string, e.g., `"User\0"`). |
 | `0x0008` – `0x000F` | `NodeCount` | `uint64_t` | 8 Bytes | Total number of nodes $N$ in this domain. |
+| `0x0010` – `0x0011` | `AttrCount` | `uint16_t` | 2 Bytes | Number of node attributes defined for this domain (`0`..`65,535`). Followed inline by `AttrCount × 44B` `AttributeDescriptor` records. |
+| `0x0012` – `0x0013` | `KeyAttrIndex` | `uint16_t` | 2 Bytes | 0-indexed domain attribute index holding the primary key column (`0`..`AttrCount - 1`), or `0xFFFF` if no external key attribute column is stored. |
+| `0x0014` – `0x001F` | `Reserved2` | `uint8_t[12]` | 12 Bytes | `0x00` reserved expansion padding (pads `DomainCatalogEntry` to 32 bytes). |
 
-### 3.3 Relation Directory Table (Fixed 128 Bytes per Relation)
-Begins immediately after Domain Catalog Array, aligned to a 128-byte boundary. Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID` and secondary by `TgtDomainID`**:
+#### 3.2.1 Legacy `v0.9.0` (`0x0009`) Domain Catalog Backwards Compatibility
+When opening a legacy `v0.9.0` snapshot (`Header.Version == 0x0009`), each entry in Section 2.2 consists only of the first **16 bytes** (`DomainID` through `NodeCount`, with byte `0x0003` reserved as `0x00`) and zero inline `AttributeDescriptor` records. Compliant dual-version readers synthesize `AttrCount = 0` and `KeyAttrIndex = 0xFFFF` when parsing `0x0009` domain catalog entries.
+
+### 3.3 Relation Directory Table (Fixed 128 Bytes per Relation + Inline Attribute Descriptors)
+Begins immediately after the Domain Catalog Table (and all inline domain `AttributeDescriptor` records), aligned to a 128-byte boundary. Contains `RelationCount` relation descriptors, **sorted primary by `SrcDomainID` and secondary by `TgtDomainID`**:
 
 | Byte Offset | Field Name | C-ABI Type | Size | Description |
 | :--- | :--- | :--- | :--- | :--- |
@@ -169,7 +178,10 @@ The `SectionFeatures` field defines C-ABI flags and structural contracts for top
 
 ### 3.4 Attribute Descriptor Structure (Fixed 44 Bytes)
 
-Every node attribute and edge attribute is defined by a fixed 44-byte POD struct:
+Every node domain attribute (following a `DomainCatalogEntry` in §3.2) and edge relation attribute (following a `RelationDirectoryEntry` in §3.3) is defined by an identical fixed **44-byte** POD struct (`impulse_attribute_descriptor_v0_10_t`).
+
+* **Node Domain Attributes**: Element cardinality is strictly $K = \text{DomainCatalogEntry.NodeCount}$.
+* **Edge Relation Attributes**: Element cardinality is strictly $K = \text{RelationDirectoryEntry.EdgeCount}$.
 
 | Byte Offset | Field Name | C-ABI Type | Size | Description |
 | :--- | :--- | :--- | :--- | :--- |
@@ -300,13 +312,13 @@ Section 4 stores the off-heap index structures required to resolve external busi
 
 In accordance with the physical specification, $O(N)$ linear scans or heap allocations for key resolution are prohibited. All mappings MUST be performed in $O(1)$ or $O(\log N)$ using 128-byte aligned zero-copy memory mapped structures.
 
-### 6.1 Dense ID to Key Resolution ($O(1)$ Array Lookup)
-The forward mapping (Dense ID $\to$ External Key) is implemented natively by storing the keys as a standard **Node Domain Attribute** (often implicitly named `_key` or identified via `IndexType = 0xFFFF`).
-- For fixed-width keys (e.g. `INT64`), the dense ID is simply used to directly index the 128B-aligned `data_ptr` array ($O(1)$ lookup).
-- For variable-length keys (e.g. `VAR_STRING`, `UUID128`), the dense ID indexes the `offsets_ptr` array to locate the slice within the `data_ptr` blob ($O(1)$ lookup).
+### 5.1 Dense ID to Key Resolution ($O(1)$ Array Lookup via `KeyAttrIndex`)
+The forward mapping (Dense ID $\to$ External Key) is implemented natively by storing the external keys as a standard **Node Domain Attribute** referenced explicitly by `DomainCatalogEntry.KeyAttrIndex` (`0`..`AttrCount - 1`, or `0xFFFF` if no external key column is present and dense ID is the identity key):
+- For fixed-width keys (e.g. `INT64`), the dense ID directly indexes the 128B-aligned `data_ptr` array of `DomainAttributes[KeyAttrIndex]` ($O(1)$ lookup).
+- For variable-length keys (e.g. `VAR_STRING`, `UUID128`), the dense ID indexes the `offsets_ptr` array of `DomainAttributes[KeyAttrIndex]` to locate the slice within its `data_ptr` blob ($O(1)$ lookup).
 
-### 6.2 Key to Dense ID Resolution ($O(1) / O(\log N)$ Reverse Index)
-The reverse mapping (External Key $\to$ Dense ID) requires a **Secondary Index Directory Entry** targeting the Node Domain. 
+### 5.2 Key to Dense ID Resolution ($O(1) / O(\log N)$ Reverse Index)
+The reverse mapping (External Key $\to$ Dense ID) requires a **Secondary Index Directory Entry** targeting the Node Domain (`RelationID = 0xFFFF`, `AttributeIndex = DomainCatalogEntry.KeyAttrIndex`). 
 
 The structural format of the Section 4 index block depends on the `key_type` defined in the Domain Catalog:
 
@@ -325,12 +337,12 @@ The structural format of the Section 4 index block depends on the `key_type` def
 For unseekable S3 multi-part uploads, signatures, SHA-256 digests, and catalog directories are serialized into the **Footer Block at EOF**.
 
 ### 6.2 16-Byte Footer Trailer Specification
-Every compliant v0.9.0 snapshot MUST terminate with exactly 16 bytes at EOF:
+Every compliant v0.10.0 snapshot MUST terminate with exactly 16 bytes at EOF:
 
 ```c
 typedef struct impulse_footer_trailer {
     uint64_t footer_length;    // 8 Bytes: Byte size of Footer Block
-    uint32_t spec_version;     // 4 Bytes: Protocol version (0x0009)
+    uint32_t spec_version;     // 4 Bytes: Protocol version (0x000A)
     uint32_t footer_magic;     // 4 Bytes: "IMPS" (0x494D5053)
 } impulse_footer_trailer_t;     // Exactly 16 Bytes at EOF
 ```
