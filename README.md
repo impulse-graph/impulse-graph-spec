@@ -1,4 +1,4 @@
-# Impulse Graph Specifications & Test Vectors (v0.9.0)
+# Impulse Graph Specifications & Test Vectors (v0.10.0)
 
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
@@ -9,10 +9,10 @@ This repository contains the canonical, normative specifications and shared comp
 ## Directory Structure
 
 - **`docs/`**: Normative specifications (concise, formal specification language):
-  - [`FORMAT_SPECIFICATION.md`](docs/FORMAT_SPECIFICATION.md): The normative C-ABI Binary Snapshot Specification layout, header flags, alignment, domain key types, CSR topology rules, and SoA attribute type system.
+  - [`FORMAT_SPECIFICATION.md`](docs/FORMAT_SPECIFICATION.md): The normative C-ABI Binary Snapshot Specification layout, header flags, alignment, domain key types, first-class domain attributes, CSR topology rules, and SoA attribute type system.
   - [`VM_SPECIFICATION.md`](docs/VM_SPECIFICATION.md): The normative register-based virtual machine specification, registers, type tagging invariants, execution state layouts, status flags, and the `impOps` instruction set directory.
   - [`SCHEMA_SPECIFICATION.md`](docs/SCHEMA_SPECIFICATION.md): The normative specification for declarative graph schemas (`.imps.schema.yaml`).
-- **`spec/`**: Declarative schema definitions (e.g., [`v0.9.0.yaml`](spec/v0.9.0.yaml)) of the binary snapshot format.
+- **`spec/`**: Declarative schema definitions ([`v0.10.0.yaml`](spec/v0.10.0.yaml) and legacy [`v0.9.0.yaml`](spec/v0.9.0.yaml)) of the binary snapshot format.
 - **`test-vectors/`**: Shared compliance test vectors for cross-language verification:
   - `tc01_` to `tc37_`: Binary snapshot files (`*.imps`) covering edge cases, alignments, keys, encodings, and corruptions.
   - [`vm-impas/`](test-vectors/vm-impas/): Self-contained ImpulseVM assembly unit test scripts (`*.impas`) organized by category (scalars, control flow, errors, graphs, and extended algorithms).

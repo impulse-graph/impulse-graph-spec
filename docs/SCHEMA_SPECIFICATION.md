@@ -1,4 +1,4 @@
-# Impulse Graph Engine — Snapshot Schema Specification v0.9.0 (`.imps.schema.yaml`)
+# Impulse Graph Engine — Snapshot Schema Specification v0.10.0 (`.imps.schema.yaml`)
 
 This document defines the normative specification for **Impulse Graph Snapshot Schemas** (`.imps.schema.yaml`). 
 
@@ -10,22 +10,22 @@ The schema provides a declarative, language-agnostic representation of graph dom
 
 * **File Extension**: `.imps.schema.yaml` or `.imps.schema.json`
 * **Encoding**: UTF-8 without BOM.
-* **Specification Version**: `"0.9.0"`
+* **Specification Version**: `"0.10.0"`
 
 ---
 
 ## 2. Top-Level Schema Structure
 
-An `.imps.schema.yaml` document consists of four primary sections:
+An `.imps.schema.yaml` document consists of five primary sections:
 
-1. **`schema_version`**: String version identifier matching specification (e.g., `"0.9.0"`).
+1. **`schema_version`**: String version identifier matching specification (e.g., `"0.10.0"`).
 2. **`metadata`**: Namespace, package targets, authoring details, and documentation.
 3. **`domains`**: List of vertex/entity domain type definitions.
 4. **`relations`**: List of physical edge relation definitions (CSR/CSC).
 5. **`virtual_relations`**: List of computed/derived relation definitions (`ImpK`/`ImpLog`).
 
 ```yaml
-schema_version: "0.9.0"
+schema_version: "0.10.0"
 metadata:
   name: "EnterpriseKnowledgeGraph"
   namespace: "com.mycompany.graph.model"
@@ -42,10 +42,12 @@ virtual_relations: [...]
 
 A **Domain** represents a distinct node/entity classification in the graph catalog (e.g., `User`, `Group`, `Device`).
 
-### 3.1 Domain Attributes
+### 3.1 Domain Fields
 * **`id`**: 16-bit unsigned integer (`0`..`65535`) domain catalog identifier.
 * **`name`**: Unique string name (ASCII alphanumeric + underscores).
 * **`key_type`**: Primary key data format used for node identity lookup.
+* **`key_attribute`** *(optional)*: Name of the attribute in `attributes` that stores the primary key column (compiled to `DomainCatalogEntry.KeyAttrIndex`; defaults to `0xFFFF` when omitted).
+* **`attributes`** *(optional)*: List of first-class Structure-of-Arrays (SoA) node property attributes serialized into the Domain Catalog (`DomainCatalogEntry.AttrCount`) and Node Domain Block.
 
 ### 3.2 Supported Key Types
 | Key Type | Binary Format | Description |
