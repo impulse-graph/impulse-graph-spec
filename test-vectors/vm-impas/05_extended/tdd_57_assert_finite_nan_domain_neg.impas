@@ -1,0 +1,18 @@
+; ====================================================================
+; TDD_57_ASSERT_FINITE_NAN_DOMAIN_NEG:
+; Negative Test Vector: Out-of-domain SQRT(-16.0) produces quiet NaN at
+; index 2 without trapping during OP_VEC_MATH_UNARY, and OP_ASSERT_FINITE
+; (0x2A) traps deterministically with IMPULSE_VM_ERR_FLOATING_POINT and
+; stores offending element index 2 in R0.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_FLOATING_POINT}
+; {EXPECT: R0 = 2}
+
+.data
+.array_float DOM_ERR = [4.0, 9.0, -16.0, 25.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R1, DOM_ERR
+0x01: OP_VEC_MATH_UNARY          R2, R1, 2
+0x02: OP_ASSERT_FINITE           R2
+0x03: OP_HALT

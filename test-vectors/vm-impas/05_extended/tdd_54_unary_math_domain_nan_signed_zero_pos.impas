@@ -1,0 +1,82 @@
+; ====================================================================
+; TDD_54_UNARY_MATH_DOMAIN_NAN_SIGNED_ZERO_POS:
+; Exhaustive Unary Math Out-of-Domain NaN Propagation, C99 Rounding,
+; Special Functions (sinc, erfc, lgamma), and Sanitized Bitwise Ops.
+;
+; Verifies:
+; 1. SQRT (2) on [-4.0, -1.0, 4.0, 9.0] -> [NaN, NaN, 2.0, 3.0]:
+;    - ISNAN (52) -> [1.0, 1.0, 0.0, 0.0] -> sum R4 = 2.0 (1073741824)
+;    - RELU (37) preserves NaN: [NaN, NaN, 2.0, 3.0] -> ISNAN sum R7 = 2.0 (1073741824)
+; 2. ACOSH (28) on [0.5, 1.0, -2.0, 1.0] -> [NaN, 0.0, NaN, 0.0]:
+;    - ISNAN (52) -> sum R11 = 2.0 (1073741824)
+; 3. ROUND (33, C99 half-away-from-zero) on [-2.5, 2.5, -3.7, 0.0]:
+;    -> [-3.0, 3.0, -4.0, 0.0] -> sum R14 = -4.0 (3229614080)
+;    TRUNC (32) -> [-2.0, 2.0, -3.0, 0.0] -> sum R16 = -3.0 (3225419776)
+; 4. SINC (23) & ERFC (44) at [0.0, -0.0] -> [1.0, 1.0] -> sum = 2.0 (1073741824)
+;    LGAMMA (45) on [1.0, 2.0, 0.0, -1.0] -> [0.0, 0.0, +Inf, +Inf]
+;    -> ISINF (53) -> sum R24 = 2.0 (1073741824)
+; 5. POPCOUNT (46), CLZ (47), CTZ (48) on [7.0, -5.0, 0.0, 8.0]:
+;    - POPCOUNT -> [3.0, 0.0, 0.0, 1.0] -> sum R27 = 4.0 (1082130432)
+;    - CLZ -> [29.0, 32.0, 32.0, 28.0] -> sum R29 = 121.0 (1123155968)
+;    - CTZ -> [0.0, 32.0, 32.0, 3.0] -> sum R31 = 67.0 (1116078080)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 1073741824}
+; {EXPECT: R7 = 1073741824}
+; {EXPECT: R11 = 1073741824}
+; {EXPECT: R14 = 3229614080}
+; {EXPECT: R16 = 3225419776}
+; {EXPECT: R19 = 1073741824}
+; {EXPECT: R21 = 1073741824}
+; {EXPECT: R24 = 1073741824}
+; {EXPECT: R27 = 1082130432}
+; {EXPECT: R29 = 1123155968}
+; {EXPECT: R31 = 1116078080}
+
+.data
+.array_float NEG_DOM = [-4.0, -1.0, 4.0, 9.0]
+.array_float ACOSH_DOM = [0.5, 1.0, -2.0, 1.0]
+.array_float ROUND_VALS = [-2.5, 2.5, -3.7, 0.0]
+.array_float SIGNED_ZEROS = [0.0, -0.0]
+.array_float LGAMMA_POLES = [1.0, 2.0, 0.0, -1.0]
+.array_float BITWISE_VALS = [7.0, -5.0, 0.0, 8.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R1, NEG_DOM
+0x01: OP_VEC_MATH_UNARY          R2, R1, 2
+0x02: OP_VEC_MATH_UNARY          R3, R2, 52
+0x03: OP_VECTOR_REDUCE_SUM       R4, R3
+0x04: OP_VEC_MATH_UNARY          R5, R2, 37
+0x05: OP_VEC_MATH_UNARY          R6, R5, 52
+0x06: OP_VECTOR_REDUCE_SUM       R7, R6
+
+0x07: OP_LOAD_INLINE_ARRAY       R8, ACOSH_DOM
+0x08: OP_VEC_MATH_UNARY          R9, R8, 28
+0x09: OP_VEC_MATH_UNARY          R10, R9, 52
+0x0A: OP_VECTOR_REDUCE_SUM       R11, R10
+
+0x0B: OP_LOAD_INLINE_ARRAY       R12, ROUND_VALS
+0x0C: OP_VEC_MATH_UNARY          R13, R12, 33
+0x0D: OP_VECTOR_REDUCE_SUM       R14, R13
+0x0E: OP_VEC_MATH_UNARY          R15, R12, 32
+0x0F: OP_VECTOR_REDUCE_SUM       R16, R15
+
+0x10: OP_LOAD_INLINE_ARRAY       R17, SIGNED_ZEROS
+0x11: OP_VEC_MATH_UNARY          R18, R17, 23
+0x12: OP_VECTOR_REDUCE_SUM       R19, R18
+0x13: OP_VEC_MATH_UNARY          R20, R17, 44
+0x14: OP_VECTOR_REDUCE_SUM       R21, R20
+
+0x15: OP_LOAD_INLINE_ARRAY       R22, LGAMMA_POLES
+0x16: OP_VEC_MATH_UNARY          R23, R22, 45
+0x17: OP_VEC_MATH_UNARY          R25, R23, 53
+0x18: OP_VECTOR_REDUCE_SUM       R24, R25
+
+0x19: OP_LOAD_INLINE_ARRAY       R26, BITWISE_VALS
+0x1A: OP_VEC_MATH_UNARY          R28, R26, 46
+0x1B: OP_VECTOR_REDUCE_SUM       R27, R28
+0x1C: OP_VEC_MATH_UNARY          R30, R26, 47
+0x1D: OP_VECTOR_REDUCE_SUM       R29, R30
+0x1E: OP_VEC_MATH_UNARY          R32, R26, 48
+0x1F: OP_VECTOR_REDUCE_SUM       R31, R32
+0x20: OP_HALT
