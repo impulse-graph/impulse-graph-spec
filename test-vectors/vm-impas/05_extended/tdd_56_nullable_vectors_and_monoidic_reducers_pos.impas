@@ -1,0 +1,80 @@
+; ====================================================================
+; TDD_56_NULLABLE_VECTORS_AND_MONOIDIC_REDUCERS_POS:
+; Nullable Vector Propagation & Monoidic Reducers (OP_REDUCE 0x45 &
+; OP_LANE_REDUCE_ATTR 0xC8) over Negative Values, NaN/Nulls, and Empty Lanes.
+;
+; Verifies:
+; 1. Gather 4-element nullable vector [-10.0, NaN, -2.0, -5.0] (valid = {0, 2, 3}):
+;    - OP_EXTRACT_VALIDITY (0x3C) -> cardinality R5 = 3
+;    - OP_REDUCE ADD (0) -> R6 = -17.0 (3246915584)
+;    - OP_REDUCE MUL (1) -> R7 = -100.0 (3267887104) (skips NaN, preserves odd neg!)
+;    - OP_REDUCE MIN (2) -> R8 = -10.0 (3240099840)
+;    - OP_REDUCE MAX (3) -> R9 = -2.0 (3221225472) (all-negative MAX = -2.0, not 0!)
+;    - OP_REDUCE ARGMIN (6) -> R10 = 0
+;    - OP_REDUCE ARGMAX (7) -> R11 = 2
+; 2. All-NaN vector sqrt([-1.0, -4.0]) -> OP_REDUCE MUL (1) = 0.0 (R14 = 0)
+; 3. Multi-lane OP_LANE_REDUCE_ATTR (0xC8) over 3 lanes:
+;    - Seeds [0, 1, 2] walked 1 hop in {0:[0,1], 1:[1], 2:[2,3], 3:[]}:
+;      Lane 0 = {0, 1} ([-10.0, NaN]), Lane 1 = {1} ([NaN] -> untouched!),
+;      Lane 2 = {2, 3} ([-2.0, -5.0]).
+;    - MAX (3): [-10.0, 0.0, -2.0] -> sum R19 = -12.0 (3242196992)
+;    - MUL (1): [-10.0, 0.0, 10.0] -> sum R21 = 0.0 (0)
+;    - COUNT (4): [1.0, 0.0, 2.0] -> sum R23 = 3.0 (1077936128)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R5 = 3}
+; {EXPECT: R6 = 3246915584}
+; {EXPECT: R7 = 3267887104}
+; {EXPECT: R8 = 3240099840}
+; {EXPECT: R9 = 3221225472}
+; {EXPECT: R10 = 0}
+; {EXPECT: R11 = 2}
+; {EXPECT: R14 = 0}
+; {EXPECT: R19 = 3242196992}
+; {EXPECT: R21 = 0}
+; {EXPECT: R23 = 1077936128}
+
+.data
+.csr_inline GRAPH_LANE = {
+    0: [0, 1],
+    1: [1],
+    2: [2, 3],
+    3: []
+}
+.set VALID_MASK = [0, 2, 3]
+.set LANE_SEEDS = [0, 1, 2]
+.array_float ATTR_NEG = [-10.0, 999.0, -2.0, -5.0]
+.array_float ALL_NEG_SQRT = [-1.0, -4.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_LANE
+0x01: OP_LOAD_INLINE_SET         R1, VALID_MASK
+0x02: OP_LOAD_INLINE_ARRAY       R2, ATTR_NEG
+0x03: OP_INIT_MOCK_NODE_ATTR     5, R2, R1
+0x04: OP_GATHER_NODE_ATTR        R3, R1, 0, 5
+
+0x05: OP_EXTRACT_VALIDITY        R4, R3
+0x06: OP_SET_CARDINALITY         R5, R4
+
+0x07: OP_REDUCE                  R6, R3, BINARY_OP_ADD
+0x08: OP_REDUCE                  R7, R3, BINARY_OP_MUL
+0x09: OP_REDUCE                  R8, R3, BINARY_OP_MIN
+0x0A: OP_REDUCE                  R9, R3, BINARY_OP_MAX
+0x0B: OP_REDUCE                  R10, R3, BINARY_OP_ARGMIN
+0x0C: OP_REDUCE                  R11, R3, BINARY_OP_ARGMAX
+
+0x0D: OP_LOAD_INLINE_ARRAY       R12, ALL_NEG_SQRT
+0x0E: OP_VEC_MATH_UNARY          R13, R12, 2
+0x0F: OP_REDUCE                  R14, R13, BINARY_OP_MUL
+
+0x10: OP_LOAD_INLINE_SET         R15, LANE_SEEDS
+0x11: OP_LANE_INIT_SEEDS         R16, R15, 0
+0x12: OP_LANE_CSR_WALK           R17, R16, 0, 1
+
+0x13: OP_LANE_REDUCE_ATTR        R18, R17, R3, BINARY_OP_MAX, 1
+0x14: OP_VECTOR_REDUCE_SUM       R19, R18
+0x15: OP_LANE_REDUCE_ATTR        R20, R17, R3, BINARY_OP_MUL, 1
+0x16: OP_VECTOR_REDUCE_SUM       R21, R20
+0x17: OP_LANE_REDUCE_ATTR        R22, R17, R3, 4, 1
+0x18: OP_VECTOR_REDUCE_SUM       R23, R22
+0x19: OP_HALT

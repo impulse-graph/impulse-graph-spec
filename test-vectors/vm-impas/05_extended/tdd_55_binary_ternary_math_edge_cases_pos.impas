@@ -1,0 +1,85 @@
+; ====================================================================
+; TDD_55_BINARY_TERNARY_MATH_EDGE_CASES_POS:
+; Binary & Ternary Math Signed-Zero, NaN Propagation, C99 fmod,
+; SafeDiv (Zero & NaN Divisors), Clamp with NaN Bounds, and Bit Rotates.
+;
+; Verifies:
+; 1. COPYSIGN (35) on [5.0, -5.0, 3.0, 4.0] with [-0.0, 0.0, -2.0, 1.0]:
+;    -> [-5.0, 5.0, -3.0, 4.0] -> sum R3 = 1.0 (1065353216)
+; 2. FMOD (36) on [5.5, -5.5, 7.0, 4.0] % [2.0, 2.0, 0.0, 2.0]:
+;    -> [1.5, -1.5, NaN, 0.0] -> ISNAN sum R8 = 1.0 (1065353216),
+;    COALESCE with 9.0 -> [1.5, -1.5, 9.0, 0.0] -> sum R11 = 9.0 (1091567616)
+; 3. SAFE_DIV (51) binary & ternary on [10.0, 20.0, 15.0, 8.0] / [2.0, 0.0, NaN, 4.0]:
+;    - Binary SAFE_DIV -> [5.0, 0.0, 0.0, 2.0] -> sum R16 = 7.0 (1088421888)
+;    - Ternary SAFE_DIV with fallback [-3.0, -3.0, -3.0, -3.0]
+;      -> [5.0, -3.0, -3.0, 2.0] -> sum R19 = 1.0 (1065353216)
+; 4. CLAMP (34) on [-5.0, 5.0, 15.0, 5.0] with lo=[0,0,0,0], hi=[10,10,10,NaN]:
+;    -> [0.0, 5.0, 10.0, NaN] -> ISNAN sum R25 = 1.0 (1065353216),
+;    non-NaN sum R26 = 15.0 (1097859072)
+; 5. ROTL (49) on [1.0, -5.0, 8.0, 0.0] by [3.0, 3.0, -1.0, 5.0]:
+;    -> [8.0, 0.0, 4.0, 0.0] -> sum R30 = 12.0 (1094713344)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R3 = 1065353216}
+; {EXPECT: R8 = 1065353216}
+; {EXPECT: R11 = 1091567616}
+; {EXPECT: R16 = 1088421888}
+; {EXPECT: R19 = 1065353216}
+; {EXPECT: R25 = 1065353216}
+; {EXPECT: R26 = 1097859072}
+; {EXPECT: R30 = 1094713344}
+
+.data
+.array_float CS_MAG = [5.0, -5.0, 3.0, 4.0]
+.array_float CS_SGN = [-0.0, 0.0, -2.0, 1.0]
+.array_float FMOD_A = [5.5, -5.5, 7.0, 4.0]
+.array_float FMOD_B = [2.0, 2.0, 0.0, 2.0]
+.array_float SDIV_NUM = [10.0, 20.0, 15.0, 8.0]
+.array_float SDIV_DEN_RAW = [4.0, 0.0, -9.0, 16.0]
+.array_float SDIV_FALLBACK = [-3.0, -3.0, -3.0, -3.0]
+.array_float CLAMP_X = [-5.0, 5.0, 15.0, 5.0]
+.array_float CLAMP_LO = [0.0, 0.0, 0.0, 0.0]
+.array_float CLAMP_HI_RAW = [100.0, 100.0, 100.0, -1.0]
+.array_float ROT_X = [1.0, -5.0, 8.0, 0.0]
+.array_float ROT_S = [3.0, 3.0, -1.0, 5.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY       R1, CS_MAG
+0x01: OP_LOAD_INLINE_ARRAY       R2, CS_SGN
+0x02: OP_VEC_MATH_BINARY         R4, R1, R2, 35
+0x03: OP_VECTOR_REDUCE_SUM       R3, R4
+
+0x04: OP_LOAD_INLINE_ARRAY       R5, FMOD_A
+0x05: OP_LOAD_INLINE_ARRAY       R6, FMOD_B
+0x06: OP_VEC_MATH_BINARY         R7, R5, R6, 36
+0x07: OP_VEC_MATH_UNARY          R9, R7, 52
+0x08: OP_VECTOR_REDUCE_SUM       R8, R9
+0x09: OP_LOAD_CONST_FLOAT        R10, 9.0
+0x0A: OP_COALESCE                R12, R7, R10
+0x0B: OP_VECTOR_REDUCE_SUM       R11, R12
+
+; SDIV_DEN = sqrt([4, 0, -9, 16]) = [2.0, 0.0, NaN, 4.0]
+0x0C: OP_LOAD_INLINE_ARRAY       R13, SDIV_NUM
+0x0D: OP_LOAD_INLINE_ARRAY       R14, SDIV_DEN_RAW
+0x0E: OP_VEC_MATH_UNARY          R15, R14, 2
+0x0F: OP_VEC_MATH_BINARY         R17, R13, R15, 51
+0x10: OP_VECTOR_REDUCE_SUM       R16, R17
+0x11: OP_LOAD_INLINE_ARRAY       R18, SDIV_FALLBACK
+0x12: OP_VEC_MATH_TERNARY        R20, R13, R15, R18, 51
+0x13: OP_VECTOR_REDUCE_SUM       R19, R20
+
+; CLAMP_HI = sqrt([100, 100, 100, -1]) = [10.0, 10.0, 10.0, NaN]
+0x14: OP_LOAD_INLINE_ARRAY       R21, CLAMP_X
+0x15: OP_LOAD_INLINE_ARRAY       R22, CLAMP_LO
+0x16: OP_LOAD_INLINE_ARRAY       R23, CLAMP_HI_RAW
+0x17: OP_VEC_MATH_UNARY          R24, R23, 2
+0x18: OP_VEC_MATH_TERNARY        R27, R21, R22, R24, 34
+0x19: OP_VEC_MATH_UNARY          R28, R27, 52
+0x1A: OP_VECTOR_REDUCE_SUM       R25, R28
+0x1B: OP_VECTOR_REDUCE_SUM       R26, R27
+
+0x1C: OP_LOAD_INLINE_ARRAY       R31, ROT_X
+0x1D: OP_LOAD_INLINE_ARRAY       R32, ROT_S
+0x1E: OP_VEC_MATH_BINARY         R29, R31, R32, 49
+0x1F: OP_VECTOR_REDUCE_SUM       R30, R29
+0x20: OP_HALT
