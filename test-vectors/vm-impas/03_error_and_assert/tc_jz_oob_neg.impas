@@ -3,8 +3,13 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
 
+.data
+.array_float VEC_A = [5.0, 5.0]
+.array_float VEC_B = [6.0, 6.0]
+
 .text
-0x00: OP_LOAD_CONST_INT R0, 0
-0x01: OP_VEC_CMP_EQ R0, R0, R0
-0x02: OP_JZ 100
-0x03: OP_HALT
+0x00: OP_LOAD_INLINE_ARRAY R0, VEC_A
+0x01: OP_LOAD_INLINE_ARRAY R1, VEC_B
+0x02: OP_VEC_CMP_EQ R0, R0, R1
+0x03: OP_JZ 100
+0x04: OP_HALT

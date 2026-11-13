@@ -1,5 +1,5 @@
 ; Group 7 TDD: OP_STREAM_LOAD_SRC_ID (0xBA) with invalid mode 3
-; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPCODE}
 .data
 .csr_inline G = {
     0: [1],
