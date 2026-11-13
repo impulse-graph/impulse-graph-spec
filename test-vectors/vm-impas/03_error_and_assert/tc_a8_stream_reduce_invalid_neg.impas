@@ -1,0 +1,11 @@
+; Group 6 TDD: OP_STREAM_REDUCE (0xA8) outside stream block / invalid monoid
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, G
+0x01: OP_STREAM_REDUCE   R2, R10, 99
+0x02: OP_HALT

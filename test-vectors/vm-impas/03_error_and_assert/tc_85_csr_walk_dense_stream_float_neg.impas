@@ -1,0 +1,12 @@
+; Group 5 TDD: OP_CSR_WALK_DENSE_STREAM (0x85) with invalid TYPE_FLOAT source
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH       R0, G
+0x01: OP_LOAD_CONST_FLOAT      R1, 1.5
+0x02: OP_CSR_WALK_DENSE_STREAM R2, R1, 0
+0x03: OP_HALT

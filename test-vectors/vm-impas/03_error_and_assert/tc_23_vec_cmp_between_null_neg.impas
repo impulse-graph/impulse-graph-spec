@@ -1,0 +1,11 @@
+; Group 2 TDD: OP_VEC_CMP_BETWEEN (0x23) with invalid TYPE_NULL source
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, G
+0x01: OP_VEC_CMP_BETWEEN R2, R10, R11, R12
+0x02: OP_HALT
