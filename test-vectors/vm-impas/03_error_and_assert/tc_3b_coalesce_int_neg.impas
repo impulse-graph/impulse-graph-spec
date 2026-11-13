@@ -1,0 +1,12 @@
+; Group 3 TDD: OP_COALESCE (0x3B) with invalid TYPE_INT64 vector source
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, G
+0x01: OP_LOAD_CONST_INT  R1, 42
+0x02: OP_COALESCE        R2, R1, R1
+0x03: OP_HALT

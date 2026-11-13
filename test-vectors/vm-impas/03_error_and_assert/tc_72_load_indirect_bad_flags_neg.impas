@@ -1,0 +1,12 @@
+; Group 6 TDD: OP_LOAD_INDIRECT (0x72) with invalid flags / non-zero flag mode
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, G
+0x01: OP_LOAD_CONST_INT  R1, 0
+0x02: OP_LOAD_INDIRECT   R2, R1, R1, 2
+0x03: OP_HALT

@@ -1,0 +1,11 @@
+; Group 4 TDD: OP_LOAD_COLUMN_VECTOR (0x80) with OOB attr_id
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, G
+0x01: OP_LOAD_COLUMN_VECTOR  R2, 0, 9999
+0x02: OP_HALT

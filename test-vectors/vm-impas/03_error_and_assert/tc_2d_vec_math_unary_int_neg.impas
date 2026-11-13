@@ -1,0 +1,12 @@
+; Group 7 TDD: OP_VEC_MATH_UNARY (0x2D) with invalid TYPE_INT64 source
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH R0, G
+0x01: OP_LOAD_CONST_INT  R1, 42
+0x02: OP_VEC_MATH_UNARY  R2, R1, 0
+0x03: OP_HALT

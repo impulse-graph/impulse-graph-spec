@@ -1,0 +1,12 @@
+; Group 2 TDD: OP_ROARING_BITMAP_OR (0x6B) with non-roaring / OOB handle
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+.data
+.csr_inline G = {
+    0: [1],
+    1: []
+}
+.text
+0x00: OP_INIT_MOCK_GRAPH  R0, G
+0x01: OP_LOAD_CONST_INT   R1, 999999
+0x02: OP_ROARING_BITMAP_OR R2, R1, R1
+0x03: OP_HALT
