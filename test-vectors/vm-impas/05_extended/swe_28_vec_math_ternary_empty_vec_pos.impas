@@ -1,0 +1,18 @@
+; ====================================================================
+; SWE_28: OP_VEC_MATH_TERNARY with empty vector operand yields empty vector (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 0}
+; {EXPECT: FLAG = ZF}
+
+.data
+.array_float VEC_EMPTY = []
+.array_float VEC_FULL  = [1.0, 2.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_EMPTY
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_FULL
+0x02: OP_LOAD_CONST_FLOAT    R2, 3.0
+0x03: OP_VEC_MATH_TERNARY    R3, R0, R1, R2, 0
+0x04: OP_VECTOR_REDUCE_SUM   R4, R3
+0x05: OP_HALT

@@ -1,0 +1,12 @@
+; ====================================================================
+; SWE_33: OP_INIT_MOCK_NODE_ATTR with OOB register returns INVALID_REGISTER (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.array_float VEC_A = [1.0, 2.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_INIT_MOCK_NODE_ATTR R0, R70, 0
+0x02: OP_HALT

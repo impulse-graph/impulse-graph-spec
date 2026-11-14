@@ -1,0 +1,18 @@
+; ====================================================================
+; SWE_26: OP_MOV aliasing with TDoubleVector in-place op does not mutate source (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R2 = 4613937818241073152} ; 3.0 (f64)
+; {EXPECT: R3 = 4618441417868443648} ; 6.0 (f64)
+
+.data
+.array_float VEC_A = [1.0, 2.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_VEC_MATH_UNARY      R0, R0, 1, 1 ; TDoubleVector [1.0, 2.0]
+0x02: OP_MOV                 R1, R0
+0x03: OP_VEC_MATH_BINARY     R1, R1, R0, 0, 1 ; ADD -> [2.0, 4.0]
+0x04: OP_VECTOR_REDUCE_SUM   R2, R0
+0x05: OP_VECTOR_REDUCE_SUM   R3, R1
+0x06: OP_HALT

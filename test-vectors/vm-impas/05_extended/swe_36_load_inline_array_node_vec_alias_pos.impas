@@ -1,0 +1,17 @@
+; ====================================================================
+; SWE_36: OP_LOAD_INLINE_ARRAY NodeVector does not collide with FloatVector handles (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R3 = 30} ; R0 = [10, 20] -> SUM = 30
+
+.data
+.array_int INT_A = [10, 20]
+.array_float FLT_A = [1.0, 2.0]
+.array_int INT_B = [100, 200]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, INT_A
+0x01: OP_LOAD_INLINE_ARRAY   R1, FLT_A
+0x02: OP_LOAD_INLINE_ARRAY   R2, INT_B
+0x03: OP_REDUCE              R3, R0, 0
+0x04: OP_HALT

@@ -1,0 +1,20 @@
+; ====================================================================
+; SWE_35: OP_CSR_WALK_REDUCE_SUM skips NaN node weights (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R3 = 1084227584} ; 5.0f (1.0 + 4.0; NaN skipped)
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2, 3]
+}
+.set SEED_SET = [0]
+.array_float NODE_ATTRS = [0.0, 1.0, NaN, 4.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_A
+0x01: OP_LOAD_INLINE_ARRAY   R2, NODE_ATTRS
+0x02: OP_INIT_MOCK_NODE_ATTR R0, R2, 0
+0x03: OP_LOAD_INLINE_SET     R1, SEED_SET
+0x04: OP_CSR_WALK_REDUCE_SUM R3, R1, R0
+0x05: OP_HALT
