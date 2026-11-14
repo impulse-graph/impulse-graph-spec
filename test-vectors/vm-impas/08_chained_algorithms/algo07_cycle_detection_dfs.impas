@@ -14,10 +14,11 @@
     2: [0, 3],
     3: []
 }
+.set SEED_0 = [0]
 
 .text
 0x00: OP_INIT_MOCK_GRAPH         R0, CYCLE_GRAPH
-0x01: OP_INIT_INPUT_NODE         R1, 0
+0x01: OP_LOAD_INLINE_SET         R1, SEED_0
 0x02: OP_SET_UNION               R2, R1, R1
 0x03: OP_CSR_WALK                R3, R1, 0
 0x04: OP_SET_INTERSECT           R4, R3, R2

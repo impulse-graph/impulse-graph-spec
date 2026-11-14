@@ -4,9 +4,13 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 
+.data
+.array_float VEC_T = [10.0, 10.0]
+.array_float VEC_F = [20.0, 20.0]
+
 .text
-0x00: OP_LOAD_CONST_INT      R0, 10
-0x01: OP_LOAD_CONST_INT      R1, 20
-0x02: OP_LOAD_CONST_INT      R2, 1
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_T
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_F
+0x02: OP_INIT_INPUT_SET      R2, 1
 0x03: OP_VEC_BLEND           R3, R2, R0, R1
 0x04: OP_HALT

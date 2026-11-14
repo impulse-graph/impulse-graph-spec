@@ -1,5 +1,5 @@
 ; Group 7 TDD: OP_STREAM_MATH_UNARY (0xAF) with invalid TYPE_INT64 source
-; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPCODE}
 .data
 .csr_inline G = {
     0: [1],

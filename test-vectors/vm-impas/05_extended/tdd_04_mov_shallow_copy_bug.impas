@@ -7,16 +7,20 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 
+.data
+.set S_10 = [10]
+.set S_20 = [20]
+
 .text
 ; Initialize R1 with a single element {10}
-0x00: OP_LOAD_CONST_INT R1, 10
+0x00: OP_LOAD_INLINE_SET R1, S_10
 
 ; Move R1 into R2
 0x01: OP_MOV R2, R1
 
 ; Mutate R2 by adding {20}
 ; R2 should now be {10, 20}
-0x02: OP_LOAD_CONST_INT R3, 20
+0x02: OP_LOAD_INLINE_SET R3, S_20
 0x03: OP_SET_UNION R2, R2, R3
 
 ; If Java shallow copy bug exists, R1 will ALSO contain {10, 20}.

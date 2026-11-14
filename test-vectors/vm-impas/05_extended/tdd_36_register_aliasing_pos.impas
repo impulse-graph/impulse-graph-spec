@@ -32,6 +32,10 @@
     3: [4]
 }
 .array_float VEC_A = [10.0, 20.0, 30.0, 40.0, 50.0]
+.set SET_1 = [1]
+.set SET_2 = [2]
+.set SET_3 = [3]
+.set SET_4 = [4]
 
 .text
 OP_INIT_MOCK_GRAPH       R0, GRAPH_A
@@ -61,19 +65,19 @@ OP_LOAD_CONST_FLOAT      R3, 40.0
 OP_VEC_CMP_BETWEEN       R1, R1, R2, R3
 OP_SET_CARDINALITY       R13, R1
 
-; 5. OP_SET_UNION with dst == src1 (scalar node ID)
-OP_INIT_INPUT_NODE       R4, 1
-OP_INIT_INPUT_NODE       R5, 2
+; 5. OP_SET_UNION with dst == src1
+OP_LOAD_INLINE_SET       R4, SET_1
+OP_LOAD_INLINE_SET       R5, SET_2
 OP_SET_UNION             R4, R4, R5
 OP_SET_CARDINALITY       R14, R4
 
-; 6. OP_SET_INTERSECT with dst == src2 (scalar node ID)
+; 6. OP_SET_INTERSECT with dst == src2
 OP_SET_INTERSECT         R5, R4, R5
 OP_SET_CARDINALITY       R15, R5
 
-; 7. OP_SET_DIFFERENCE with dst == src1 (scalar node ID)
-OP_INIT_INPUT_NODE       R6, 3
-OP_INIT_INPUT_NODE       R7, 4
+; 7. OP_SET_DIFFERENCE with dst == src1
+OP_LOAD_INLINE_SET       R6, SET_3
+OP_LOAD_INLINE_SET       R7, SET_4
 OP_SET_DIFFERENCE        R6, R6, R7
 OP_SET_CARDINALITY       R16, R6
 
