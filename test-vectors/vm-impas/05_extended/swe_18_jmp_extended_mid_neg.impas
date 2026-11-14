@@ -1,0 +1,14 @@
+; ====================================================================
+; SWE_18: OP_JMP into 2nd word of OP_FLAG_EXTENDED instruction (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPCODE}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1]
+}
+
+.text
+0x00: OP_JMP                 0x02
+0x01: OP_CSR_WALK_PREDICATE  R2, R0, R1, 300
+0x03: OP_HALT

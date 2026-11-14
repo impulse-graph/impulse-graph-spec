@@ -1,0 +1,19 @@
+; ====================================================================
+; SWE_14: OP_ISLAND_DETECT with TYPE_NODE_ID in src2 (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1],
+    1: [0],
+    2: [3],
+    3: [2]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_A
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_INIT_INPUT_NODE     R2, 2
+0x03: OP_ISLAND_DETECT       R3, R1, R2
+0x04: OP_HALT

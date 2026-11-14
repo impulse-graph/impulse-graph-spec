@@ -1,0 +1,21 @@
+; ====================================================================
+; SWE_24: OP_STREAM_SELECT with out-of-bounds false register >= 16 (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH   R0, GRAPH_A
+0x01: OP_INIT_INPUT_NODE   R3, 0
+0x02: OP_CLEAR_REG         R4
+0x03: OP_COO_WALK_STREAM   R0, R3, 0, 5
+0x04: OP_HALT
+
+0x05: OP_STREAM_FUNC_BEGIN
+0x06: OP_STREAM_LOAD_TGT_ID 0
+0x07: OP_STREAM_SELECT      6, 0, 0, 20
+0x08: OP_STREAM_FUNC_END

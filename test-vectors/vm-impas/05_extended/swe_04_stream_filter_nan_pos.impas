@@ -1,0 +1,28 @@
+; ====================================================================
+; SWE_04: OP_STREAM_FILTER rejects NaN (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_SUCCESS}
+; {EXPECT: R5 = 1077936128} ; 3.0 (1.0 + 2.0; NaN edge must be filtered out)
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2, 3]
+}
+.array_float ATTR_EDGE = [1.0, NaN, 2.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH   R0, GRAPH_A
+0x01: OP_LOAD_INLINE_ARRAY R2, ATTR_EDGE
+0x02: OP_INIT_MOCK_EDGE_ATTR R2, R2, 0
+0x03: OP_INIT_INPUT_NODE   R3, 0
+0x04: OP_CLEAR_REG         R4
+0x05: OP_CLEAR_REG         R5
+0x06: OP_COO_WALK_STREAM   R0, R3, 0, 9
+0x07: OP_VECTOR_REDUCE_SUM R5, R4
+0x08: OP_HALT
+
+0x09: OP_STREAM_FUNC_BEGIN
+0x0A: OP_STREAM_LOAD_EDGE  0, 2
+0x0B: OP_STREAM_FILTER     0
+0x0C: OP_STREAM_REDUCE     0, 4, 0
+0x0D: OP_STREAM_FUNC_END

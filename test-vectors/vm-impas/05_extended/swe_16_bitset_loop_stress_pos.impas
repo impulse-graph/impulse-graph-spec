@@ -1,0 +1,22 @@
+; ====================================================================
+; SWE_16: Bitset handle leak stress loop (OP_CSR_WALK + OP_SET_DIFFERENCE)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [2],
+    2: [0]
+}
+
+.text
+0x00: OP_INIT_MOCK_GRAPH     R0, GRAPH_A
+0x01: OP_INIT_INPUT_NODE     R1, 0
+0x02: OP_CSR_WALK            R2, R1, 0
+0x03: OP_LOAD_CONST_INT      R10, 500
+0x04: OP_CSR_WALK            R3, R2, 0
+0x05: OP_SET_DIFFERENCE      R4, R3, R2
+0x06: OP_LOOP_DECR           R10, 1
+0x07: OP_JNZ                 -3
+0x08: OP_HALT
