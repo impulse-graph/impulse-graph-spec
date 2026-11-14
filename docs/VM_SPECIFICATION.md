@@ -211,8 +211,8 @@ All Walk-based traversal instructions (`OP_CSR_WALK`, `OP_CSR_WALK_FILTERED`, `O
 
 - **`OP_CSR_WALK`** (`0x10`)
   - **Behavior**: Traverse relationship edges using Compressed Sparse Row topology. Takes source nodes from `src` (lower 16 bits of payload), follows the relation `rel` (upper 16 bits of payload), and writes target nodes into `dst_reg`.
-  - **Usage**: If `src` contains a BitSet handle or single Node ID, it retrieves offsets and column targets from relation slot `rel` and performs a union of targets into `dst_reg`. Respects `ACCUMULATE` modifier flag to append targets.
-  - **Type Requirements**: Source nodes register `src` **MUST** be `TYPE_BITSET_HANDLE` or `TYPE_NODE_ID`.
+  - **Usage**: If `src` contains a BitSet handle, single Node ID, Node/Uint64 vector, or `TYPE_NULL` (representing the full-domain seed frontier), it retrieves offsets and column targets from relation slot `rel` and performs a union of targets into `dst_reg`. Respects `ACCUMULATE` modifier flag to append targets.
+  - **Type Requirements**: Source nodes register `src` **MUST** satisfy `FrontierSource` (`TYPE_BITSET_HANDLE | TYPE_NODE_ID | TYPE_NODE_VECTOR | TYPE_UINT64_VECTOR | TYPE_NULL`). Raw untagged `TYPE_INT64` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER` to enforce domain-bound node IDs.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_CSR_WALK_FILTERED`** (`0x11`)
   - **Behavior**: Walk CSR applying attribute filter constraints.
@@ -236,7 +236,7 @@ All Walk-based traversal instructions (`OP_CSR_WALK`, `OP_CSR_WALK_FILTERED`, `O
   - **Note**: This opcode is a generalized reduction operation that dynamically evaluates the operator (e.g., `0` = Minimum, `1` = Maximum) specified by `reduce_op` (`(payload >> 8) & 0xFF`) via conditional branch evaluations inside the traversal loops. The branch checking overhead prevents auto-vectorization, resulting in lower execution throughput compared to the specialized `0x16` opcode.
 - **`OP_CSC_WALK`** (`0x18`)
   - **Behavior**: Traverse relationship edges backwards using Compressed Sparse Column topology.
-  - **Type Requirements**: Source nodes register **MUST** be `TYPE_BITSET_HANDLE` or `TYPE_NODE_ID`.
+  - **Type Requirements**: Source nodes register **MUST** satisfy `FrontierSource` (`TYPE_BITSET_HANDLE | TYPE_NODE_ID | TYPE_NODE_VECTOR | TYPE_UINT64_VECTOR | TYPE_NULL`). Raw untagged `TYPE_INT64` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_HAS_CSR`** (`0x19`)
   - **Behavior**: Verify if relation has a CSR layout. Sets `flags[EQ]` accordingly.
@@ -257,15 +257,16 @@ Set math and algebraic instructions are classified based on the number and struc
 
 - **`OP_SET_UNION`** (`0x30`)
   - **Behavior**: Union bitset arrays from two source registers.
-  - **Type Requirements**: Source registers **MUST** be `TYPE_BITSET_HANDLE`.
+  - **Type Requirements**: Source registers **MUST** satisfy `SetOperand` (`TYPE_BITSET_HANDLE | TYPE_NODE_VECTOR`); scalar `TYPE_INT64` and `TYPE_NULL` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
 - **`OP_SET_INTERSECT`** (`0x31`)
   - **Behavior**: Intersect bitset arrays from two source registers.
-  - **Type Requirements**: Source registers **MUST** be `TYPE_BITSET_HANDLE`.
+  - **Type Requirements**: Source registers **MUST** satisfy `SetOperand` (`TYPE_BITSET_HANDLE | TYPE_NODE_VECTOR`); scalar `TYPE_INT64` and `TYPE_NULL` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
 - **`OP_SET_DIFFERENCE`** (`0x32`)
   - **Behavior**: Subtract second register bitset from the first register bitset.
-  - **Type Requirements**: Source registers **MUST** be `TYPE_BITSET_HANDLE`.
+  - **Type Requirements**: Source registers **MUST** satisfy `SetOperand` (`TYPE_BITSET_HANDLE | TYPE_NODE_VECTOR`); scalar `TYPE_INT64` and `TYPE_NULL` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
 - **`OP_SET_CARDINALITY`** (`0x33`)
   - **Behavior**: Compute population count of BitSet. Writes count to `dst_reg`.
+  - **Type Requirements**: Source register **MUST** satisfy `SetOperand` (`TYPE_BITSET_HANDLE | TYPE_NODE_VECTOR`); scalar `TYPE_INT64` and `TYPE_NULL` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_INT64`.
 - **`OP_VECTOR_MUL_ATTR`** (`0x34`)
   - **Behavior**: Element-wise multiplication of vector and attribute arrays.
@@ -273,19 +274,21 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Behavior**: Compute sum of elements in a vector register.
 - **`OP_VECTOR_DIV`** (`0x36`)
   - **Behavior**: Element-wise division.
+  - **Type Requirements**: Source registers **MUST** be numeric vectors (`TYPE_FLOAT_VECTOR | TYPE_DOUBLE_VECTOR`) or float/double scalars where supported; `TYPE_INT64` and `TYPE_NULL` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
 - **`OP_VECTOR_STR_CONCAT`** (`0x37`)
   - **Behavior**: Join vector string fields.
 - **`OP_FLOAT_VECTOR_SCALE`** (`0x38`)
   - **Behavior**: Perform float vector scaling operation.
 - **`OP_L1_NORM_DIFF`** (`0x39`)
   - **Behavior**: Calculate L1 Norm of differences between vectors.
+  - **Type Requirements**: Source registers **MUST** be numeric vectors (`TYPE_FLOAT_VECTOR | TYPE_DOUBLE_VECTOR`) or `TYPE_FLOAT` scalars; `TYPE_INT64` and `TYPE_NULL` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`.
 
-- **`OP_COALESCE`** (`0x28`)
+- **`OP_COALESCE`** (`0x3B`)
   - **Behavior**: Coalesces a nullable vector into a dense vector by replacing null elements with a fallback value.
-  - **Usage**: Expects `dst_reg`, `src_reg` (nullable vector), and a fallback loaded in a third register (specified in the payload). Replaces elements where validity bit is `0` with the fallback value. The resulting `dst_reg` vector **MUST NOT** have a validity bitmap.
-- **`OP_EXTRACT_VALIDITY`** (`0x29`)
+  - **Usage**: Expects `dst_reg`, `src1` (nullable `NumericVec`: `TYPE_FLOAT_VECTOR | TYPE_DOUBLE_VECTOR`), and a fallback in `src2` (`TYPE_FLOAT_VECTOR | TYPE_DOUBLE_VECTOR | TYPE_FLOAT | TYPE_DOUBLE`). `TYPE_INT64` and `TYPE_NULL` in `src1` **MUST** be rejected with `IMPULSE_VM_ERR_INVALID_REGISTER`. Replaces elements where validity bit is `0` with the fallback value. The resulting `dst_reg` vector **MUST NOT** have a validity bitmap.
+- **`OP_EXTRACT_VALIDITY`** (`0x3C`)
   - **Behavior**: Extracts the validity bitmap of a nullable vector as a BitSet.
-  - **Usage**: Expects `dst_reg` and `src_reg` (the nullable vector). If `src_reg` is nullable, creates a BitSet handle in `dst_reg` wrapping the validity bitmap (yielding an $O(1)$ `IS NOT NULL` mask). If `src_reg` is not nullable, returns a BitSet containing all `1`s for the length of the vector.
+  - **Usage**: Expects `dst_reg` and `src_reg` (the nullable numeric vector: `TYPE_FLOAT_VECTOR | TYPE_DOUBLE_VECTOR`). If `src_reg` is nullable, creates a BitSet handle in `dst_reg` wrapping the validity bitmap (yielding an $O(1)$ `IS NOT NULL` mask). If `src_reg` is not nullable, returns a BitSet containing all `1`s for the length of the vector.
   - **Type Transition**: `dst_reg` type tag **MUST** become `TYPE_BITSET_HANDLE`.
 - **`OP_VECTOR_TIME_VALID_AT`** (`0x3D`)
   - **Behavior**: Evaluates temporal bounds to determine which elements are active at a given timestamp.
@@ -402,15 +405,17 @@ Set math and algebraic instructions are classified based on the number and struc
   - **Behavior**: Materialize map keys/values into FFI structs.
 
 ### 6.9 Reserved Opcodes
-- **`OP_RESERVED_0A`** through **`OP_RESERVED_0F`** (`0x0A`–`0x0F`)
-- **`OP_RESERVED_1D`** through **`OP_RESERVED_2F`** (`0x1D`–`0x2F`)
-- **`OP_RESERVED_3A`** through **`OP_RESERVED_3F`** (`0x3A`–`0x3F`)
-- **`OP_RESERVED_4C`** through **`OP_RESERVED_4F`** (`0x4C`–`0x4F`)
+- **`OP_RESERVED_0C`** through **`OP_RESERVED_0D`** (`0x0C`–`0x0D`)
+- **`OP_RESERVED_28`** through **`OP_RESERVED_29`** (`0x28`–`0x29`)
+- **`OP_RESERVED_2B`** through **`OP_RESERVED_2C`** (`0x2B`–`0x2C`)
+- **`OP_RESERVED_3A`** (`0x3A`)
+- **`OP_RESERVED_3E`** through **`OP_RESERVED_3F`** (`0x3E`–`0x3F`)
+- **`OP_RESERVED_4F`** (`0x4F`)
 - **`OP_RESERVED_59`** (`0x59`)
 - **`OP_RESERVED_5D`** through **`OP_RESERVED_5F`** (`0x5D`–`0x5F`)
 - **`OP_RESERVED_6D`** through **`OP_RESERVED_6F`** (`0x6D`–`0x6F`)
-- **`OP_RESERVED_76`** through **`OP_RESERVED_8F`** (`0x76`–`0x8F`)
-- **`OP_RESERVED_90_9F`** (`0x96`–`0x9F`)
+- **`OP_RESERVED_76`** through **`OP_RESERVED_7F`** (`0x76`–`0x7F`)
+- **`OP_RESERVED_96`** through **`OP_RESERVED_9F`** (`0x96`–`0x9F`)
 - **`OP_RESERVED_CC_FE`** (`0xCC`–`0xFE`)
   - **Behavior**: Execution of any reserved opcode **MUST** immediately halt virtual machine execution and return the status `IMPULSE_VM_ERR_RESERVED_OPCODE` (`10`).
 
@@ -421,7 +426,7 @@ Edge Stream Shaders enable execution of inline Common Expression Language (CEL) 
   - **Behavior**: Executes an edge shader pipeline over an adjacency matrix (COO, CSR, or CSC respectively).
   - **Usage**: Expects `dst_reg` (the graph/relation handle loaded via `OP_INIT_MOCK_GRAPH` or similar), `src_reg` (source vector or node set passed in `payload_low`), `rel_id` (relationship ID in `payload_high`), and `flags` containing the `shader_pc` (the instruction index where the shader pipeline begins).
 - **`OP_STREAM_FUNC_BEGIN`** (`0xA1`), **`OP_STREAM_FUNC_END`** (`0xA2`)
-  - **Behavior**: Lexical delimiters defining the boundaries of an edge shader pipeline. The VM **MUST** ensure execution remains bounded within these markers.
+  - **Behavior**: Lexical delimiters defining the boundaries of an edge shader pipeline. The VM **MUST** ensure execution remains bounded within these markers. Stream shader sub-opcodes (`0xA3`–`0xA8`, `0xAB`–`0xBF`) are only valid inside an active `OP_*_WALK_STREAM` shader block bounded by `0xA1` and `0xA2`; encountering any such sub-opcode in top-level outer VM dispatch **MUST** trap and return `IMPULSE_VM_ERR_INVALID_OPCODE`.
 - **`OP_STREAM_LOAD_SRC`** (`0xA3`), **`OP_STREAM_LOAD_TGT`** (`0xAB`), **`OP_STREAM_LOAD_EDGE`** (`0xA4`)
   - **Behavior**: Loads data attributes associated with the current Source Node, Target Node, or Edge into a shader register (`S0-S15`).
   - **Usage**: `dst_reg` points to the destination shader register. Payload indicates the `attr_id`.
