@@ -1,0 +1,10 @@
+; ====================================================================
+; SWE_10: OP_VECTOR_DIV with scalar TYPE_FLOAT operand (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}
+
+.text
+0x00: OP_LOAD_CONST_FLOAT    R0, 2.0
+0x01: OP_LOAD_CONST_FLOAT    R1, 1.0
+0x02: OP_VECTOR_DIV          R2, R0, R1
+0x03: OP_HALT

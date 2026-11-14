@@ -1,0 +1,8 @@
+; ====================================================================
+; SWE_19: OP_JMP with out-of-bounds target >= instructionCount (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_JMP                 99
+0x01: OP_HALT

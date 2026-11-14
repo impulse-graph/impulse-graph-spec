@@ -1,0 +1,8 @@
+; ====================================================================
+; SWE_13: OP_ALLOC_SCRATCH with negative/overflow byte count (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+
+.text
+0x00: OP_ALLOC_SCRATCH       R0, -64
+0x01: OP_HALT

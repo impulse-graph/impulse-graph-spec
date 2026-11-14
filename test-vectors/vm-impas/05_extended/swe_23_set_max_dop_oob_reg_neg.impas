@@ -1,0 +1,8 @@
+; ====================================================================
+; SWE_23: OP_SET_MAX_DOP with out-of-bounds register R64 (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_REGISTER}
+
+.text
+0x00: OP_SET_MAX_DOP         R64, 4
+0x01: OP_HALT
