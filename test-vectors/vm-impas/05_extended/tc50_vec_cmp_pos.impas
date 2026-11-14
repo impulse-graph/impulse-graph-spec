@@ -3,10 +3,15 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 
+.data
+.array_float VEC_1 = [10.0, 20.0]
+.array_float VEC_2 = [20.0, 20.0]
+.array_float VEC_3 = [30.0, 30.0]
+
 .text
-0x00: OP_LOAD_CONST_INT      R1, 10
-0x01: OP_LOAD_CONST_INT      R2, 20
-0x01_1: OP_LOAD_CONST_INT    R3, 30
+0x00: OP_LOAD_INLINE_ARRAY   R1, VEC_1
+0x01: OP_LOAD_INLINE_ARRAY   R2, VEC_2
+0x01_1: OP_LOAD_INLINE_ARRAY R3, VEC_3
 0x02: OP_VEC_CMP_EQ          R0, 0x0201
 0x03: OP_VEC_CMP_GT          R0, 0x0201
 0x04: OP_VEC_CMP_LT          R0, 0x0201

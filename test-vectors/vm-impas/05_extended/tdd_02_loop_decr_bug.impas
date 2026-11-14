@@ -7,6 +7,9 @@
 ; ====================================================================
 ; {EXPECT: STATUS = IMPULSE_VM_OK}
 
+.data
+.set S_1 = [1]
+
 .text
 ; Initialize loop counter to 1
 0x00: OP_LOAD_CONST_INT R1, 1
@@ -15,7 +18,7 @@
 0x01: OP_INIT_INPUT_SET R2, 0
 
 ; Loop Start (Index 2)
-0x02: OP_LOAD_CONST_INT R3, 1
+0x02: OP_LOAD_INLINE_SET R3, S_1
 0x03: OP_SET_UNION R2, R2, R3
 
 ; C++: Decrements R1 to 0. 0 is not > 0. Does NOT branch. (1 iteration total). Sets ZF.

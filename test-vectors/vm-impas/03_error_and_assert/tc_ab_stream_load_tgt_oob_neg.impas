@@ -1,5 +1,5 @@
 ; Group 7 TDD: OP_STREAM_LOAD_TGT (0xAB) with OOB attr_id
-; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+; {EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPCODE}
 .data
 .csr_inline G = {
     0: [1],
