@@ -1,0 +1,15 @@
+; ====================================================================
+; SWE_30: OP_REDUCE ARGMIN/ARGMAX on non-empty all-NaN vector returns -1 (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R1 = -1}
+; {EXPECT: R2 = -1}
+
+.data
+.array_float VEC_NAN = [NaN, NaN, NaN]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_NAN
+0x01: OP_REDUCE              R1, R0, 6 ; ARGMIN -> -1
+0x02: OP_REDUCE              R2, R0, 7 ; ARGMAX -> -1
+0x03: OP_HALT

@@ -1,0 +1,16 @@
+; ====================================================================
+; SWE_31: OP_VECTOR_DIV on short vector (len != 1024) preserves length (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R3 = 1088421888} ; 7.0f (6/2 + 8/4 + 10/5 = 3 + 2 + 2 = 7.0)
+
+.data
+.array_float VEC_A = [6.0, 8.0, 10.0]
+.array_float VEC_B = [2.0, 4.0, 5.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x01: OP_LOAD_INLINE_ARRAY   R1, VEC_B
+0x02: OP_VECTOR_DIV          R2, R0, R1
+0x03: OP_VECTOR_REDUCE_SUM   R3, R2
+0x04: OP_HALT

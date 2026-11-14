@@ -1,0 +1,10 @@
+; ====================================================================
+; SWE_32: OP_CALL with OOB target does not clobber R0 before failing (Negative Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
+; {EXPECT: R0 = 123}
+
+.text
+0x00: OP_LOAD_CONST_INT      R0, 123
+0x01: OP_CALL                99
+0x02: OP_HALT

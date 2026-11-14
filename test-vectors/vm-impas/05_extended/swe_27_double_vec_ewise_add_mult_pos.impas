@@ -1,0 +1,23 @@
+; ====================================================================
+; SWE_27: OP_EWISE_ADD / OP_EWISE_MULT with TDoubleVector operands (Positive Test)
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R4 = 4621819117588971520} ; 10.0 (f64: (1+3) + (2+4) = 10.0)
+; {EXPECT: R5 = 4622382067542392832} ; 11.0 (f64: (1*3) + (2*4) = 11.0)
+
+.data
+.array_float VEC_PAD = [99.0, 99.0]
+.array_float VEC_A = [1.0, 2.0]
+.array_float VEC_B = [3.0, 4.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R10, VEC_PAD
+0x01: OP_LOAD_INLINE_ARRAY   R0, VEC_A
+0x02: OP_LOAD_INLINE_ARRAY   R1, VEC_B
+0x03: OP_VEC_MATH_UNARY      R0, R0, 1, 1 ; TDoubleVector [1.0, 2.0] (handle 0)
+0x04: OP_VEC_MATH_UNARY      R1, R1, 1, 1 ; TDoubleVector [3.0, 4.0] (handle 1)
+0x05: OP_EWISE_ADD           R2, R0, R1, 0
+0x06: OP_EWISE_MULT          R3, R0, R1, 0
+0x07: OP_VECTOR_REDUCE_SUM   R4, R2
+0x08: OP_VECTOR_REDUCE_SUM   R5, R3
+0x09: OP_HALT
