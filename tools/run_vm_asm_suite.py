@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 ImpulseVM Convention-Driven Assembly Test Runner & Opcode Coverage Verifier
-Spec v0.9.0 / Spec v2.4
+Spec v0.10.0
 
 Scans test-vectors/vm-impas/ for annotated .impas files, executes them against
 the ImpulseVM C-ABI engine via ctypes FFI, verifies register and status expectations,
@@ -765,7 +765,7 @@ def print_flush(*args, **kwargs):
 def main():
     print_flush(f"{BOLD}{BLUE}==============================================================={RESET}")
     print_flush(f"{BOLD}{BLUE} ImpulseVM Polyglot Assembly Test Suite & Coverage Verifier   {RESET}")
-    print_flush(f"{BOLD}{BLUE} Spec v0.9.0 / Spec v2.4                                       {RESET}")
+    print_flush(f"{BOLD}{BLUE} Spec v0.10.0                                       {RESET}")
     print_flush(f"{BOLD}{BLUE}==============================================================={RESET}\n")
 
     try:

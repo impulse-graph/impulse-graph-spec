@@ -30,11 +30,11 @@ jobs:
 
       - name: Verify Specification YAML & Contracts JSON
         run: |
-          if [ -f spec/v0.9.0.yaml ]; then
-            python -c "import yaml, json; yaml.safe_load(open('spec/v0.9.0.yaml')); json.load(open('tools/contracts.json'))"
-            echo "SUCCESS: spec/v0.9.0.yaml and tools/contracts.json are valid"
+          if [ -f spec/v0.10.0.yaml ] && [ -f spec/v0.9.0.yaml ]; then
+            python -c "import yaml, json; yaml.safe_load(open('spec/v0.10.0.yaml')); yaml.safe_load(open('spec/v0.9.0.yaml')); json.load(open('tools/contracts.json'))"
+            echo "SUCCESS: spec/v0.10.0.yaml, spec/v0.9.0.yaml, and tools/contracts.json are valid"
           else
-            echo "ERROR: spec/v0.9.0.yaml not found!"
+            echo "ERROR: spec/v0.10.0.yaml or spec/v0.9.0.yaml not found!"
             exit 1
           fi
 
