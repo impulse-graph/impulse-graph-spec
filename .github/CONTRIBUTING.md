@@ -10,7 +10,7 @@ The `impulse-graph-spec` repository is the canonical reference source for:
 - **Impulse Binary Snapshot Format (`.imps`)**: C-ABI binary layout, page headers, 128-byte alignment rules, and Section directories.
 - **Impulse VM Instruction Set Architecture (`impOps`)**: Register-based opcode semantics (`0x01`..`0x6A`), instruction encodings, and operand constraints.
 - **Compliance Test Vectors**: Cross-language conformance test suite (`tc01`..`tc36` and `vm-impas/`).
-- **Specification Schema**: Machine-readable specification definitions (`spec/v0.9.0.yaml`).
+- **Specification Schema**: Machine-readable specification definitions (`spec/v0.10.0.yaml`).
 - **Verification Harnesses**: Python test verification suite (`tools/run_vm_asm_suite.py`).
 
 ---
@@ -47,7 +47,7 @@ pip install -r requirements.txt # or: pip install pyyaml pytest
 python tools/run_vm_asm_suite.py
 
 # 3. Verify specification YAML syntax
-python -c "import yaml; yaml.safe_load(open('spec/v0.9.0.yaml'))"
+python -c "import yaml; yaml.safe_load(open('spec/v0.10.0.yaml'))"
 ```
 
 ---
