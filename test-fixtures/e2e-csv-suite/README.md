@@ -1,6 +1,6 @@
 # Canonical E2E CSV & Multi-Language Query Suite (`e2e-csv-suite`)
 
-This directory contains the canonical cross-language End-to-End (E2E) CSV compilation, binary snapshot inspection, and multi-frontend query verification suite for **Impulse Graph Engine** (`impulse-graph` Specification v0.9.0).
+This directory contains the canonical cross-language End-to-End (E2E) CSV compilation, binary snapshot inspection, and multi-frontend query verification suite for **Impulse Graph Engine** (`impulse-graph` Specification v0.10.0).
 
 ## 1. Suite Architecture & Pipeline
 

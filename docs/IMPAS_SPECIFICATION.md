@@ -1,6 +1,6 @@
 # Normative Specification: ImpAs (Impulse Assembly) Text Format
 
-* **Specification Version**: 0.9.0
+* **Specification Version**: 0.10.0
 * **Document Status**: Standard Reference Specification
 * **Target Audience**: Compiler engineers, VM implementers, and QA engineers writing graph compliance vectors.
 
