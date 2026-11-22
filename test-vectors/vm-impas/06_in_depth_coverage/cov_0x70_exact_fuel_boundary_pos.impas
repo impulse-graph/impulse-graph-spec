@@ -1,0 +1,34 @@
+; ====================================================================
+; COV_0x70_EXACT_FUEL_BOUNDARY_POS:
+; Verifies exact fuel accounting across OP_CALL / OP_ENTER_FRAME /
+; OP_LEAVE_FRAME / OP_RET / OP_HALT (15 executed instructions with .fuel 15).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+.fuel 15
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float ATTR_FLOAT = [1.0, 2.0, 3.0, 4.0]
+.array_int ATTR_INT = [1, 2, 3, 4]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_A
+0x01: OP_LOAD_CONST_INT          R1, 2
+0x02: OP_LOAD_CONST_FLOAT        R2, -0.0
+0x03: OP_INIT_INPUT_NODE         R3, 0
+0x04: OP_INIT_INPUT_SET          R4
+0x05: OP_LOAD_INLINE_ARRAY       R5, ATTR_FLOAT
+0x06: OP_LOAD_INLINE_INT_ARRAY   R6, ATTR_INT
+0x07: OP_VEC_MATH_UNARY          R7, R5, 1, 1
+0x08: OP_CALL                    11
+0x09: OP_VECTOR_REDUCE_SUM       R15, R12
+0x0A: OP_HALT
+0x0B: OP_ENTER_FRAME             0
+0x0C: OP_EWISE_MULT              R12, R5, R5
+0x0D: OP_LEAVE_FRAME             0
+0x0E: OP_RET

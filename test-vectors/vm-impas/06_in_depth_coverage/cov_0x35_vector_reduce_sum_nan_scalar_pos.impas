@@ -1,0 +1,13 @@
+; Regression test: OP_VECTOR_REDUCE_SUM (0x35) on scalar NaN must set ZF = false
+; (NaN != 0.0 across C++, Java, and OCaml).
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG ZF = false}
+.data
+.array_float V = [-1.0, 2.0]
+
+.text
+0x00: OP_LOAD_INLINE_ARRAY   R5, V
+0x01: OP_VEC_MATH_UNARY      R9, R5, 2
+0x02: OP_L1_NORM_DIFF        R18, R5, R9
+0x03: OP_VECTOR_REDUCE_SUM   R21, R18
+0x04: OP_HALT
