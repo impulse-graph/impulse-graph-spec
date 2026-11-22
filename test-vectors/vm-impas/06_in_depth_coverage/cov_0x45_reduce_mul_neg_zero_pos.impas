@@ -1,0 +1,31 @@
+; Regression test vector for 4-way differential fuzzing finding (Seed 7945786)
+; Verifies IEEE-754 negative zero (-0.0f = 0x80000000 = 2147483648) sign-bit
+; preservation across OP_VEC_MATH_BINARY (SUB), OP_EWISE_MULT, and OP_REDUCE (MUL).
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R19 = 2147483648}
+; {EXPECT: FLAG ZF = true}
+.fuel 5000
+
+.data
+.csr_inline FUZZ_GRAPH = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float ATTR_FLOAT = [1.5, 2.5, 3.5, 4.5]
+.array_int ATTR_INT = [10, 20, 30, 40]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, FUZZ_GRAPH
+0x01: OP_LOAD_CONST_INT          R1, 42
+0x02: OP_LOAD_CONST_FLOAT        R2, 3.5
+0x03: OP_INIT_INPUT_NODE         R3, 0
+0x04: OP_INIT_INPUT_SET          R4
+0x05: OP_LOAD_INLINE_ARRAY       R5, ATTR_FLOAT
+0x06: OP_LOAD_INLINE_INT_ARRAY   R6, ATTR_INT
+0x07: OP_VEC_MATH_BINARY         R26, R2, R5, 1
+0x08: OP_EWISE_MULT              R13, R5, R26
+0x09: OP_LOAD_CONST_INT          R15, 30
+0x0A: OP_REDUCE                  R19, R13, 1
+0x0B: OP_HALT
