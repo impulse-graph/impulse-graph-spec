@@ -1,0 +1,26 @@
+; ====================================================================
+; COV_0x41_MXV_EMPTY_VEC_POS:
+; Verifies OP_MXV respects logical length 0 on input vectors (does not
+; read stale backing buffer elements beyond logical length).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 0} ; 0.0f
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float ATTR_FLOAT = [1.5, 2.5, 3.5, 4.5]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_A
+0x01: OP_INIT_INPUT_SET          R4
+0x02: OP_LOAD_INLINE_ARRAY       R5, ATTR_FLOAT
+0x03: OP_VECTOR_RERANK_DOT       R26, R4, R5, 0, 1
+0x04: OP_EWISE_ADD               R23, R5, R26
+0x05: OP_MXV                     R27, R23, 0
+0x06: OP_VECTOR_REDUCE_SUM       R10, R27
+0x07: OP_HALT

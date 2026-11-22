@@ -1,0 +1,24 @@
+; ====================================================================
+; COV_0xC8_LANE_REDUCE_ATTR_SHORT_VEC_POS:
+; Verifies OP_LANE_REDUCE_ATTR respects logical vector length (skipping
+; out-of-range nodes rather than reading zero-padded backing capacity).
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: FLAG_ZF = TRUE}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float ATTR_FLOAT = [-0.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_A
+0x01: OP_LOAD_INLINE_ARRAY       R5, ATTR_FLOAT
+0x02: OP_LANE_INIT_SEEDS         R21, 0
+0x03: OP_LANE_CSC_WALK           R21, R21, 0
+0x04: OP_LANE_REDUCE_ATTR        R18, R21, R5, 6, 1
+0x05: OP_HALT

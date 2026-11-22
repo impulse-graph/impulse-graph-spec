@@ -1,0 +1,23 @@
+; ====================================================================
+; COV_0x36_VECTOR_DIV_NAN_OVER_ZERO_POS:
+; Verifies OP_VECTOR_DIV returns 0.0 (not NaN) when denominator is 0.0,
+; even if numerator is NaN.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+; {EXPECT: R10 = 0} ; 0.0f
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1],
+    1: []
+}
+.array_float ATTR_FLOAT = [-4.0, 0.0]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_A
+0x01: OP_LOAD_INLINE_ARRAY       R5, ATTR_FLOAT
+0x02: OP_VEC_MATH_UNARY          R9, R5, 2
+0x03: OP_MXV                     R16, R9, 0
+0x04: OP_VECTOR_DIV              R27, R9, R16
+0x05: OP_VECTOR_REDUCE_SUM       R10, R27
+0x06: OP_HALT

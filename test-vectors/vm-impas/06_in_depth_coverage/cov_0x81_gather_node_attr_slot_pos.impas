@@ -1,0 +1,23 @@
+; Regression test: OP_GATHER_NODE_ATTR (0x81) / OP_GATHER_EDGE_ATTR (0x82) must decode
+; attr_idx from (payload >> 8) & 0xFF when domain (payload >> 16) is 0, and slice mock
+; float vectors to their logical length.
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+.data
+.csr_inline G = {
+    0: [1, 2],
+    1: [2],
+    2: []
+}
+.array_float ATTRS = [10.0, 20.0, 30.0]
+.set SEEDS = [0, 2]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH       R0, G
+0x01: OP_LOAD_INLINE_ARRAY     R5, ATTRS
+0x02: OP_LOAD_INLINE_SET       R10, SEEDS
+0x03: OP_INIT_MOCK_NODE_ATTR   R1, R5, 63
+0x04: OP_GATHER_NODE_ATTR      R11, R10, 1
+0x05: OP_GATHER_EDGE_ATTR      R12, R10, 1
+0x06: OP_VECTOR_REDUCE_SUM     R13, R11
+0x07: OP_VECTOR_REDUCE_SUM     R14, R12
+0x08: OP_HALT

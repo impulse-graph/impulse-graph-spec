@@ -1,0 +1,27 @@
+; ====================================================================
+; COV_0x2F_VEC_MATH_TERNARY_SCALAR_ALIAS_POS:
+; Verifies OP_VEC_MATH_TERNARY preserves scalar operand values when
+; dst aliases a scalar source register (dst == src1 or dst == src3)
+; while promoting dst to a vector handle.
+; ====================================================================
+; {EXPECT: STATUS = IMPULSE_VM_OK}
+
+.data
+.csr_inline GRAPH_A = {
+    0: [1, 2],
+    1: [2, 3],
+    2: [3],
+    3: []
+}
+.array_float ATTR_FLOAT = [1.5, 2.5, 3.5, 4.5]
+
+.text
+0x00: OP_INIT_MOCK_GRAPH         R0, GRAPH_A
+0x01: OP_LOAD_CONST_FLOAT        R2, -2.5
+0x02: OP_LOAD_INLINE_ARRAY       R5, ATTR_FLOAT
+0x03: OP_VEC_MATH_UNARY          R7, R5, 1, 1
+0x04: OP_REDUCE                  R26, R5, 1
+0x05: OP_VEC_MATH_TERNARY        R26, R7, R7, R26, 51
+0x06: OP_L1_NORM_DIFF            R21, R5, R5
+0x07: OP_VEC_MATH_TERNARY        R21, R21, R2, R5, 51
+0x08: OP_HALT
