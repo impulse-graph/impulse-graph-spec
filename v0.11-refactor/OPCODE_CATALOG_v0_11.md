@@ -1,7 +1,7 @@
 # ImpulseVM v0.11.0 Normative Opcode Catalog (`impOps` v0.11)
 
 > **Normative Draft (`v0.11.0-ISA-Refactor`)**
-> Exhaustive opcode-by-opcode specification for all **73 active opcodes** (`0x00`–`0x14`, `0x20`–`0x27`, `0x30`–`0x3B` excluding `0x32`, `0x40`–`0x57`, `0x60`–`0x6A` excluding `0x62` and `0x68`) plus `0xFF OP_EXTENSION_PAYLOAD`.
+> Exhaustive opcode-by-opcode specification for all **78 active opcodes** (`0x00`–`0x14`, `0x20`–`0x27`, `0x30`–`0x3B` excluding `0x32`, `0x40`–`0x57`, `0x60`–`0x6F` excluding `0x62` and `0x68`) plus `0xFF OP_EXTENSION_PAYLOAD`.
 > Every entry specifies exact nibble layouts, allowed modifier flags (`flags:4`), sub-operation selectors (`subop:4` $\le 15$), condition flag mutations (`ZF`, `ST`, `NF`), `ImpAsm` v0.11 usage, first-principles architectural justification, and implementation gotchas.
 
 ---
@@ -1533,7 +1533,7 @@
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: uniformly switches `s2` from `V[s2]` to `R[s2]` on `subop 0..7`; disallowed on `subop 8`)
   - `dst`: `V[dst]`; `s1`: `V[s1]`; `s2`: `V[s2]` (or `R[s2]` w/ `.scalar`); `s3`: `V[s3]` (`_v` subops) or `R[s3]` (`_r` subops); `imm32`: `0` (MBZ)
   - `vm_flags` updated: None.
-* **Sub-Operations (`subop:4` `0..8`)**:
+* **Sub-Operations (`subop:4` `0..9`)**:
 
 | `subop` | Mnemonic | `s3` Bank | Semantics (`s2` is `V[s2]`, or `R[s2]` when `.scalar` is set) |
 | :--- | :--- | :--- | :--- |
@@ -1546,6 +1546,7 @@
 | `6` | `.safe_div_v` | `V[s3]` | `(s2 == 0 \|\| !valid_s2) ? V[s3] : (V[s1] / s2)` |
 | `7` | `.safe_div_r` | `R[s3]` | `(s2 == 0 \|\| !valid_s2) ? R[s3] : (V[s1] / s2)` — without `.scalar`, vector div w/ scalar fallback! |
 | `8` | `.time_valid_at_r` | `R[s3]` | Outputs `BOOL_3VL`: `V[s1] <= R[s3] && (isnull(V[s2]) \|\| R[s3] < V[s2])` (`.scalar` disallowed) |
+| `9` | `.mul_div_i64_r` | `R[s3]` | Overflow-safe `DECIMAL(P<=18, S)` scaling: `(i128(V[s1]) * i128(s2)) / i128(R[s3])` with half-even (banker's) rounding; returns Kleene `NULL` if `R[s3] == 0` or final quotient overflows `i64`. |
 
 * **ImpAsm Usage**:
   ```impas
@@ -1746,15 +1747,17 @@
 ### `0x55` — `OP_MAP_KEYS_TO_DENSE`
 * **Summary**: Translates external domain keys (`.imps` Section 2 Key Catalog strings or `u64` keys) into 0-indexed dense domain IDs `[0, N_d)`.
 * **Encoding**:
-  - `flags:4`: `0x4` (`FLAG_ACCUM` allowed on `subop == 0`)
+  - `flags:4`: `0x4` (`FLAG_ACCUM` allowed on `subop == 0` and `subop == 3`)
   - `s2, s3`: `0` (MBZ)
-* **Sub-Operations (`subop:4` (`0..2`))**:
+* **Sub-Operations (`subop:4` (`0..4`))**:
 
 | `subop` | Mnemonic | Signature | Missing-Key Behavior |
 | :--- | :--- | :--- | :--- |
 | `0` | `.param_to_f` | `F[dst] <- param_id=imm16_hi, dom=imm16_lo` (`s1=0`) | Missing external keys in host parameter set are **ignored** (not added to `F[dst]`); sets `ZF = is_empty(F[dst])`. |
 | `1` | `.vec_to_v` | `V[dst] <- V[s1], dom=imm16_lo` (`imm16_hi=0`) | Positional 1:1 mapping (`len(V[dst]) == len(V[s1])`); missing keys produce Kleene `NULL` (`valid=0`) at that lane! |
 | `2` | `.scalar_to_r` | `R[dst] <- R[s1], dom=imm16_lo` (`imm16_hi=0`) | Maps single external key `R[s1]` to dense ID `R[dst]`; missing key sets `R[dst] = NULL` (`valid=0, NF=1, ZF=1`)! |
+| `3` | `.f_to_f` | `F[dst] <- F[s1], src_dom=imm16_hi, tgt_dom=imm16_lo` | Fused streaming dense-to-dense business-key bridge (`0 B` intermediate key vector; works across same-snapshot domains or federated `.imps` mounts!). Unmatched keys are omitted; sets `ZF = is_empty(F[dst])`. |
+| `4` | `.v_to_v` | `V[dst] <- V[s1], src_dom=imm16_hi, tgt_dom=imm16_lo` | Fused rank-preserving dense-ID vector bridge (`len(V[dst]) == len(V[s1])`); unmatched keys write Kleene `NULL` (`valid=0`). |
 
 * **ImpAsm Usage**:
   ```impas
@@ -1982,8 +1985,10 @@
 * **Summary**: Queries an `.imps` HNSW / DiskANN vector index `(domain_id = imm16_lo, ann_index_id = imm16_hi)` with query embedding `V[s1]`, outputting **rank-ordered** candidate dense node IDs into `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`: pre-filters candidate nodes to `F[s3]`; `s2` always addresses `R[s2]`, so `FLAG_SCALAR_RHS` is disallowed)
-  - `subop:4`: `0` (`.ids` — writes rank-ordered `U32`/`U64` dense node IDs into `V[dst]`; use `OP_SET_CONVERT.v2f_ids` when an unordered `F` frontier is needed)
-  - `dst`: `V[dst]`; `s1`: `V[s1]` (`F32[D]` query embedding); `s2`: `R[s2]` (`low 32b = k`, `high 32b = ef_search` override or `0` for index default); `s3`: `0` or `F[s3]` filter mask (`.mask`)
+  - `subop:4` (`0..1`):
+    - `0` (`.ids`): top-`k` search (`R[s2]` low 32b = `k`, high 32b = `ef_search` override or `0`), writing rank-ordered `U32`/`U64` dense node IDs into `V[dst]`.
+    - `1` (`.radius`): distance/similarity threshold search (`R[s2]` = `f64` cutoff threshold), writing matching rank-ordered dense node IDs into `V[dst]` (bounded by `result_buf` / `scratch_buf` capacity).
+  - `dst`: `V[dst]`; `s1`: `V[s1]` (`F32[D]` query embedding); `s2`: `R[s2]`; `s3`: `0` or `F[s3]` filter mask (`.mask`)
   - `imm16_lo`: `domain_id`, `imm16_hi`: `ann_index_id`
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
 * **ImpAsm Usage**:
@@ -2005,14 +2010,18 @@
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`)
   - `dst`: `V[dst]` (`F32`, `len = len(V[s1])`); `s1`: `V[s1]` (candidate dense IDs); `s2`: `V[s2]` (`F32[D]` query vector); `s3`: `0` or `F[s3]`
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
-* **Sub-Operations (`subop:4` (`0..3`))**:
+* **Sub-Operations (`subop:4` (`0..7`))**:
 
-| `subop` | Mnemonic | Formula (`q = V[s2]`, `v = emb[V[s1][i]]`) | Higher-is-Better? |
+| `subop` | Mnemonic | Formula | Higher-is-Better? |
 | :--- | :--- | :--- | :--- |
-| `0` | `.dot` | $\sum_{d=0}^{D-1} q_d \cdot v_d$ | Yes (`TOP_K.desc_ids`) |
+| `0` | `.dot` | $\sum_{d=0}^{D-1} q_d \cdot v_d$ (`q = V[s2]`, `v = emb[V[s1][i]]`) | Yes (`TOP_K.desc_ids`) |
 | `1` | `.cosine` | $\frac{q \cdot v}{\max(\epsilon, \lVert q \rVert_2 \cdot \lVert v \rVert_2)}$ ($\epsilon = 10^{-12}$) | Yes (`TOP_K.desc_ids`) |
 | `2` | `.neg_l2_sq` | $-\sum_{d=0}^{D-1} (q_d - v_d)^2$ | Yes (`TOP_K.desc_ids`) |
 | `3` | `.l2_sq` | $\sum_{d=0}^{D-1} (q_d - v_d)^2$ | Lower-is-Better (`TOP_K.asc_ids`) |
+| `4` | `.pair_dot` | Pairwise `dot(emb[V[s1][i]], emb[V[s2][i]])` (`morsel_role: body_pair_only`) | Yes |
+| `5` | `.pair_cosine` | Pairwise `cosine(emb[V[s1][i]], emb[V[s2][i]])` (enables semantic edge pruning inside `OP_WALK_MORSEL`!) | Yes |
+| `6` | `.pair_neg_l2_sq` | Pairwise `-l2_sq(emb[V[s1][i]], emb[V[s2][i]])` | Yes |
+| `7` | `.pair_l2_sq` | Pairwise `l2_sq(emb[V[s1][i]], emb[V[s2][i]])` | Lower-is-Better |
 
 * **ImpAsm Usage**:
   ```impas
@@ -2100,6 +2109,23 @@
 | `0`..`3` | `.min`, `.max`, `.sum`, `.mean` | Per-lane or cross-lane numeric reduction skipping identity/NULL lanes. |
 | `4` / `5` | `.argmin` / `.argmax` | Returns winning node ID (per-lane) or lane index (cross-lane); lowest index strictly wins ties. |
 | `6` | `.trace_path` | Reconstructs deterministic `u32` witness path in `V[dst]` for `(target=R[s1], lane=R[s2])` from `witness_prev`. |
+
+---
+
+### `0x6F` — `OP_VECTOR_POOL`
+* **Summary**: Loads a single node's `[D]` embedding vector, pools a frontier's embeddings into a centroid/sum `[D]` vector, or L2-normalizes a dense embedding vector in `V[dst]` for in-VM node-to-ANN, TransE (`h + r`), and GraphRAG query expansion.
+* **Encoding**:
+  - `flags:4`: `0x0`; `s2, s3`: `0` (MBZ)
+  - `dst`: `V[dst]` (`F32[D]`); `s1`: `R[s1]` (dense node ID on `subop 0`), `F[s1]` (frontier on `subop 1..2`), or `V[s1]` (`F32[D]` on `subop 3`); `imm16_lo`: `domain_id`, `imm16_hi`: `attr_id` (`0` on `subop 3`)
+  - `vm_flags` updated: `ZF = (len(V[dst]) == 0 || norm == 0)`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | `s1` Bank | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.load_node` | `R[s1]` | Copies `emb[dom, attr][R[s1]]` into `V[dst]` (`F32[D]`). |
+| `1` | `.mean_pool` | `F[s1]` | Computes deterministic ascending-node-ID centroid `mean_{u ∈ F[s1]} emb[u]` into `V[dst]` (`F32[D]`). |
+| `2` | `.sum_pool` | `F[s1]` | Computes deterministic ascending-node-ID sum `sum_{u ∈ F[s1]} emb[u]` into `V[dst]` (`F32[D]`). |
+| `3` | `.l2_norm` | `V[s1]` | Unit-normalizes `V[s1]` ($v / \max(10^{-12}, \lVert v \rVert_2)$) into `V[dst]`. |
 
 ---
 

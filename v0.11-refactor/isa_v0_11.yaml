@@ -990,6 +990,7 @@ opcodes:
       6: safe_div_v
       7: safe_div_r
       8: time_valid_at_r
+      9: mul_div_i64_r
 
   - code: 0x4E
     name: OP_VEC_BLEND
@@ -1125,6 +1126,8 @@ opcodes:
       0: param_to_f
       1: vec_to_v
       2: scalar_to_r
+      3: f_to_f
+      4: v_to_v
 
   - code: 0x56
     name: OP_MAP_DENSE_TO_KEYS
@@ -1266,14 +1269,16 @@ opcodes:
     banks: { dst: V, s1: V, s2: R, s3: MASK_F }
     imm_layout: U16_PAIR
     sets_vm_flags: [ZF]
-    subops: { 0: ids }
+    subops:
+      0: ids
+      1: radius
 
   - code: 0x6A
     name: OP_VECTOR_RERANK
     mnemonic: VECTOR_RERANK
     pillar: 5
     allowed_flags: 0x1
-    morsel_role: forbidden
+    morsel_role: body_pair_only
     banks: { dst: V, s1: V, s2: V, s3: MASK_F }
     imm_layout: U16_PAIR
     sets_vm_flags: [ZF]
@@ -1282,6 +1287,10 @@ opcodes:
       1: cosine
       2: neg_l2_sq
       3: l2_sq
+      4: pair_dot
+      5: pair_cosine
+      6: pair_neg_l2_sq
+      7: pair_l2_sq
 
   - code: 0x6B
     name: OP_LANE_STATE_INIT
@@ -1354,6 +1363,21 @@ opcodes:
       4: argmin
       5: argmax
       6: trace_path
+
+  - code: 0x6F
+    name: OP_VECTOR_POOL
+    mnemonic: VECTOR_POOL
+    pillar: 5
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: V, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: load_node
+      1: mean_pool
+      2: sum_pool
+      3: l2_norm
 
   # --- Extension Payload Guard Word (0xFF) ---
   - code: 0xFF

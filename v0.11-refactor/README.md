@@ -11,7 +11,7 @@
 
 | Dimension | v0.10.0 Baseline | v0.11.0 Refactor | Architectural Impact |
 | :--- | :--- | :--- | :--- |
-| **Active Opcodes** | `166` (+ `0xFF` marker) | **`73`** (+ `0xFF` marker) | **56.0% opcode reduction**; eliminates physical-layout, direction, and type-combinatorial explosion. |
+| **Active Opcodes** | `166` (+ `0xFF` marker) | **`78`** (+ `0xFF` marker) | **53.0% opcode reduction**; eliminates physical-layout, direction, and type-combinatorial explosion while adding MITra AoS `LANE_STATE` (`0x6B`–`0x6E`) and `OP_VECTOR_POOL` (`0x6F`). |
 | **Instruction Width** | Mixed 64-bit / 128-bit (`FLAG_EXTENDED` required for any 3-register op) | **Universal 64-bit** (`[op:8 \| flags:4 \| subop:4 \| dst:4 \| s1:4 \| s2:4 \| s3:4 \| imm32:32]`) | **>99% single-word instructions**; `FLAG_EXTENDED` (`0x80`) used solely for 64-bit scalar literal constants. |
 | **Register File** | `64` untyped union slots (`R0..R63`) + runtime `uint8_t register_types[64]` | **`3 × 16` Typed Banks**: `R0..R15` (+ 8B `r_type_word` + `r_valid_mask`), `F0..F15`, `V0..V15` | **64B tag array $\to$ 8B packed `r_type_word`**; 4-bit nibbles cannot index out-of-bounds (`VALIDATE_REG` deleted from hot path). |
 | **VM State Frame & Memory** | `640` bytes (`10` cache lines) + internal heap pools | **`256` bytes** (`4` cache lines) + **Caller-Owned `(scratch_buf, result_buf)`** | **60% smaller L1 footprint**, `0` `malloc`/`free` in kernel, `64B`-masked `4KB` Tier 1 directory, and exact static `impulse_vm_plan_memory` sizing. |
@@ -30,10 +30,14 @@
 | :--- | :--- |
 | [README.md](README.md) | Executive summary, locked architectural decisions, and 100% v0.10.0 $\to$ v0.11.0 opcode migration crosswalk. |
 | [VM_ARCHITECTURE_v0_11.md](VM_ARCHITECTURE_v0_11.md) | Normative specification of the 64-bit nibble instruction word, global flags, `3 × 16` banks, morsel aliasing (`MF0..MF7` / `M0..M7`), C-ABI state frame, sliding register windows, 3-tier `VmFrontier`, lazy cardinality memoization, Kleene 3VL algebra, lexical morsel execution, and static bytecode validation (`impulse_vm_validate`). |
-| [OPCODE_CATALOG_v0_11.md](OPCODE_CATALOG_v0_11.md) | Exhaustive specification of all 73 v0.11.0 opcodes (+ `0xFF` extension word): exact bit encoding, allowed modifier flags, `subop:4` tables, operational semantics, `ImpAsm` usage examples, architectural justification, and edge-case gotchas. |
+| [OPCODE_CATALOG_v0_11.md](OPCODE_CATALOG_v0_11.md) | Exhaustive specification of all 78 v0.11.0 opcodes (+ `0xFF` extension word): exact bit encoding, allowed modifier flags, `subop:4` tables, operational semantics, `ImpAsm` usage examples, architectural justification, and edge-case gotchas. |
 | [IMPAS_SPECIFICATION_v0_11.md](IMPAS_SPECIFICATION_v0_11.md) | Assembly language grammar (`ImpAsm` v0.11), register/morsel mnemonics, modifier suffixes (`.accum`, `.scalar`, `.mask`, `.ext`), host-bound `.data` topology/attribute/threshold directives, and test expectation headers. |
 | [IMPSCM_SPECIFICATION_v0_11.md](IMPSCM_SPECIFICATION_v0_11.md) | Normative ISA-agnostic, storage-layout-agnostic `ImpScheme` (`.impscm`) v0.11 IR specification: concrete S-expression grammar, static per-domain type system, declarative stream/morsel forms, operator catalog, and E2E compiler parity contract. |
 | [TESTING_AND_BENCHMARK_STRATEGY.md](TESTING_AND_BENCHMARK_STRATEGY.md) | Dual `ICTX v2` wire protocol, metamorphic geometry profile runner (`Forced-Tier0`, `Paged-Tier1`, `Dense-Tier2`, morsel/DOP sweeps), `(opcode × subop × flag × tier × 3VL)` coverage gates, and empirical JMH / Google Benchmark verification matrix. |
+| [FORMAT_SPECIFICATION_v1_0_DELTA.md](FORMAT_SPECIFICATION_v1_0_DELTA.md) | Minimal `.imps` v0.9.0 → v1.0 binary format delta (`cscEdgePerm`, `SrcNodeIDWidth`, `UINT*`/`DECIMAL64`/`BOOL`, `VectorANN` index type, `M:1` & federated mount rules). |
+| [V0_11_IMPLEMENTATION_ROADMAP.md](V0_11_IMPLEMENTATION_ROADMAP.md) | Execution milestones (M0–M5), quality exit gates, and concrete AI-assisted issue/PR tracking guide. |
+| [DESIGN_NOTES_v0_11.md](DESIGN_NOTES_v0_11.md) | Architectural design notes covering live overlays, multi-anchor fluent DAGs, geospatial, Cypher/ImpK/ImpLog, temporal/timezone policy, `DECIMAL64`, JSON shredding, and Lucene `Codec` integration. |
+| [EDA_CIRCUIT_ANALYSIS_NOTES.md](EDA_CIRCUIT_ANALYSIS_NOTES.md) | Digital circuit analysis (EDA) showcase notes: MCMM STA, 64-vector fault sim, CDC, DC IR drop, and AC phasor complex math. |
 | [isa_v0_11.yaml](isa_v0_11.yaml) | Machine-readable single source of truth for word layout, flags, error codes, register banks, and all opcode/subop contracts (drives codegen for C++, Java 25, Rust, OCaml, and Python tooling). |
 
 ---
