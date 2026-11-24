@@ -1,0 +1,44 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, 2, 16, 0]}}
+; {{EXPECT: COLLECT_1 = [0, 2, 6, null]}}
+; {{EXPECT: COLLECT_2 = [null, 0, 0, null]}}
+; {{EXPECT: COLLECT_3 = [null, 0, 1, null]}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .relation 0 name="W" src_dom=0 tgt_dom=0
+  ; 0->1 (w=2), 0->2 (w=10), 1->2 (w=3)
+  .csr_inline rel=0 offsets=[0, 2, 3, 3, 3] targets=[1, 2, 2]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[2.0, 10.0, 3.0]
+  .param 0 type=f64_vec values=[1.0, 2.0, 3.0, 4.0]
+  .param 1 type=f64_vec values=[0.0, 3.0, 99.0, null]
+
+.code
+  INIT_DOMAIN_SPAN       F0, dom=0
+  LOAD_PARAM.vec         V0, param=0, type=f64
+  LOAD_PARAM.vec         V1, param=1, type=f64
+
+  ; 0: fwd_plus_times: v[1]=1*2=2? Wait: V0=[1,2,3,4], 0->1(2): 2, 0->2(10): 10, 1->2(3): 6 -> [0,2,16,0]; add 0->1? No, let's check exact:
+  ; Wait: V0=[1,2,3,4]: target 1 gets 1*2=2; target 2 gets 1*10 + 2*3 = 16 -> let's adjust V0=[2.5, 1.0, ...]? No, let's check V0=[2.5, 4.0, 0.0, 0.0] or just expect [0, 2, 16, 0]!
+  ; Actually let's use V2 for fwd_plus_times with .accum? Even cleaner: test all 9 subops directly!
+  SPMV.fwd_plus_times    V2, F0, V0, rel=0, attr=0    ; [0, 2, 16, 0]
+  SPMV.rev_plus_times    V3, F0, V0, rel=0, attr=0    ; u=0: 2*2+3*10=34, u=1: 3*3=9
+  ; 2: fwd_min_plus.accum on V1=[0,3,99,null]: 0->1(0+2=2 < 3 -> 2), 0->2(0+10=10), 1->2(3+3=6) -> [0, 2, 6, null]!
+  ; Let's verify exact V4 = [0, 2, 6, null] without modifying V1 (Jacobi!)
+  MOV.v                  V4, V1
+  SPMV.fwd_min_plus.accum V4, F0, V1, rel=0, attr=0   ; [0, 2, 6, null]
+  SPMV.rev_min_plus      V5, F0, V1, rel=0, attr=0
+  SPMV.fwd_max_plus      V6, F0, V0, rel=0, attr=0
+  SPMV.fwd_max_times     V7, F0, V0, rel=0, attr=0
+  SPMV.fwd_min_max       V8, F0, V0, rel=0, attr=0
+  ; 7: fwd_first_src: target 1 <- min{0}=0, target 2 <- min{0,1}=0 -> [null, 0, 0, null]
+  SPMV.fwd_first_src     V9, F0, rel=0, attr=0xFFFF
+  ; 8: fwd_argmin_plus on V1=[0,3,99,null]: target 1 <- 0 (0+2=2), target 2 <- 1 (3+3=6 < 0+10=10)! -> [null, 0, 1, null]
+  SPMV.fwd_argmin_plus   V10, F0, V1, rel=0, attr=0
+
+  ; Collect V2, V4, V9, V10 (update EXPECT lines cleanly!)
+  COLLECT.vec            V2, out=0
+  COLLECT.vec            V4, out=1
+  COLLECT.vec            V9, out=2
+  COLLECT.vec            V10, out=3
+  HALT

@@ -1,0 +1,32 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 3}}
+; {{EXPECT: R1 = 2}}
+; {{EXPECT: R2 = 2}}
+; {{EXPECT: R3 = 0}}
+; {{EXPECT: R4 = NULL}}
+; {{EXPECT: COLLECT_0 = [2, 1, 0, 0]}}
+; {{EXPECT: COLLECT_1 = [0, 2, 1, 0]}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  ; 0->1, 0->2, 1->1 (self-loop); out=[2,1,0,0], in=[0,2,1,0]
+  .csr_inline rel=0 offsets=[0, 2, 3, 3, 3] targets=[1, 2, 1]
+
+.code
+  INIT_DOMAIN_SPAN  F0, dom=0
+  FSEED.single_imm  F1, lo=1, hi=0
+  DEGREE.sum_fwd_r  R0, F0, rel=0          ; 3
+  DEGREE.sum_rev_r  R1, F1, rel=0          ; 2 (node 1 in-deg)
+
+  DEGREE.vec_fwd_v  V0, rel=0              ; [2, 1, 0, 0]
+  DEGREE.vec_rev_v  V1, rel=0              ; [0, 2, 1, 0]
+  COLLECT.vec       V0, out=0
+  COLLECT.vec       V1, out=1
+
+  LOAD_CONST.i32    R5, 0
+  LOAD_CONST.null   R6
+  DEGREE.node_fwd_r R2, R5, rel=0          ; 2
+  DEGREE.node_rev_r R3, R5, rel=0          ; 0
+  DEGREE.node_fwd_r R4, R6, rel=0          ; NULL propagates
+  HALT

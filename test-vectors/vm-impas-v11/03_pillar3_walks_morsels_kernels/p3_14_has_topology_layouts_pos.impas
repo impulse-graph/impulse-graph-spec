@@ -1,0 +1,31 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 0}}
+; {{EXPECT: R1 = 0}}
+; {{EXPECT: R2 = 1}}
+; {{EXPECT: R3 = 1}}
+; {{EXPECT: R4 = 0}}
+; {{EXPECT: R5 = 0}}
+; {{EXPECT: R6 = 0}}
+; {{EXPECT: R7 = 0}}
+; {{EXPECT: R8 = 3}}
+; {{EXPECT: R9 = 2}}
+
+.data
+  .domain 0 name="N" count=3 width=u16
+  .relation 0 name="COO_REL" src_dom=0 tgt_dom=0
+  .coo_inline rel=0 sources=[0, 1] targets=[1, 2]
+  .relation 1 name="DENSE_REL" src_dom=0 tgt_dom=0
+  .dense_inline rel=1 rows=[[0, 1, 0], [0, 0, 1], [0, 0, 0]]
+
+.code
+  HAS_TOPOLOGY.has_csr       R0, lo=0, hi=0       ; 0
+  HAS_TOPOLOGY.has_csc       R1, lo=0, hi=0       ; 0
+  HAS_TOPOLOGY.has_coo       R2, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.has_dense     R3, lo=1, hi=0       ; 1
+  HAS_TOPOLOGY.has_key_cat   R4, lo=0, hi=0       ; 0
+  HAS_TOPOLOGY.has_node_attr R5, lo=0, hi=5       ; 0
+  HAS_TOPOLOGY.has_edge_attr R6, lo=0, hi=5       ; 0
+  HAS_TOPOLOGY.has_index     R7, lo=0, hi=5       ; 0
+  HAS_TOPOLOGY.domain_card   R8, lo=0, hi=0       ; 3
+  HAS_TOPOLOGY.rel_edges     R9, lo=0, hi=0       ; 2
+  HALT

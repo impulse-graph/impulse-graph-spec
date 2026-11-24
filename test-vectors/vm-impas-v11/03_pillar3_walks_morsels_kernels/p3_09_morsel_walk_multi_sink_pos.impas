@@ -1,0 +1,56 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F2 = [1, 2, 3] (dom=1)}}
+; {{EXPECT: R2 = 4}}
+; {{EXPECT: COLLECT_0 = [0, 150, 500, 125, 0]}}
+; {{EXPECT: COLLECT_1 = [null, 150, 200, 125, null]}}
+; {{EXPECT: COLLECT_2 = [null, 150, 300, 125, null]}}
+; {{EXPECT: COLLECT_3 = [null, 0, 0, 2, null]}}
+
+.data
+  ; 6 edges across 3 users -> exercises multi-morsel slicing under P3 (morsel_max=3)!
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Item" count=5 width=u16
+  .relation 0 name="BOUGHT" src_dom=0 tgt_dom=1
+  ; User 0 -> Item 0(10), Item 1(150), Item 2(200)
+  ; User 1 -> Item 2(null), Item 2(300)
+  ; User 2 -> Item 3(125)
+  .csr_inline rel=0 offsets=[0, 3, 5, 6, 6] targets=[0, 1, 2, 2, 2, 3]
+  .edge_attr rel=0 attr=0 name="amt" type=f64 values=[10.0, 150.0, 200.0, null, 300.0, 125.0]
+  .param 0 type=frontier dom=0 values=[0, 1, 2]
+  .param 1 type=f64_vec values=[0.0, 0.0, 0.0, 0.0, 0.0]
+  .param 2 type=u64_vec values=[null, null, null, null, null]
+
+.code
+  LOAD_PARAM.frontier F0, param=0, dom=0
+  FSEED.single_imm    F1, lo=4, hi=1            ; exclude mask (dom=1)
+  LOAD_CONST.f64.ext  R0, 100.0
+  LOAD_PARAM.vec      V0, param=1, type=f64     ; scatter_add sink
+  LOAD_PARAM.vec      V1, param=1, type=f64     ; scatter_min sink
+  LOAD_PARAM.vec      V2, param=1, type=f64     ; scatter_max sink
+  LOAD_PARAM.vec      V3, param=2, type=u64     ; scatter_min_src sink
+  LOAD_PARAM.vec      V4, param=2, type=u64     ; scatter_argmin sink
+  LOAD_PARAM.vec      V5, param=2, type=u64     ; scatter_argmax sink
+
+  ; Multi-sink WALK_MORSEL.fwd.mask: filters amt > 100.0 (surviving: 150, 200, 300, 125 -> count=4)
+  WALK_MORSEL.fwd.mask F0, F1, rel=0
+    GATHER_EDGE_ATTR                 M4, M2, rel=0, attr=0
+    VEC_CMP.gt.scalar                M5, M4, R0
+    SET_CONVERT.b2f                  MF1, M5
+    JCC.jempty_f                     MF1, skip_all
+    MORSEL_COMMIT.yield_frontier.mask F2, M1, MF1, dom=1
+    MORSEL_COMMIT.yield_lane_or.mask  F3, M1, M3, MF1, dom=1
+    MORSEL_COMMIT.scatter_add.mask    V0, M1, M4, MF1
+    MORSEL_COMMIT.scatter_min.mask    V1, M1, M4, MF1
+    MORSEL_COMMIT.scatter_max.mask    V2, M1, M4, MF1
+    MORSEL_COMMIT.scatter_min_src.mask V3, M1, M0, MF1
+    MORSEL_COMMIT.scatter_argmin.mask  V4, M1, M0, MF1
+    MORSEL_COMMIT.scatter_argmax.mask  V5, M1, M0, MF1
+    MORSEL_COMMIT.count_add_r.mask    R2, MF1
+skip_all:
+  MORSEL_END
+
+  COLLECT.vec V0, out=0
+  COLLECT.vec V1, out=1
+  COLLECT.vec V2, out=2
+  COLLECT.vec V3, out=3
+  HALT
