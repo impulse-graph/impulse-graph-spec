@@ -19,7 +19,7 @@ In v0.10.0, `ICTX v1` hashed flat 64-register tags and payloads (and skipped `TY
 
 `logical_hash` serializes **100% of observable VM state** in canonical mathematical form:
 
-1. **Header (`16 B`)**: Magic `"ICTXv2L\0"` (`8 B`), `status: u32`, `pc: u32`, `vm_flags: u16` (`ZF | ST | NF`), `r_valid_mask: u16`.
+1. **Header (`24 B`)**: Magic `"ICTXv2L\0"` (`8 B`), `status: u32`, `pc: u32`, `vm_flags: u16` (`ZF | ST | NF`), `r_valid_mask: u16`, `r_type_word: u64_le`.
 2. **Scalar Bank `R0..R15`**: For `i = 0..15`: if `(r_valid_mask >> i) & 1 == 0`, emit `0x00` (`1 B`); else emit `0x01` + `r_regs[i]: u64_le` (with `-0.0` float scalars preserved raw or canonicalized only where specified).
 3. **Frontier Bank `F0..F15` (Canonicalized!)**: For `i = 0..15`:
    - If uninitialized: emit `0x00`.
@@ -55,8 +55,10 @@ A 10-node unit test in `.impas` would normally remain stuck in `TIER0_INLINE` (`
 | **`P4-ParallelMorsel`** | `2` | `2` | `1/4` | **`4` lanes** | **`4` threads** | Tests concurrent worker TLS morsel scratchpads, deterministic `SCATTER_ADD` / `SCATTER_ARGMIN` merging, and thread-safe Tier 1/Tier 2 commits! |
 | **`P5-OCamlOracle`** | Mathematical | Mathematical | Mathematical | `3` & `2048` | `1` | Normative reference evaluation in `impulse-ocaml`. |
 
-### Pass Criteria
-1. **Cross-Profile Metamorphic Invariance**: `logical_hash(P0) == logical_hash(P1) == logical_hash(P2) == logical_hash(P3) == logical_hash(P4) == logical_hash(P5)` across **all four engines** (OCaml, C++ Opt-ON, C++ Opt-OFF, Java 25)!
+### Pass Criteria & Two-Tier FP Verification Policy
+1. **Cross-Profile Metamorphic Invariance (`70` Non-Transcendental Opcodes)**: For any program not invoking `0x49`/`0x4A`/`0x4B` transcendentals, `logical_hash(P0) == logical_hash(P1) == logical_hash(P2) == logical_hash(P3) == logical_hash(P4) == logical_hash(P5)` (**0-ULP bit-identical**) across **all four engines** (OCaml, C++ Opt-ON, C++ Opt-OFF, Java 25).
+2. **Transcendental SIMD Verification (`0x49`, `0x4A`, `0x4B`)**: Programs executing `0x49`/`0x4A`/`0x4B` verify exact bit-identity on all validity masks, `NULL`, `±0.0`, `±Inf`, poles, and non-transcendental state, while comparing finite transcendental floats element-wise against the OCaml oracle within normative bounds (`<= 1.0 ULP` on `exp*`/`log*`/`trig`/`hyp`/`cbrt`/`hypot`/`erf`/`erfc`, `<= 2.0 ULP` on `pow`/`lgamma`/`gelu`/`silu`/`softplus`).
+3. **Caller-Owned Budgeted Scratch Verification**: Dedicated negative tests pass `scratch_bytes < guaranteed_scratch_bytes` (down to `min_scratch_bytes`) and assert deterministic `IMPULSE_VM_ERR_BUFFER_OVERFLOW` (`11`) with **zero `malloc` calls** (verified via custom allocator interposition / JMH `-prof gc`).
 2. **Cross-Engine Physical Identity**: For each concrete profile $P_k \in \{P_0 \dots P_4\}$, `physical_hash_cpp_on(P_k) == physical_hash_cpp_off(P_k) == physical_hash_java25(P_k)`!
 
 ---
@@ -98,7 +100,8 @@ In v0.10, `run_vm_asm_suite.py` only checked that each opcode byte appeared in $
 | **`BM_Kleene3VL_DualMask`** | `VEC_CMP` + `VEC_3VL_OP` (`AND`/`OR`/`NOT`) at `0%`, `10%`, `50%` `NULL` density | Branchy scalar 3VL evaluation | Verifies zero throughput sensitivity to `NULL` density or branch misprediction. |
 | **`BM_BiBFS_DegreeBalanced`** | Power-law graph ($N=5\cdot 10^6, M=10^8$): hub-to-leaf vs leaf-to-leaf shortest path | Cardinality-only (`card(F_f) <= card(F_b)`) & unidirectional BFS | Quantifies edge-expansion reduction of `OP_DEGREE.sum_fwd_r` + `OP_WALK.fwd.mask` (`\ F_visited`). |
 | **`BM_MultiLane_PagedSlabs`** | $K \in \{2, 8, 32, 64\}$ seeds on $N = 5\cdot 10^7$ nodes (`1..4` hops) | v0.10 eager `long[N]` `VmLaneFrontier` | Measures cold-start allocation latency (`KB` vs `400 MB`) and cache-hit throughput across hops. |
-| **`BM_Dispatch_NibbleVsLegacy`** | 10M-instruction tight scalar/control/window `CALL`/`RET` loop | v0.10 64-reg switch + `VALIDATE_REG` + `register_types[]` | Measures interpreter dispatch IPC, `256B` vs `640B` L1 frame residency, and Java 25 `MethodHandle` JIT inlining across $\le 16$-subop handlers. |
+| **`BM_Dispatch_NibbleVsLegacy`** | 10M-instruction tight scalar/control/window `CALL`/`RET` loop | v0.10 64-reg switch + `VALIDATE_REG` + `register_types[]` | Measures interpreter dispatch IPC, `256B` vs `640B` L1 frame residency, flat `(op, subop)` pre-decode, and Java 25 leaf-`MethodHandle` JIT inlining. |
+| **`BM_CallerWorkspace_EpochReset`** | 1M consecutive point/2-hop queries reusing 1 thread-local `scratch_ws` on $N_d = 10^8$ | v0.10 `impulse_vm_context_reset` + heap pool | Verifies `0 B/op` allocation, `64B`-masked `4KB` Tier 1 directory reset latency, and `impulse_vm_plan_memory` tightness. |
 
 ### 4.2 Zero-Allocation & JIT Inlining Verification Gates (Java 25 & C++20)
 

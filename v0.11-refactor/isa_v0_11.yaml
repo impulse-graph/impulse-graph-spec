@@ -56,6 +56,15 @@ vm_condition_flags:
   ST: { bit: 1, mask: 0x0002, description: "Stable / Fixed-Point Converged" }
   NF: { bit: 2, mask: 0x0004, description: "Kleene NULL Scalar Output" }
 
+scalar_type_tags:
+  0: SCALAR_NULL_UNSET
+  1: SCALAR_I64
+  2: SCALAR_U64
+  3: SCALAR_F64
+  4: SCALAR_BOOL_3VL
+  5: SCALAR_STR_HANDLE
+  6: SCALAR_F32_RAW
+
 status_codes:
   0:  IMPULSE_VM_OK
   1:  IMPULSE_VM_ERR_INVALID_OPCODE
@@ -153,8 +162,10 @@ opcodes:
       1: u32
       2: f32
       3: f32_raw
-      4: b64
-      5: "null"
+      4: i64
+      5: u64
+      6: f64
+      7: "null"
 
   - code: 0x06
     name: OP_LOAD_CONST_POOL
@@ -436,7 +447,7 @@ opcodes:
     name: OP_SET_OP
     mnemonic: SET_OP
     pillar: 2
-    allowed_flags: 0x4
+    allowed_flags: 0x0
     morsel_role: body_ok
     banks: { dst: F, s1: F, s2: F, s3: NONE }
     imm_layout: NONE
@@ -562,22 +573,6 @@ opcodes:
       14: rev_is_not_null
       15: rev_is_null
 
-  - code: 0x32
-    name: OP_WALK_2HOP
-    mnemonic: WALK_2HOP
-    pillar: 3
-    allowed_flags: 0x5
-    morsel_role: forbidden
-    banks: { dst: F, s1: F, s2: NONE, s3: MASK_F }
-    imm_layout: U16_PAIR
-    sets_vm_flags: [ZF]
-    subops:
-      0: fwd_fwd
-      1: fwd_rev
-      2: rev_fwd
-      3: rev_rev
-      4: fwd_fwd_simple
-
   - code: 0x33
     name: OP_DEGREE
     mnemonic: DEGREE
@@ -612,11 +607,8 @@ opcodes:
       4: fwd_max_plus
       5: fwd_max_times
       6: fwd_min_max
-      7: fwd_sum_edge
-      8: fwd_min_edge
-      9: fwd_max_edge
-      10: fwd_first_src
-      11: fwd_argmin_plus
+      7: fwd_first_src
+      8: fwd_argmin_plus
 
   - code: 0x35
     name: OP_WALK_MORSEL
@@ -803,7 +795,7 @@ opcodes:
     pillar: 4
     allowed_flags: 0x3
     morsel_role: body_ok
-    banks: { dst: V, s1: V, s2: V_OR_R, s3: MASK_F_OR_HI }
+    banks: { dst: V, s1: V, s2: V_OR_R_OR_F, s3: MASK_F_OR_HI }
     imm_layout: NONE
     sets_vm_flags: []
     subops:
@@ -814,6 +806,7 @@ opcodes:
       4: gt
       5: ge
       6: between
+      7: in_set
 
   - code: 0x46
     name: OP_VEC_3VL_OP
@@ -863,7 +856,7 @@ opcodes:
     name: OP_VEC_MATH_ARITH
     mnemonic: VEC_MATH_ARITH
     pillar: 4
-    allowed_flags: 0x7
+    allowed_flags: 0x3
     morsel_role: body_ok
     banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
     imm_layout: NONE
@@ -984,15 +977,19 @@ opcodes:
     pillar: 4
     allowed_flags: 0x2
     morsel_role: body_ok
-    banks: { dst: V, s1: V, s2: V_OR_R, s3: V_OR_R }
+    banks: { dst: V, s1: V, s2: V_OR_R, s3: SUBOP_DEP }
     imm_layout: NONE
     sets_vm_flags: []
     subops:
-      0: fma
-      1: lerp
-      2: clamp
-      3: safe_div
-      4: time_valid_at
+      0: fma_v
+      1: fma_r
+      2: lerp_v
+      3: lerp_r
+      4: clamp_v
+      5: clamp_r
+      6: safe_div_v
+      7: safe_div_r
+      8: time_valid_at_r
 
   - code: 0x4E
     name: OP_VEC_BLEND
@@ -1026,7 +1023,7 @@ opcodes:
     pillar: 4
     allowed_flags: 0x2
     morsel_role: forbidden
-    banks: { dst: V, s1: OPT_R, s2: OPT_R, s3: NONE }
+    banks: { dst: V, s1: NONE, s2: OPT_R, s3: NONE }
     imm_layout: LEN_OR_DOM
     sets_vm_flags: []
     subops:
@@ -1058,6 +1055,7 @@ opcodes:
       0: vec_get
       1: vec_set
       2: vec_cast
+      3: vec_len
 
   - code: 0x52
     name: OP_VEC_REDUCE
@@ -1183,19 +1181,6 @@ opcodes:
     sets_vm_flags: [ZF]
     subops: { 0: groups }
 
-  - code: 0x62
-    name: OP_LANE_SET_EDGE_MASK
-    mnemonic: LANE_SET_EDGE_MASK
-    pillar: 5
-    allowed_flags: 0x2
-    morsel_role: forbidden
-    banks: { dst: V, s1: OPT_V, s2: OPT_R, s3: NONE }
-    imm_layout: U16_PAIR
-    sets_vm_flags: []
-    subops:
-      0: from_vec
-      1: from_attr
-
   - code: 0x63
     name: OP_LANE_WALK
     mnemonic: LANE_WALK
@@ -1215,6 +1200,7 @@ opcodes:
       6: rev_fixpoint_star
       7: fwd_edge_masked
       8: both_fixpoint_star
+      9: both_fixpoint_star_masked
 
   - code: 0x64
     name: OP_LANE_BITWISE
@@ -1271,22 +1257,11 @@ opcodes:
       2: max
       3: count
 
-  - code: 0x68
-    name: OP_LANE_SET_COVER
-    mnemonic: LANE_SET_COVER
-    pillar: 5
-    allowed_flags: 0x2
-    morsel_role: forbidden
-    banks: { dst: V, s1: F, s2: OPT_R, s3: NONE }
-    imm_layout: OPT_U16_LO
-    sets_vm_flags: [ZF]
-    subops: { 0: set_cover }
-
   - code: 0x69
     name: OP_VECTOR_ANN_SEARCH
     mnemonic: VECTOR_ANN_SEARCH
     pillar: 5
-    allowed_flags: 0x3
+    allowed_flags: 0x1
     morsel_role: forbidden
     banks: { dst: V, s1: V, s2: R, s3: MASK_F }
     imm_layout: U16_PAIR
