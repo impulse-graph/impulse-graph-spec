@@ -2,9 +2,9 @@ name: Impulse Graph Specification & Opcode Coverage CI
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ main, dev, 'feat/v0.11.0-ISA-Refactor' ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, 'feat/v0.11.0-ISA-Refactor' ]
 
 permissions:
   contents: read
@@ -41,4 +41,11 @@ jobs:
       - name: Validate ImpAsm Test Vectors & Enforce 100% Opcode Coverage
         run: |
           python tools/run_vm_asm_suite.py
+
+      - name: Validate ImpulseVM v0.11.0 Freeze, Codegen Drift, GFM Lint & Exhaustive M0 Suite
+        run: |
+          python tools/v11_isa_loader.py
+          python tools/gen_v11_tables.py --check
+          python tools/lint_v11_gfm.py
+          python -m unittest -v tools/test_v11_m0.py
 
