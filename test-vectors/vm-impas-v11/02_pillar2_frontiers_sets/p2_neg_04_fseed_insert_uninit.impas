@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 1}}
+
+.code
+  LOAD_CONST.i32   R0, 0
+  FSEED.insert_reg F0, R0
+  HALT

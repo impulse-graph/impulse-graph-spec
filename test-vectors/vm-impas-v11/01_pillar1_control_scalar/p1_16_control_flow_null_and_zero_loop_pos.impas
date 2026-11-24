@@ -1,0 +1,53 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = -1}}
+; {{EXPECT: R1 = 7}}
+; {{EXPECT: MAX_DOP = 1}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .param 0 type=frontier dom=0 values=[0]
+
+.code
+  ; SET_MAX_DOP clamps 0 -> 1 and 999 -> host_max_threads (then back to 1 via negative reg)
+  SET_MAX_DOP.imm        0
+  LOAD_CONST.i32         R5, 999
+  SET_MAX_DOP.reg        R5
+  LOAD_CONST.i32         R6, -5
+  SET_MAX_DOP.reg        R6
+
+  ; 0-trip LOOP_DECR: 0 decrements to -1 and falls through without branching
+  LOAD_CONST.i32         R0, 0
+  LOOP_DECR              R0, should_not_jump
+  JMP                    after_loop
+should_not_jump:
+  THROW.imm              20
+after_loop:
+  ; JCC fallthrough + taken paths for all 10 subops incl. uninitialized F2
+  LOAD_CONST.i32         R1, 7
+  JCC.jz                 fail_lbl
+  JCC.jnz                ok1
+fail_lbl:
+  THROW.imm              21
+ok1:
+  JCC.jst                fail_lbl
+  JCC.jnst               ok2
+  THROW.imm              22
+ok2:
+  JCC.jnull              fail_lbl
+  JCC.jnnull             ok3
+  THROW.imm              23
+ok3:
+  LOAD_CONST.null        R2
+  JCC.jtrue_r            R2, fail_lbl           ; NULL must NOT take jtrue_r!
+  JCC.jfalse_or_null_r   R2, ok4
+  THROW.imm              24
+ok4:
+  JCC.jempty_f           F2, ok5                ; uninitialized F2 is empty
+  THROW.imm              25
+ok5:
+  LOAD_PARAM.frontier    F0, param=0, dom=0
+  JCC.jnonempty_f        F0, ok6
+  TRAP                   27
+  THROW.reg              R1, 26
+ok6:
+  HALT

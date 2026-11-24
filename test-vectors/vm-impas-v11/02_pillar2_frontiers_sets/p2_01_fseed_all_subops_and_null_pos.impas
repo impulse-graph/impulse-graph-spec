@@ -1,0 +1,39 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F0 = [1, 4, 7] (dom=0)}}
+; {{EXPECT: F1 = [] (dom=0)}}
+; {{EXPECT: F2 = [3] (dom=0)}}
+; {{EXPECT: ZF = 1}}
+
+.data
+  .domain 0 name="User" count=10 width=u32
+
+.code
+  FSEED.empty            F0, dom=0
+  ASSERT.empty_f         F0, 1
+  FSEED.single_imm       F0, lo=1, hi=0
+  FSEED.single_imm.accum F0, lo=4, hi=0
+  LOAD_CONST.i32         R0, 7
+  FSEED.single_reg.accum F0, R0, dom=0
+  ; NULL register with .accum must be a no-op
+  LOAD_CONST.null        R1
+  FSEED.single_reg.accum F0, R1, dom=0
+  ; NULL register without .accum yields empty frontier
+  FSEED.single_reg       F1, R1, dom=0
+  ASSERT.empty_f         F1, 2
+
+  ; insert_reg (valid, duplicate, NULL) and remove_reg (existing, missing, NULL)
+  LOAD_CONST.i32         R2, 3
+  FSEED.single_reg       F2, R2, dom=0
+  LOAD_CONST.i32         R3, 5
+  FSEED.insert_reg       F2, R3
+  FSEED.insert_reg       F2, R3          ; duplicate insert
+  FSEED.insert_reg       F2, R1          ; NULL no-op
+  FSEED.remove_reg       F2, R3          ; removes 5 -> {3}
+  FSEED.remove_reg       F2, R3          ; missing remove no-op
+  FSEED.remove_reg       F2, R1          ; NULL no-op
+
+  ; Removing last element sets ZF = 1
+  FSEED.single_imm       F3, lo=2, hi=0
+  LOAD_CONST.i32         R4, 2
+  FSEED.remove_reg       F3, R4
+  HALT

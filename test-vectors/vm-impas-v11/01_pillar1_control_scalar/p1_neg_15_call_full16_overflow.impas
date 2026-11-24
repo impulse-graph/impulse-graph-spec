@@ -1,0 +1,9 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_STACK_OVERFLOW}}
+
+.code
+  CALL.full16 inf_rec
+  HALT
+inf_rec:
+  NOP
+  CALL.full16 inf_rec
+  RET

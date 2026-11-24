@@ -1,0 +1,39 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = "ACTIVE"}}
+; {{EXPECT: R0_TYPE = str}}
+; {{EXPECT: R1 = 1234567890123}}
+; {{EXPECT: R1_TYPE = i64}}
+; {{EXPECT: R2 = 3.5}}
+; {{EXPECT: R2_TYPE = f64}}
+; {{EXPECT: R3 = NULL}}
+; {{EXPECT: F0 = [1, 2, 4, 5] (dom=0)}}
+; {{EXPECT: F1 = [0, 3, 6] (dom=0)}}
+
+.data
+  .domain 0 name="User" count=8 width=u32
+  .param 0 type=i64 value=1234567890123
+  .param 1 type=f64 value=3.5
+  .param 2 type=i64 value=null
+  .param 3 type=frontier dom=0 values=[0, 3]
+  .param 4 type=frontier dom=0 values=[3, 6]
+  .param 5 type=f64_vec values=[1.0, null, -0.0]
+
+.const_pool
+  .pool 0 type=str value="ACTIVE"
+  .pool 1 type=i64_vec values=[10, 20, 30]
+  .pool 2 type=frontier values=[1, 4]
+  .pool 3 type=frontier values=[2, 4, 5]
+
+.code
+  LOAD_CONST_POOL.str            R0, pool=0
+  LOAD_CONST_POOL.vec            V0, pool=1
+  LOAD_CONST_POOL.frontier       F0, pool=2, dom=0
+  LOAD_CONST_POOL.frontier.accum F0, pool=3, dom=0
+
+  LOAD_PARAM.scalar              R1, param=0, type=i64
+  LOAD_PARAM.scalar              R2, param=1, type=f64
+  LOAD_PARAM.scalar              R3, param=2, type=i64
+  LOAD_PARAM.frontier            F1, param=3, dom=0
+  LOAD_PARAM.frontier.accum      F1, param=4, dom=0
+  LOAD_PARAM.vec                 V1, param=5, type=f64
+  HALT

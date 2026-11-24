@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 0}}
+
+.code
+  ; Reading uninitialized V1 via MOV.v must fail with TYPE_MISMATCH
+  MOV.v V0, V1
+  HALT

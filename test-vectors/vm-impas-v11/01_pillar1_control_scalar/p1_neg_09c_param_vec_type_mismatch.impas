@@ -1,0 +1,10 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 0}}
+
+.data
+  .param 0 type=i64_vec values=[1, 2, 3]
+
+.code
+  ; Param 0 is i64_vec, requesting f64 must fail with TYPE_MISMATCH
+  LOAD_PARAM.vec V0, param=0, type=f64
+  HALT

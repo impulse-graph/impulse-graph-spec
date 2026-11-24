@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000001704}}
+; Static validator rejection: ASSERT.is_null_r (0x04, subop=7) with disallowed flag 0x1

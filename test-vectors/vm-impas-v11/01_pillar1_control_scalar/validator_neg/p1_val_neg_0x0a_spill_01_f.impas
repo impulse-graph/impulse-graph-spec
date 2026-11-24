@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000110A}}
+; Static validator rejection: SPILL.f (0x0A, subop=1) with disallowed flag 0x1

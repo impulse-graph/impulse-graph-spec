@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000008405}}
+; LOAD_CONST.i64.ext (code=0x05, flags=0x8, subop=4) truncated without Word 2 (0xFF)
