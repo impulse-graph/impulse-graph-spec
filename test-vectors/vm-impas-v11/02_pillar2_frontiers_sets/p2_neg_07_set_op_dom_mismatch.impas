@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_DOMAIN_MISMATCH}}
+; {{EXPECT: PC = 2}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Item" count=4 width=u16
+
+.code
+  FSEED.single_imm F0, lo=1, hi=0
+  FSEED.single_imm F1, lo=1, hi=1
+  SET_OP.union     F2, F0, F1
+  HALT

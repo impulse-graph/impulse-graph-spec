@@ -1,0 +1,51 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R3 = NULL}}
+; {{EXPECT: R4 = 0}}
+; {{EXPECT: R5 = 1}}
+; {{EXPECT: R6 = NULL}}
+; {{EXPECT: R7 = 1}}
+; {{EXPECT: R8 = 0}}
+; {{EXPECT: R9 = 1}}
+; {{EXPECT: R10 = 0}}
+; {{EXPECT: R11 = 1}}
+; {{EXPECT: R12 = 1}}
+; {{EXPECT: R13 = 1}}
+; {{EXPECT: R14 = 1}}
+; {{EXPECT: R15 = 42}}
+
+.code
+  LOAD_CONST.i32         R0, 0                  ; FALSE
+  LOAD_CONST.i32         R1, 1                  ; TRUE
+  LOAD_CONST.null        R2                     ; NULL
+
+  ; Kleene 3VL critical truth-table invariants
+  SCALAR_3VL.not         R3, R2                 ; NOT(NULL) -> NULL!
+  SCALAR_3VL.and         R4, R0, R2             ; FALSE && NULL -> FALSE (0)!
+  SCALAR_3VL.or          R5, R1, R2             ; TRUE  || NULL -> TRUE  (1)!
+  SCALAR_3VL.cmp_ne_i64  R6, R2, R1             ; NULL != 1 -> NULL!
+  SCALAR_3VL.is_null     R7, R2                 ; 1
+  SCALAR_3VL.is_not_null R8, R2                 ; 0
+
+  ; Signed & unsigned integer comparisons + assembler .gt/.ge commute aliases
+  LOAD_CONST.i32         R9, -5
+  LOAD_CONST.i32         R10, 5
+  SCALAR_3VL.cmp_lt_i64  R11, R9, R10           ; -5 < 5 -> 1
+  SCALAR_3VL.cmp_le_i64  R12, R9, R9            ; -5 <= -5 -> 1
+  SCALAR_3VL.cmp_gt_i64  R13, R10, R9           ; commuted: 5 > -5 -> 1
+  SCALAR_3VL.cmp_ge_i64  R14, R10, R10          ; commuted: 5 >= 5 -> 1
+  SCALAR_3VL.cmp_eq_i64  R9, R10, R10           ; 1
+  SCALAR_3VL.cmp_lt_u64  R10, R10, R0           ; 5 <u 0 -> 0
+  SCALAR_3VL.cmp_le_u64  R11, R0, R1            ; 0 <=u 1 -> 1
+
+  ; Float64 comparisons
+  LOAD_CONST.f64.ext     R12, 1.5
+  LOAD_CONST.f64.ext     R13, 2.5
+  SCALAR_3VL.cmp_eq_f64  R14, R12, R12          ; 1
+  SCALAR_3VL.cmp_ne_f64  R14, R12, R13          ; 1
+  SCALAR_3VL.cmp_lt_f64  R12, R12, R13          ; 1
+  SCALAR_3VL.cmp_le_f64  R13, R13, R13          ; 1
+
+  ; Coalesce preserves chosen operand's type
+  LOAD_CONST.i32         R15, 42
+  SCALAR_3VL.coalesce    R15, R2, R15           ; NULL ?? 42 -> 42
+  HALT

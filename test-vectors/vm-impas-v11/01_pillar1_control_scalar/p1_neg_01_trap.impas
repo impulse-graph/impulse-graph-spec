@@ -1,0 +1,8 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TRAP}}
+; {{EXPECT: USER_THROW_CODE = 42}}
+; {{EXPECT: PC = 1}}
+
+.code
+  NOP
+  TRAP 42
+  HALT

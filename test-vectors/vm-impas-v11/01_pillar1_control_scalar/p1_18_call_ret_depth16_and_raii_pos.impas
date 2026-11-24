@@ -1,0 +1,32 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 777}}
+; {{EXPECT: R1 = 15}}
+; {{EXPECT: R2 = 15}}
+
+.code
+  ; Spill caller sentinel 777 into slot 0, recurse to exact max legal call depth 16!
+  LOAD_CONST.i32         R0, 777
+  SPILL.r                R0, slot=0
+  LOAD_CONST.i32         R1, 16                 ; depth counter
+  CALL.stride            r_stride=1, f_stride=1, v_stride=1, rec16
+  CALL.full16            clobber_spill
+  RELOAD.r               R0, slot=0             ; must still be 777!
+  HALT
+
+rec16:
+  ; Callee R0 = remaining depth, R1 = accumulator returned in overlap
+  SCALAR_INT_ALU.sub.imm R0, R0, 1
+  JCC.jz                 rec_bottom
+  ; Put depth in overlap slot R1 -> child R0
+  MOV.r                  R1, R0
+  CALL.stride            r_stride=1, f_stride=1, v_stride=1, rec16
+  SCALAR_INT_ALU.add.imm R1, R1, 1
+  RET
+rec_bottom:
+  LOAD_CONST.i32         R1, 1
+  RET
+
+clobber_spill:
+  LOAD_CONST.i32         R0, -1
+  SPILL.r                R0, slot=0             ; writes callee's own spill frame, NOT caller's!
+  RET

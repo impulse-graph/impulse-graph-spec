@@ -1,0 +1,66 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 0}}
+; {{EXPECT: R1 = 15}}
+; {{EXPECT: R2 = 1}}
+; {{EXPECT: MAX_DOP = 4}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .param 0 type=frontier dom=0 values=[1]
+  .param 1 type=frontier dom=0 values=[]
+
+.code
+  SET_MAX_DOP.imm        2
+  LOAD_CONST.i32         R3, 4
+  SET_MAX_DOP.reg        R3
+
+  ; Sum 5+4+3+2+1 = 15 using LOOP_DECR
+  LOAD_CONST.i32         R0, 5
+  LOAD_CONST.i32         R1, 0
+loop_sum:
+  SCALAR_INT_ALU.add     R1, R1, R0
+  LOOP_DECR              R0, loop_sum
+
+  ; Test all 10 JCC subops (jz, jnz, jst, jnst, jnull, jnnull, jtrue_r, jfalse_or_null_r, jempty_f, jnonempty_f)
+  LOAD_CONST.i32         R2, 0
+  JCC.jz                 ok_jz
+  THROW.imm              1
+ok_jz:
+  LOAD_CONST.i32         R2, 1
+  JCC.jnz                ok_jnz
+  THROW.imm              2
+ok_jnz:
+  JCC.jnst               ok_jnst
+  THROW.imm              3
+ok_jnst:
+  JCC.jnnull             ok_jnnull
+  THROW.imm              4
+ok_jnnull:
+  LOAD_CONST.null        R4
+  JCC.jnull              ok_jnull
+  THROW.imm              5
+ok_jnull:
+  JCC.jtrue_r            R2, ok_jtrue
+  THROW.imm              6
+ok_jtrue:
+  JCC.jfalse_or_null_r   R4, ok_jfon
+  THROW.imm              7
+ok_jfon:
+  LOAD_PARAM.frontier    F0, param=0, dom=0
+  LOAD_PARAM.frontier    F1, param=1, dom=0
+  JCC.jnonempty_f        F0, ok_jnef
+  THROW.imm              8
+ok_jnef:
+  JCC.jempty_f           F1, ok_jef
+  THROW.imm              9
+ok_jef:
+  ; Also exercise jst (taken after STABLE_CHECK) and JMP + unreachable TRAP / THROW.reg guards
+  STABLE_CHECK.frontier_eq F0, F0
+  JCC.jst                done
+  TRAP                   99
+  THROW.reg              R2, 10
+done:
+  JMP                    finish
+  TRAP                   100
+finish:
+  HALT

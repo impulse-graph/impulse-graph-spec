@@ -1,0 +1,52 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R2 = -9223372036854775808}}
+; {{EXPECT: R3 = 0}}
+; {{EXPECT: R4 = NULL}}
+; {{EXPECT: R5 = NULL}}
+; {{EXPECT: R6 = NULL}}
+; {{EXPECT: R7 = NULL}}
+; {{EXPECT: R8 = 0x7FFFFFFFFFFFFFFF}}
+; {{EXPECT: R9 = 1}}
+; {{EXPECT: R10 = 0x7FFFFFFFFFFFFFFF}}
+; {{EXPECT: R11 = -1}}
+; {{EXPECT: R12 = 42}}
+; {{EXPECT: R13 = NULL}}
+; {{EXPECT: R14 = -9223372036854775808}}
+; {{EXPECT: R15 = 100}}
+
+.code
+  ; INT64_MIN / -1 == INT64_MIN, INT64_MIN % -1 == 0 (x86 #DE guard)
+  LOAD_CONST.i64.ext         R0, 0x8000000000000000
+  LOAD_CONST.i32             R1, -1
+  SCALAR_INT_ALU.div_s       R2, R0, R1
+  SCALAR_INT_ALU.rem_s       R3, R0, R1
+
+  ; Division/remainder by 0 -> Kleene NULL
+  SCALAR_INT_ALU.div_s.imm   R4, R0, 0
+  SCALAR_INT_ALU.div_u.imm   R5, R0, 0
+  SCALAR_INT_ALU.rem_s.imm   R6, R0, 0
+  SCALAR_INT_ALU.rem_u.imm   R7, R0, 0
+
+  ; Unsigned high-bit division, remainder, and logical right shift
+  LOAD_CONST.u64.ext         R8, 0xFFFFFFFFFFFFFFFF
+  SCALAR_INT_ALU.div_u.imm   R8, R8, 2          ; 0x7FFFFFFFFFFFFFFF
+  LOAD_CONST.u64.ext         R9, 0xFFFFFFFFFFFFFFFF
+  SCALAR_INT_ALU.rem_u.imm   R9, R9, 2          ; 1
+  LOAD_CONST.u64.ext         R10, 0xFFFFFFFFFFFFFFFF
+  SCALAR_INT_ALU.shr_u.imm   R10, R10, 1        ; 0x7FFFFFFFFFFFFFFF
+  LOAD_CONST.i64.ext         R11, 0xFFFFFFFFFFFFFFFF
+  SCALAR_INT_ALU.shr_s.imm   R11, R11, 1        ; -1
+
+  ; Shift count masked & 63 (shl by 64 == shl by 0) + .imm ops + NULL propagation
+  LOAD_CONST.i32             R12, 42
+  SCALAR_INT_ALU.shl.imm     R12, R12, 64       ; 42
+  SCALAR_INT_ALU.add.imm     R15, R12, 58       ; 100
+  SCALAR_INT_ALU.sub.imm     R15, R15, 0
+  SCALAR_INT_ALU.mul.imm     R15, R15, 1
+  SCALAR_INT_ALU.and.imm     R15, R15, 255
+  SCALAR_INT_ALU.or.imm      R15, R15, 0
+  SCALAR_INT_ALU.xor.imm     R15, R15, 0
+  SCALAR_INT_ALU.not         R13, R4            ; ~NULL -> NULL
+  SCALAR_INT_ALU.min_s       R14, R0, R15       ; INT64_MIN
+  SCALAR_INT_ALU.max_s       R15, R0, R15       ; 100
+  HALT

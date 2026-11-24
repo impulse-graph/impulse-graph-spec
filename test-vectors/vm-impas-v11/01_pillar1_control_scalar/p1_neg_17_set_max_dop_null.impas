@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 1}}
+
+.code
+  LOAD_CONST.null R0
+  SET_MAX_DOP.reg R0
+  HALT

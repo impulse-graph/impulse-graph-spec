@@ -1,0 +1,8 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 2}}
+
+.code
+  LOAD_CONST.i32 R0, 42
+  SPILL.r        R0, slot=0
+  RELOAD.f       F0, slot=0
+  HALT

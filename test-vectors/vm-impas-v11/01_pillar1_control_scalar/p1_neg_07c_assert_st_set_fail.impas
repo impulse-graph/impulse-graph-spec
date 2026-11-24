@@ -1,0 +1,6 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}}
+; {{EXPECT: PC = 0}}
+
+.code
+  ASSERT.st_set 506
+  HALT

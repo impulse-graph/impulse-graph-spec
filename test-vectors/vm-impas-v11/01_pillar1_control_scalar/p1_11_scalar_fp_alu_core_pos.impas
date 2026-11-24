@@ -1,0 +1,36 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R2 = 12.5}}
+; {{EXPECT: R3 = 7.5}}
+; {{EXPECT: R4 = 25.0}}
+; {{EXPECT: R5 = 4.0}}
+; {{EXPECT: R6 = -2.5}}
+; {{EXPECT: R7 = 2.5}}
+; {{EXPECT: R8 = 5.0}}
+; {{EXPECT: R9 = 2.5}}
+; {{EXPECT: R10 = 10.0}}
+; {{EXPECT: R11 = 27.5}}
+; {{EXPECT: R12 = 2.0}}
+; {{EXPECT: R13 = 3.0}}
+; {{EXPECT: R14 = 3.0}}
+; {{EXPECT: R15 = 27}}
+
+.code
+  LOAD_CONST.f64.ext       R0, 10.0
+  LOAD_CONST.f64.ext       R1, 2.5
+  SCALAR_FP_ALU.add        R2, R0, R1           ; 12.5
+  SCALAR_FP_ALU.sub        R3, R0, R1           ; 7.5
+  SCALAR_FP_ALU.mul        R4, R0, R1           ; 25.0
+  SCALAR_FP_ALU.div        R5, R0, R1           ; 4.0
+  SCALAR_FP_ALU.neg        R6, R1               ; -2.5
+  SCALAR_FP_ALU.abs        R7, R6               ; 2.5
+  SCALAR_FP_ALU.sqrt       R8, R4               ; 5.0
+  SCALAR_FP_ALU.min        R9, R0, R1           ; 2.5
+  SCALAR_FP_ALU.max        R10, R0, R1          ; 10.0
+  SCALAR_FP_ALU.fma        R11, R0, R1, R1      ; 10*2.5 + 2.5 = 27.5
+  SCALAR_FP_ALU.floor      R12, R1              ; 2.0
+  SCALAR_FP_ALU.ceil       R13, R1              ; 3.0
+  SCALAR_FP_ALU.round      R14, R1              ; 3.0 (half away from zero)
+  SCALAR_FP_ALU.f64_to_i64 R15, R11             ; 27
+  SCALAR_FP_ALU.i64_to_f64 R0, R15              ; 27.0
+  SCALAR_FP_ALU.safe_div   R1, R0, R1, R10      ; 27.0 / 2.5 = 10.8
+  HALT

@@ -1,0 +1,45 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 999}}
+; {{EXPECT: R1 = 888}}
+; {{EXPECT: R2 = 120}}
+; {{EXPECT: F0 = [1, 2] (dom=0)}}
+; {{EXPECT: F3 = NULL}}
+
+.data
+  .domain 0 name="Node" count=6 width=u16
+  .param 0 type=frontier dom=0 values=[1, 2]
+  .param 1 type=frontier dom=0 values=[4, 5]
+
+.code
+  ; Caller-saved sentinel values in R0, R1 and F0
+  LOAD_CONST.i32         R0, 999
+  LOAD_CONST.i32         R1, 888
+  LOAD_PARAM.frontier    F0, param=0, dom=0
+
+  ; Pass n=5 in R2 (overlap slot for r_stride=2 -> callee R0)
+  LOAD_CONST.i32         R2, 5
+  CALL.stride            r_stride=2, f_stride=2, v_stride=2, fact
+  ; Also test CALL.full16 complete isolation (callee clobbers R0..R15, caller unaffected)
+  CALL.full16            isolated_sub
+  HALT
+
+fact:
+  ; Callee R0 = n; R1 = scratch; R2 = recursive arg
+  ; Populate callee-local F14 (released by RAII on RET -> caller F3 stays NULL)
+  LOAD_PARAM.frontier    F14, param=1, dom=0
+  LOAD_CONST.i32         R1, 1
+  SCALAR_3VL.cmp_le_i64  R3, R0, R1
+  JCC.jtrue_r            R3, fact_base
+  SCALAR_INT_ALU.sub.imm R2, R0, 1
+  CALL.stride            r_stride=2, f_stride=2, v_stride=2, fact
+  SCALAR_INT_ALU.mul     R0, R0, R2
+  RET
+fact_base:
+  LOAD_CONST.i32         R0, 1
+  RET
+
+isolated_sub:
+  LOAD_CONST.i32         R0, 12345
+  LOAD_CONST.i32         R1, 67890
+  LOAD_CONST.i32         R2, 55555
+  RET

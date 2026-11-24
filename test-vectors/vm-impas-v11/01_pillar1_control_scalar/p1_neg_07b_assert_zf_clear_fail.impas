@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}}
+; {{EXPECT: PC = 1}}
+
+.code
+  LOAD_CONST.i32  R0, 0
+  ASSERT.zf_clear 505
+  HALT

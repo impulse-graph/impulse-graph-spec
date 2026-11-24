@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000000F, 0x0000000000000000}}
+; Word 0: JMP 0 (self-loop rejected by static validator)

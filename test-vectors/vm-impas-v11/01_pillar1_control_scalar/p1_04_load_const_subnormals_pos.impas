@@ -1,0 +1,23 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = -2147483648}}
+; {{EXPECT: R1 = 0}}
+; {{EXPECT: R2 = +0.0}}
+; {{EXPECT: R3 = 0x00000001}}
+; {{EXPECT: R4 = 9223372036854775807}}
+; {{EXPECT: R5 = 0x8000000000000001}}
+; {{EXPECT: R6 = +inf}}
+; {{EXPECT: R7 = -inf}}
+; {{EXPECT: R8 = NULL}}
+; {{EXPECT: ZF = 1, NF = 1}}
+
+.code
+  LOAD_CONST.i32      R0, -2147483648       ; INT32_MIN sign-extended
+  LOAD_CONST.u32      R1, 0
+  LOAD_CONST.f32      R2, 0x00000000        ; +0.0f
+  LOAD_CONST.f32_raw  R3, 0x00000001        ; smallest positive f32 subnormal
+  LOAD_CONST.i64.ext  R4, 0x7FFFFFFFFFFFFFFF ; INT64_MAX
+  LOAD_CONST.u64.ext  R5, 0x8000000000000001 ; high-bit u64
+  LOAD_CONST.f64.ext  R6, 0x7FF0000000000000 ; +Inf
+  LOAD_CONST.f64.ext  R7, 0xFFF0000000000000 ; -Inf
+  LOAD_CONST.null     R8
+  HALT

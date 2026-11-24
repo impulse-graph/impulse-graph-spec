@@ -1,0 +1,51 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R2 = 15}}
+; {{EXPECT: R3 = 5}}
+; {{EXPECT: R4 = 50}}
+; {{EXPECT: R5 = -3}}
+; {{EXPECT: R6 = 2}}
+; {{EXPECT: R7 = -1}}
+; {{EXPECT: R8 = 1}}
+; {{EXPECT: R9 = 2}}
+; {{EXPECT: R10 = 14}}
+; {{EXPECT: R11 = 12}}
+; {{EXPECT: R12 = -11}}
+; {{EXPECT: R13 = 160}}
+; {{EXPECT: R14 = -5}}
+; {{EXPECT: R15 = 10}}
+
+.code
+  LOAD_CONST.i32         R0, 10
+  LOAD_CONST.i32         R1, 5
+  SCALAR_INT_ALU.add     R2, R0, R1         ; 15
+  SCALAR_INT_ALU.sub     R3, R0, R1         ; 5
+  SCALAR_INT_ALU.mul     R4, R0, R1         ; 50
+
+  LOAD_CONST.i32         R5, -10
+  LOAD_CONST.i32         R6, 3
+  SCALAR_INT_ALU.div_s   R5, R5, R6         ; -3
+  SCALAR_INT_ALU.div_u   R6, R0, R1         ; 2
+
+  LOAD_CONST.i32         R7, -10
+  LOAD_CONST.i32         R8, 3
+  SCALAR_INT_ALU.rem_s   R7, R7, R8         ; -1
+  SCALAR_INT_ALU.rem_u   R8, R0, R8         ; 1
+
+  LOAD_CONST.i32         R9, 6              ; 0b0110
+  LOAD_CONST.i32         R10, 10            ; 0b1010
+  SCALAR_INT_ALU.and     R9, R9, R10        ; 2
+  LOAD_CONST.i32         R11, 6
+  SCALAR_INT_ALU.or      R10, R11, R10      ; 14
+  LOAD_CONST.i32         R12, 10
+  SCALAR_INT_ALU.xor     R11, R11, R12      ; 12
+  SCALAR_INT_ALU.not     R12, R0            ; ~10 = -11
+
+  LOAD_CONST.i32         R13, 4
+  SCALAR_INT_ALU.shl     R13, R0, R13       ; 10 << 4 = 160
+  LOAD_CONST.i32         R14, -20
+  LOAD_CONST.i32         R15, 2
+  SCALAR_INT_ALU.shr_u   R1, R0, R15        ; 10 >>> 2 = 2
+  SCALAR_INT_ALU.shr_s   R14, R14, R15      ; -20 >> 2 = -5
+  SCALAR_INT_ALU.min_s   R15, R14, R0       ; -5
+  SCALAR_INT_ALU.max_s   R15, R14, R0       ; 10
+  HALT

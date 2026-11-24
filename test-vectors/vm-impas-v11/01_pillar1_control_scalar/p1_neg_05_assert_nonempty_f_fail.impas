@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}}
+; {{EXPECT: PC = 0}}
+
+.code
+  ; Uninitialized F0 must fail ASSERT.nonempty_f
+  ASSERT.nonempty_f F0, 502
+  HALT
