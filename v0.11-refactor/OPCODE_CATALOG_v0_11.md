@@ -307,8 +307,10 @@
   ```impas
   SPILL.f F7, slot=0
   ```
-* **Justification**: Guarantees register allocation completeness for arbitrarily wide DAG queries (>16 live variables in one bank) without expanding register fields past 4 bits.
-* **Gotchas**: Spilling an `F` or `V` register retains a COW lease on its slab/arena buffer until either overwritten in `slot` or automatically reclaimed when the enclosing `OP_RET` pops `spill_base`.
+* **Justification**: Guarantees register allocation completeness for arbitrarily wide DAG queries (>16 live variables in one bank) without expanding register fields past 4 bits. Inside `OP_WALK_MORSEL` / `OP_FILTER_MORSEL` (`morsel_role = body_v_only`), `OP_SPILL.v` (`subop = 2`) is permitted **exclusively** for morsel-private vectors `V8..V15` (`M0..M7`) into thread-private morsel spill slots `0..15` (`16 KB`/slot, statically bounded in `impulse_vm_plan_memory`), eliminating the 4-temporary ceiling for deeply nested CEL edge expressions.
+* **Gotchas**:
+  1. Spilling an `F` or `V` register retains a COW lease on its slab/arena buffer until either overwritten in `slot` or automatically reclaimed when the enclosing `OP_RET` pops `spill_base`.
+  2. Inside a morsel block, `OP_SPILL.r`, `OP_SPILL.f`, or `OP_SPILL.v` with `s1 < 8` (outer `V0..V7`) MUST fail static validation (`IMPULSE_VM_ERR_VALIDATION_FAILED`).
 
 ---
 
@@ -2021,6 +2023,83 @@
   ```
 * **Justification**: Generalizes `OP_VECTOR_RERANK_DOT` (`0xCB`) across `DOT`, `COSINE`, and `L2` while composing orthogonally with `OP_TOP_K` and `OP_GATHER_VEC`.
 * **Gotchas**: Accumulate dot products / squared differences in **`double` (`f64`)** (or deterministic 16-lane pairwise `f32` tree) before rounding the final scalar per candidate to `f32`, preventing AVX-512 16-wide vs NEON 4-wide FMA associativity drift across architectures!
+
+---
+
+### `0x6B` — `OP_LANE_STATE_INIT`
+* **Summary**: Allocates and initializes a 2D numeric multi-lane state slab (`LANE_STATE`, `state[N_d][W]`) in `V[dst]` backed by caller-owned `scratch_buf`, plus a compact `1 bit/node` active summary bitset and `uint16_t active_lane_mask[N_d]` (MITra Lesson 4.2).
+* **Encoding**:
+  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: seed value from `R[s2]` on `subop 4`)
+  - `dst`: `V[dst]`; `s1`: `F[s1]` (multi-lane seed frontier on `subop 4`, `0` MBZ otherwise); `s2`: `R[s2]` (optional seed value); `s3`: `0` (MBZ); `imm16_lo`: `domain_id`, `imm16_hi`: `lane_width W`
+  - `vm_flags` updated: `ZF = (N_d == 0)`.
+* **Sub-Operations (`subop:4` (`0..5`))**:
+
+| `subop` | Mnemonic | Semantics |
+| :--- | :--- | :--- |
+| `0` | `.zero_f32` | Allocate `f32[N_d][W]` (`W ∈ {4, 8, 16}`, $\le 64\text{ B/node}$) initialized to `0.0f`. |
+| `1` | `.inf_f32` | Allocate `f32[N_d][W]` (`W ∈ {4, 8, 16}`, $\le 64\text{ B/node}$) initialized to `+Inf`. |
+| `2` | `.zero_f64` | Allocate `f64[N_d][W]` (`W ∈ {2, 4, 8}`, $\le 64\text{ B/node}$) initialized to `0.0`. |
+| `3` | `.inf_f64` | Allocate `f64[N_d][W]` (`W ∈ {2, 4, 8}`, $\le 64\text{ B/node}$) initialized to `+Inf`. |
+| `4` | `.from_frontier_seeds` | Seed active `(u, b)` entries in `V[dst]` from multi-lane frontier `F[s1]` with `R[s2]` (or `0.0`/`1.0`). |
+| `5` | `.with_witness` | Attach `uint32_t witness_prev[N_d][W]` in `scratch_buf` (initialized to `0xFFFFFFFF`) for `OP_LANE_STATE_REDUCE.trace_path`. |
+
+* **Gotchas**: `W` is strictly capped at $\le 64\text{ B/node}$ (`W <= 16` for `f32`, `W <= 8` for `f64`) to stay under the random-scatter cache/TLB wall observed in `mitra_aside_bench`; larger `K` batches into `ceil(K / W)` passes.
+
+---
+
+### `0x6C` — `OP_LANE_STATE_WALK`
+* **Summary**: Single-hop or fixed-point multi-lane semiring relaxation over `LANE_STATE` in `V[s1]` $\to$ `V[dst]` across `rel_id = imm16_lo` and optional edge attribute `attr_id = imm16_hi` (`0xFFFF` = unweighted `1.0`), using adaptive Push-CSR / Pull-CSC execution.
+* **Encoding**:
+  - `flags:4`: `0x4` (`FLAG_ACCUM` = fixpoint), `0x2` (`FLAG_SCALAR_RHS` = $\Delta$-bucket step from `R[s2]` for monotone semirings), `0x1` (`FLAG_MASKED_S3` = active/exclusion frontier `F[s3]`)
+  - `dst`: `V[dst]`; `s1`: `V[s1]`; `s2`: `R[s2]` ($\Delta$ when `FLAG_SCALAR_RHS` set, `0` MBZ otherwise); `s3`: `F[s3]` (when `FLAG_MASKED_S3` set, `0` MBZ otherwise)
+  - `vm_flags` updated: `ZF = (active_count == 0)`, `ST = 1` on fixpoint convergence.
+* **Sub-Operations (`subop:4` (`0..9`))**:
+
+| `subop` | Mnemonic | Semiring $(\oplus, \otimes)$ | Direction |
+| :--- | :--- | :--- | :--- |
+| `0` / `5` | `.fwd_min_plus` / `.rev_min_plus` | $(\min, +)$ — Multi-seed weighted SSSP | CSR / CSC |
+| `1` / `6` | `.fwd_max_plus` / `.rev_max_plus` | $(\max, +)$ — Longest/critical path | CSR / CSC |
+| `2` / `7` | `.fwd_max_mul` / `.rev_max_mul` | $(\max, \times)$ — Max-reliability / Viterbi | CSR / CSC |
+| `3` / `8` | `.fwd_sum_mul` / `.rev_sum_mul` | $(+, \times)$ — Multi-seed PPR / Markov walks | CSR / CSC |
+| `4` / `9` | `.fwd_min_max` / `.rev_min_max` | $(\min, \max)$ — Minimax bottleneck path | CSR / CSC |
+
+* **Gotchas**:
+  1. **Schedule-Invariant Witness Tie-Breaking**: When `witness_prev` is attached, update `witness_prev[v][b] = u` iff `new_cost < cur_cost || (new_cost == cur_cost && u < witness_prev[v][b])`, guaranteeing identical witness trees across synchronous, Gauss-Seidel, and $\Delta$-stepping schedules.
+  2. **Deterministic `SUM_MUL` Guard**: Combining `subop 3` or `8` (`.fwd_sum_mul` / `.rev_sum_mul`) with `FLAG_SCALAR_RHS` ($\Delta$-bucket async stepping) MUST trap `IMPULSE_VM_ERR_INVALID_OPERAND` (`6`). Synchronous `SUM_MUL` accumulates incoming edges in ascending source-ID `u` order (CSC Pull).
+
+---
+
+### `0x6D` — `OP_LANE_STATE_OP`
+* **Summary**: Vectorized in-domain `LANE_STATE` projection, pruning, and frontier bridging.
+* **Encoding**:
+  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`)
+  - `dst`: `V[dst]` (`subop 0..2`) or `F[dst]` (`subop 3..4`); `s1`: `V[s1]` (`LANE_STATE`); `s2`: `R[s2]` (`alpha`/cutoff/quorum); `s3`: `R[s3]` (optional `max_deg` on `subop 2`)
+  - `vm_flags` updated: `ZF = is_empty(dst)`.
+* **Sub-Operations (`subop:4` (`0..4`))**:
+
+| `subop` | Mnemonic | Semantics |
+| :--- | :--- | :--- |
+| `0` | `.project_affine` | `V[dst][u][b] = (1 - alpha) * V[s1][u][b] + alpha * seed` (`alpha = R[s2]`, PageRank/PPR damping). |
+| `1` | `.prune_cutoff` | Resets lanes with `V[s1][u][b] > R[s2]` back to semiring identity. |
+| `2` | `.prune_hub_quorum` | Zeroes all lanes at `u` if `deg(u) > R[s3]` and fewer than `imm32` lanes satisfy `V[s1][u][b] <= R[s2]`. |
+| `3` | `.to_lane_frontier` | Bridges `V[s1]` (`LANE_STATE`) $\to$ multi-lane frontier `F[dst]` where `V[s1][u][b] <= R[s2]`. |
+| `4` | `.to_quorum_frontier` | Bridges `V[s1]` $\to$ 1-bit frontier `F[dst]` where active lane count $\ge R[s2]$. |
+
+---
+
+### `0x6E` — `OP_LANE_STATE_REDUCE`
+* **Summary**: Reduces a `LANE_STATE` slab per-lane (`[W]` vector, `FLAG_SCALAR_RHS = 0`) or cross-lane (`[N_d]` node vector, `FLAG_SCALAR_RHS = 1`), or reconstructs a deterministic witness path.
+* **Encoding**:
+  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `0` = per-lane `[W]`, `1` = cross-lane `[N_d]`)
+  - `dst`: `V[dst]`; `s1`: `V[s1]` (`LANE_STATE`, or `R[s1]` target node on `subop 6`); `s2`: `R[s2]` (lane index `b` on `subop 6`, `0` MBZ otherwise); `s3`: `0` (MBZ)
+  - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
+* **Sub-Operations (`subop:4` (`0..6`))**:
+
+| `subop` | Mnemonic | Semantics |
+| :--- | :--- | :--- |
+| `0`..`3` | `.min`, `.max`, `.sum`, `.mean` | Per-lane or cross-lane numeric reduction skipping identity/NULL lanes. |
+| `4` / `5` | `.argmin` / `.argmax` | Returns winning node ID (per-lane) or lane index (cross-lane); lowest index strictly wins ties. |
+| `6` | `.trace_path` | Reconstructs deterministic `u32` witness path in `V[dst]` for `(target=R[s1], lane=R[s2])` from `witness_prev`. |
 
 ---
 
