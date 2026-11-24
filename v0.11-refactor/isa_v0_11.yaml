@@ -231,7 +231,7 @@ opcodes:
     mnemonic: SPILL
     pillar: 1
     allowed_flags: 0x0
-    morsel_role: forbidden
+    morsel_role: body_v_only
     banks: { dst: NONE, s1: SUBOP_DEP, s2: NONE, s3: NONE }
     imm_layout: U16_LO
     sets_vm_flags: []
@@ -245,7 +245,7 @@ opcodes:
     mnemonic: RELOAD
     pillar: 1
     allowed_flags: 0x0
-    morsel_role: forbidden
+    morsel_role: body_v_only
     banks: { dst: SUBOP_DEP, s1: NONE, s2: NONE, s3: NONE }
     imm_layout: U16_LO
     sets_vm_flags: [ZF, NF]
@@ -1282,6 +1282,78 @@ opcodes:
       1: cosine
       2: neg_l2_sq
       3: l2_sq
+
+  - code: 0x6B
+    name: OP_LANE_STATE_INIT
+    mnemonic: LANE_STATE_INIT
+    pillar: 5
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: V, s1: OPT_F, s2: OPT_R, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: zero_f32
+      1: inf_f32
+      2: zero_f64
+      3: inf_f64
+      4: from_frontier_seeds
+      5: with_witness
+
+  - code: 0x6C
+    name: OP_LANE_STATE_WALK
+    mnemonic: LANE_STATE_WALK
+    pillar: 5
+    allowed_flags: 0x7
+    morsel_role: forbidden
+    banks: { dst: V, s1: V, s2: OPT_R, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, ST]
+    subops:
+      0: fwd_min_plus
+      1: fwd_max_plus
+      2: fwd_max_mul
+      3: fwd_sum_mul
+      4: fwd_min_max
+      5: rev_min_plus
+      6: rev_max_plus
+      7: rev_max_mul
+      8: rev_sum_mul
+      9: rev_min_max
+
+  - code: 0x6D
+    name: OP_LANE_STATE_OP
+    mnemonic: LANE_STATE_OP
+    pillar: 5
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: V, s2: OPT_R, s3: OPT_R }
+    imm_layout: OPT_U32
+    sets_vm_flags: [ZF]
+    subops:
+      0: project_affine
+      1: prune_cutoff
+      2: prune_hub_quorum
+      3: to_lane_frontier
+      4: to_quorum_frontier
+
+  - code: 0x6E
+    name: OP_LANE_STATE_REDUCE
+    mnemonic: LANE_STATE_REDUCE
+    pillar: 5
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: V, s1: SUBOP_DEP, s2: OPT_R, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF]
+    subops:
+      0: min
+      1: max
+      2: sum
+      3: mean
+      4: argmin
+      5: argmax
+      6: trace_path
 
   # --- Extension Payload Guard Word (0xFF) ---
   - code: 0xFF
