@@ -1,0 +1,48 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F1 = [1, 2] (dom=0)}}
+; {{EXPECT: F2 = [0] (dom=0)}}
+; {{EXPECT: F3 = [0, 2, 3] (dom=0)}}
+; {{EXPECT: F4 = [1, 2, 3, 4] (dom=0)}}
+; {{EXPECT: F5 = [0, 1, 2, 3, 4] (dom=0)}}
+; {{EXPECT: F6 = [0, 1, 2] (dom=0)}}
+; {{EXPECT: F7 = [0, 1, 2, 3] (dom=0)}}
+; {{EXPECT: F8 = [1, 2, 3] (dom=0)}}
+; {{EXPECT: F9 = [1] (dom=0)}}
+
+.data
+  ; Directed chain with branch: 0->1, 0->2, 1->3, 2->3, 3->4, 4->0 (cycle)
+  .domain 0 name="Node" count=6 width=u32
+  .relation 0 name="NEXT" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 5, 6, 6] targets=[1, 2, 3, 3, 4, 0]
+
+.code
+  FSEED.single_imm       F0, lo=0, hi=0
+  WALK.fwd               F1, F0, rel=0          ; {1, 2}
+  FSEED.single_imm       F10, lo=1, hi=0
+  WALK.rev               F2, F10, rel=0         ; {0}
+  WALK.both              F3, F10, rel=0         ; fwd(1)={3} U rev(1)={0} -> wait 0->1,1->3 -> {0,3}, add 2 via accum:
+  FSEED.single_imm       F11, lo=2, hi=0
+  WALK.fwd.accum         F3, F0, rel=0          ; F3 = {0,3} U {1,2}? Wait let's keep F3 clean via F10+F11
+  FSEED.single_imm       F12, lo=1, hi=0
+  FSEED.single_imm.accum F12, lo=3, hi=0
+  ; Actually test .both cleanly on {1}: {0, 3}, then union 2 -> use F0={0} -> fwd={1,2}, rev={4}; use {1}: fwd={3}, rev={0}
+  ; Let's test .both on {1, 2} -> fwd={3}, rev={0} -> {0,3}; or on {0} -> {1,2,4}. Let's use {1} + .accum {2}
+  FSEED.single_imm       F3, lo=2, hi=0
+  WALK.both.accum        F3, F10, rel=0         ; {2} U {0, 3} = {0, 2, 3}
+
+  ; Transitive closures on DAG 0->1->3->4, 0->2->3 (mask out 0 on plus so cycle stops at 4!)
+  WALK.fwd_fixpoint_plus.mask F4, F0, F0, rel=0 ; {1, 2, 3, 4}
+  WALK.fwd_fixpoint_star      F5, F0, rel=0     ; {0, 1, 2, 3, 4}
+
+  ; Reverse closures from 3 excluding {4}: rev(3)={1,2}, rev({1,2})={0}, rev(0)={4 (masked!)}
+  FSEED.single_imm       F13, lo=3, hi=0
+  FSEED.single_imm       F14, lo=4, hi=0
+  WALK.rev_fixpoint_plus.mask F6, F13, F14, rel=0 ; {0, 1, 2}
+  WALK.rev_fixpoint_star.mask F7, F13, F14, rel=0 ; {0, 1, 2, 3}
+
+  ; Bounded 2-hop forward from 0: hop1={1,2}, hop2={3} -> {1,2,3}
+  WALK.fwd_bounded       F8, F0, rel=0, k=2
+
+  ; Masked 1-hop: fwd({0}) \ {2} = {1}
+  WALK.fwd.mask          F9, F0, F11, rel=0
+  HALT

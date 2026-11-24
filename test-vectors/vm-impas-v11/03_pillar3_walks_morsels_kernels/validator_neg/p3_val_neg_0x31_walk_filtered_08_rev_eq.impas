@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000002831}}
+; Static validator rejection: WALK_FILTERED.rev_eq (0x31, subop=8) with disallowed flag 0x2

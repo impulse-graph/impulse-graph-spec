@@ -1,0 +1,43 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F1 = [1] (dom=0)}}
+; {{EXPECT: F2 = [0, 2] (dom=0)}}
+; {{EXPECT: F3 = [0] (dom=0)}}
+; {{EXPECT: F4 = [0, 1] (dom=0)}}
+; {{EXPECT: F5 = [2] (dom=0)}}
+; {{EXPECT: F6 = [1, 2] (dom=0)}}
+; {{EXPECT: F7 = [0, 1, 2] (dom=0)}}
+; {{EXPECT: F8 = [3] (dom=0)}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Item" count=2 width=u16
+  .relation 0 name="RATED" src_dom=0 tgt_dom=1
+  ; Users 0,1,2,3 -> Item 0 with i64 weights [10, 20, 30, null]
+  .csr_inline rel=0 offsets=[0, 1, 2, 3, 4] targets=[0, 0, 0, 0]
+  .edge_attr rel=0 attr=0 name="w" type=i64 values=[10, 20, 30, null]
+
+.code
+  FSEED.single_imm              F0, lo=0, hi=1
+  LOAD_CONST.i32                R0, 20
+
+  WALK_FILTERED.rev_eq          F1, F0, R0, rel=0, attr=0 ; {1}
+  WALK_FILTERED.rev_ne          F2, F0, R0, rel=0, attr=0 ; {0, 2} (3 is NULL!)
+  WALK_FILTERED.rev_lt          F3, F0, R0, rel=0, attr=0 ; {0}
+  WALK_FILTERED.rev_le          F4, F0, R0, rel=0, attr=0 ; {0, 1}
+  WALK_FILTERED.rev_gt          F5, F0, R0, rel=0, attr=0 ; {2}
+  WALK_FILTERED.rev_ge          F6, F0, R0, rel=0, attr=0 ; {1, 2}
+  WALK_FILTERED.rev_is_not_null F7, F0, rel=0, attr=0     ; {0, 1, 2}
+  WALK_FILTERED.rev_is_null     F8, F0, rel=0, attr=0     ; {3}
+
+  ; Exercise fwd subops with .accum and .mask for 2-file positive coverage
+  INIT_DOMAIN_SPAN              F9, dom=0
+  FSEED.single_imm              F10, lo=1, hi=1
+  WALK_FILTERED.eq.mask         F11, F9, R0, F10, rel=0, attr=0
+  WALK_FILTERED.ne.accum        F11, F9, R0, rel=0, attr=0
+  WALK_FILTERED.lt              F11, F9, R0, rel=0, attr=0
+  WALK_FILTERED.le              F11, F9, R0, rel=0, attr=0
+  WALK_FILTERED.gt              F11, F9, R0, rel=0, attr=0
+  WALK_FILTERED.ge              F11, F9, R0, rel=0, attr=0
+  WALK_FILTERED.is_not_null     F11, F9, rel=0, attr=0
+  WALK_FILTERED.is_null         F11, F9, rel=0, attr=0
+  HALT

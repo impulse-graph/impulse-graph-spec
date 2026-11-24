@@ -1,0 +1,26 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [1, 1, null, null]}}
+; {{EXPECT: COLLECT_1 = [1, null]}}
+; {{EXPECT: COLLECT_2 = [1, 2]}}
+
+.data
+  .domain 0 name="Node" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  ; Node 0 -> [1] (deg=1), Node 2 -> [] (dead end, deg=0!)
+  .csr_inline rel=0 offsets=[0, 1, 1, 1] targets=[1]
+  .param 0 type=u64_vec values=[0, 2]
+
+.code
+  LOAD_CONST.u32                R0, 42
+  FSEED.single_imm              F0, lo=0, hi=0
+  SAMPLE_NEIGHBORS.frontier_wor F1, F0, R0, rel=0, k=2
+
+  LOAD_PARAM.vec                V0, param=0, type=u64
+  ; Node 0 always picks 1; dead-end Node 2 emits NULL on vec_wr and rw_step_fwd, stays at 2 on rw_step_stay!
+  SAMPLE_NEIGHBORS.vec_wr       V1, V0, R0, rel=0, k=2
+  SAMPLE_NEIGHBORS.rw_step_fwd  V2, V0, R0, rel=0, k=1
+  SAMPLE_NEIGHBORS.rw_step_stay V3, V0, R0, rel=0, k=1
+  COLLECT.vec                   V1, out=0
+  COLLECT.vec                   V2, out=1
+  COLLECT.vec                   V3, out=2
+  HALT

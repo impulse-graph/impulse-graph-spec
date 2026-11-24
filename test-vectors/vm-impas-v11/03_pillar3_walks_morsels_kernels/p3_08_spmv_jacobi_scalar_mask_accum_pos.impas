@@ -1,0 +1,38 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, 2, 2, 0]}}
+; {{EXPECT: COLLECT_1 = [0, 1, 2, null]}}
+; {{EXPECT: COLLECT_2 = [null, 0, null, null]}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  ; Chain 0->1->2 (unweighted)
+  .csr_inline rel=0 offsets=[0, 1, 2, 2, 2] targets=[1, 2]
+  .param 0 type=f64_vec values=[0.0, 1.0, null, null]
+
+.code
+  INIT_DOMAIN_SPAN          F0, dom=0
+  LOAD_CONST.f64.ext        R0, 2.0
+  ; Scalar RHS (.scalar) unweighted (attr=0xFFFF)
+  SPMV.fwd_plus_times.scalar V0, F0, R0, rel=0, attr=0xFFFF ; [0, 2, 2, 0]
+  SPMV.rev_plus_times.scalar V1, F0, R0, rel=0, attr=0xFFFF
+
+  ; Jacobi in-place aliasing: dst == s2 (V2) -> 0->1 gives 1, 1->2 gives 2 (NOT 3!)
+  LOAD_PARAM.vec            V2, param=0, type=f64
+  SPMV.fwd_min_plus.accum   V2, F0, V2, rel=0, attr=0xFFFF  ; [0, 1, 2, null]
+
+  ; Target mask (.mask F1={1}) restricts output to node 1 only
+  FSEED.single_imm          F1, lo=1, hi=0
+  SPMV.fwd_first_src.mask   V3, F0, F1, rel=0, attr=0xFFFF  ; [null, 0, null, null]
+
+  ; Cover remaining subops for 2-file positive coverage
+  SPMV.rev_min_plus.scalar  V4, F0, R0, rel=0, attr=0xFFFF
+  SPMV.fwd_max_plus.scalar  V5, F0, R0, rel=0, attr=0xFFFF
+  SPMV.fwd_max_times.scalar V6, F0, R0, rel=0, attr=0xFFFF
+  SPMV.fwd_min_max.scalar   V7, F0, R0, rel=0, attr=0xFFFF
+  SPMV.fwd_argmin_plus      V8, F0, V2, rel=0, attr=0xFFFF
+
+  COLLECT.vec               V0, out=0
+  COLLECT.vec               V2, out=1
+  COLLECT.vec               V3, out=2
+  HALT

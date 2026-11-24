@@ -1,0 +1,38 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F0 = [2] (dom=0)}}
+; {{EXPECT: F1 = [1, 2] (dom=1)}}
+; {{EXPECT: F2 = [0] (dom=0)}}
+; {{EXPECT: F3 = [] (dom=0)}}
+; {{EXPECT: ST = 1, ZF = 0}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Item" count=4 width=u16
+  ; Endo-relation 0 (COO-only layout): 0->1->2
+  .relation 0 name="FOLLOWS" src_dom=0 tgt_dom=0
+  .coo_inline rel=0 sources=[0, 1] targets=[1, 2]
+  ; Bipartite relation 1 (Dense BitMatrix layout): User 0 -> Item 1, 2
+  .relation 1 name="BOUGHT" src_dom=0 tgt_dom=1
+  .dense_inline rel=1 rows=[[0, 1, 1, 0], [0, 0, 0, 0], [0, 0, 0, 0], [0, 0, 0, 0]]
+
+.code
+  ; In-place aliasing WALK.fwd F0, F0 twice: 0 -> 1 -> 2
+  FSEED.single_imm  F0, lo=0, hi=0
+  WALK.fwd          F0, F0, rel=0
+  WALK.fwd          F0, F0, rel=0           ; {2}
+
+  ; Bipartite Dense BitMatrix fwd and rev
+  FSEED.single_imm  F4, lo=0, hi=0
+  WALK.fwd          F1, F4, rel=1           ; {1, 2} (dom=1)
+  WALK.rev          F2, F1, rel=1           ; {0} (dom=0)
+
+  ; Empty frontier walk -> EMPTY
+  FSEED.empty       F3, dom=0
+  WALK.both         F3, F3, rel=0
+  WALK.fwd_fixpoint_plus F5, F4, rel=0
+  WALK.fwd_fixpoint_star F6, F4, rel=0
+  WALK.rev_fixpoint_plus F7, F0, rel=0
+  WALK.rev_fixpoint_star F8, F0, rel=0
+  ; Bounded walk with k=5 converges early at hop 2 -> ST = 1
+  WALK.fwd_bounded  F9, F4, rel=0, k=5
+  HALT

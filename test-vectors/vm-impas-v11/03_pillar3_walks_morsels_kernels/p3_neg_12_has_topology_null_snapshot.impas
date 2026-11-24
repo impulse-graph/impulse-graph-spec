@@ -1,0 +1,6 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_NULL_SNAPSHOT}}
+; {{EXPECT: PC = 0}}
+
+.code
+  HAS_TOPOLOGY.has_csr R0, lo=0, hi=0
+  HALT

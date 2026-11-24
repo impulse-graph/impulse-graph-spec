@@ -1,0 +1,26 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 1}}
+; {{EXPECT: F0 = [0, 1, 2] (dom=0)}}
+; {{EXPECT: COLLECT_0 = [0, 0, 0, 0, 4, 4, 6]}}
+; {{EXPECT: COLLECT_1 = [2, 2, 2, 1, 1, 1, 0]}}
+; {{EXPECT: COLLECT_2 = [1, 1, 1, 0, 0, 0, 0]}}
+
+.data
+  ; Component 0: triangle {0,1,2} + pendant edge 2-3 (core=[2,2,2,1], tri=[1,1,1,0])
+  ; Component 4: edge 4-5 (core=[1,1])
+  ; Component 6: isolated node 6 (core=[0])
+  .domain 0 name="Node" count=7 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 4, 5, 5, 5] targets=[1, 2, 2, 3, 5]
+
+.code
+  GRAPH_KERNEL.cc_afforest     V0, rel=0           ; [0, 0, 0, 0, 4, 4, 6]
+  GRAPH_KERNEL.kcore_nums      V1, rel=0           ; [2, 2, 2, 1, 1, 1, 0]
+  GRAPH_KERNEL.kcore_frontier  F0, rel=0, k=2      ; {0, 1, 2}
+  GRAPH_KERNEL.tri_count_total R0, rel=0           ; 1
+  GRAPH_KERNEL.tri_count_vec   V2, rel=0           ; [1, 1, 1, 0, 0, 0, 0]
+
+  COLLECT.vec V0, out=0
+  COLLECT.vec V1, out=1
+  COLLECT.vec V2, out=2
+  HALT

@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_DOMAIN_MISMATCH}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Item" count=4 width=u16
+  .relation 0 name="BOUGHT" src_dom=0 tgt_dom=1
+  .csr_inline rel=0 offsets=[0, 1, 1, 1, 1] targets=[1]
+
+.code
+  FSEED.single_imm       F0, lo=0, hi=0
+  ; Fixpoint walk on bipartite (src_dom != tgt_dom) relation MUST fail with DOMAIN_MISMATCH
+  WALK.fwd_fixpoint_star F1, F0, rel=0
+  HALT

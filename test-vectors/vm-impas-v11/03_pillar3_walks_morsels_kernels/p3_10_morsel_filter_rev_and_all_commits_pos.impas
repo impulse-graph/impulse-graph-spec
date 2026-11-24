@@ -1,0 +1,54 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F2 = [0, 2] (dom=0)}}
+; {{EXPECT: F3 = [0, 1] (dom=0)}}
+; {{EXPECT: R2 = 12}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Item" count=3 width=u16
+  .relation 0 name="BOUGHT" src_dom=0 tgt_dom=1
+  ; User 0->Item 1(200), User 1->Item 1(50), User 2->Item 1(300)
+  .csr_inline rel=0 offsets=[0, 1, 2, 3, 3] targets=[1, 1, 1]
+  .edge_attr rel=0 attr=0 name="amt" type=f64 values=[200.0, 50.0, 300.0]
+  .node_attr dom=0 attr=0 name="age" type=f64 values=[25.0, 35.0, null, 15.0]
+  .param 0 type=f64_vec values=[1.0, 1.0, 1.0, 1.0]
+  .param 1 type=u64_vec values=[null, null, null, null]
+
+.code
+  FSEED.single_imm    F0, lo=1, hi=1            ; Item 1 (dom=1)
+  LOAD_CONST.f64.ext  R0, 100.0
+  LOAD_CONST.f64.ext  R1, 20.0
+  LOAD_CONST.i32      R2, 10                    ; pre-seeded for count_add_r.accum
+  LOAD_CONST.f64.ext  R3, 5.0                   ; scalar RHS for scatter_add.scalar
+  LOAD_PARAM.vec      V0, param=0, type=f64
+  LOAD_PARAM.vec      V1, param=0, type=f64
+  LOAD_PARAM.vec      V2, param=0, type=f64
+  LOAD_PARAM.vec      V3, param=1, type=u64
+  LOAD_PARAM.vec      V4, param=1, type=u64
+  LOAD_PARAM.vec      V5, param=1, type=u64
+
+  ; Reverse WALK_MORSEL.rev: M0 is STILL topological src_id (User), M1 is tgt_id (Item)!
+  WALK_MORSEL.rev F0, rel=0
+    GATHER_EDGE_ATTR                       M4, M2, rel=0, attr=0
+    VEC_CMP.gt.scalar                      M5, M4, R0
+    SET_CONVERT.b2f                        MF1, M5
+    MORSEL_COMMIT.yield_frontier.mask      F2, M0, MF1, dom=0
+    MORSEL_COMMIT.yield_lane_or.mask       F4, M0, M3, MF1, dom=0
+    MORSEL_COMMIT.scatter_add.accum.scalar.mask V0, M0, R3, MF1
+    MORSEL_COMMIT.scatter_min.mask         V1, M0, M4, MF1
+    MORSEL_COMMIT.scatter_max.mask         V2, M0, M4, MF1
+    MORSEL_COMMIT.scatter_min_src.mask     V3, M0, M0, MF1
+    MORSEL_COMMIT.scatter_argmin.mask      V4, M0, M0, MF1
+    MORSEL_COMMIT.scatter_argmax.mask      V5, M0, M0, MF1
+    MORSEL_COMMIT.count_add_r.accum.mask   R2, MF1
+  MORSEL_END
+
+  ; Node FILTER_MORSEL over all Users: age > 20.0 -> {0, 1} (user 2 is NULL, user 3 is 15.0)
+  INIT_DOMAIN_SPAN    F1, dom=0
+  FILTER_MORSEL       F1
+    GATHER_NODE_ATTR                       M4, M0, dom=0, attr=0
+    VEC_CMP.gt.scalar                      M5, M4, R1
+    SET_CONVERT.b2f                        MF1, M5
+    MORSEL_COMMIT.yield_frontier.mask      F3, M0, MF1, dom=0
+  MORSEL_END
+  HALT
