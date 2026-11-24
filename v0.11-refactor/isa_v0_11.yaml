@@ -1,0 +1,1321 @@
+# Normative Machine-Readable Specification for ImpulseVM v0.11.0 (impOps v0.11)
+# Single source of truth for C++20, Rust, Java 25, OCaml, and Python assembler/fuzzer codegen.
+
+schema_version: 1
+isa_name: impOps
+isa_version: "0.11.0"
+impb_magic: 0x494D5042
+impb_version_u16: 11
+
+word_format:
+  primary_bits: 64
+  endianness: little
+  fields:
+    opcode:   { bit_lo: 0,  bit_hi: 7,  width: 8 }
+    subop:    { bit_lo: 8,  bit_hi: 11, width: 4 }
+    flags:    { bit_lo: 12, bit_hi: 15, width: 4 }
+    s1:       { bit_lo: 16, bit_hi: 19, width: 4 }
+    dst:      { bit_lo: 20, bit_hi: 23, width: 4 }
+    s3:       { bit_lo: 24, bit_hi: 27, width: 4 }
+    s2:       { bit_lo: 28, bit_hi: 31, width: 4 }
+    imm16_lo: { bit_lo: 32, bit_hi: 47, width: 16 }
+    imm16_hi: { bit_lo: 48, bit_hi: 63, width: 16 }
+    imm32:    { bit_lo: 32, bit_hi: 63, width: 32 }
+  extension_word_2:
+    guard_opcode: 0xFF
+    ext_meta24: { bit_lo: 8,  bit_hi: 31, width: 24, mbz: true }
+    imm32_hi:   { bit_lo: 32, bit_hi: 63, width: 32 }
+
+register_banks:
+  R:
+    count: 16
+    prefix: "R"
+    description: "64-bit untagged scalar registers paired with uint16_t r_valid_mask"
+  F:
+    count: 16
+    prefix: "F"
+    morsel_alias: { range: [8, 15], prefix: "MF", prebound: { 8: "active_mask" } }
+    description: "Domain-tagged 3-tier 1-bit and multi-lane (W=8..64) frontiers"
+  V:
+    count: 16
+    prefix: "V"
+    morsel_alias:
+      range: [8, 15]
+      prefix: "M"
+      prebound: { 8: "src_or_node_id", 9: "tgt_id", 10: "edge_idx", 11: "lane_mask" }
+    description: "Typed off-heap columnar and scratch vectors with Arrow validity bitmasks"
+
+modifier_flags:
+  FLAG_MASKED_S3:  { nibble_mask: 0x1, byte1_mask: 0x10, suffix: "mask" }
+  FLAG_SCALAR_RHS: { nibble_mask: 0x2, byte1_mask: 0x20, suffix: "scalar" }
+  FLAG_ACCUM:      { nibble_mask: 0x4, byte1_mask: 0x40, suffix: "accum" }
+  FLAG_EXTENDED:   { nibble_mask: 0x8, byte1_mask: 0x80, suffix: "ext" }
+
+vm_condition_flags:
+  ZF: { bit: 0, mask: 0x0001, description: "Zero / Empty / False-or-Null" }
+  ST: { bit: 1, mask: 0x0002, description: "Stable / Fixed-Point Converged" }
+  NF: { bit: 2, mask: 0x0004, description: "Kleene NULL Scalar Output" }
+
+status_codes:
+  0:  IMPULSE_VM_OK
+  1:  IMPULSE_VM_ERR_INVALID_OPCODE
+  2:  IMPULSE_VM_ERR_OUT_OF_BOUNDS
+  3:  IMPULSE_VM_ERR_NULL_SNAPSHOT
+  4:  IMPULSE_VM_ERR_STACK_OVERFLOW
+  5:  IMPULSE_VM_ERR_STACK_UNDERFLOW
+  6:  IMPULSE_VM_ERR_INVALID_OPERAND
+  7:  IMPULSE_VM_ERR_USER_THROW
+  8:  IMPULSE_VM_ERR_ASSERTION_FAILED
+  9:  IMPULSE_VM_ERR_TRAP
+  10: IMPULSE_VM_ERR_DOMAIN_MISMATCH
+  11: IMPULSE_VM_ERR_BUFFER_OVERFLOW
+  12: IMPULSE_VM_ERR_FLOATING_POINT
+  13: IMPULSE_VM_ERR_GAS_EXHAUSTED
+  14: IMPULSE_VM_ERR_TYPE_MISMATCH
+  15: IMPULSE_VM_ERR_VALIDATION_FAILED
+
+opcodes:
+  # --- Pillar 1: System, Constants, Scalar ALU & Windowed Control (0x00 - 0x14) ---
+  - code: 0x00
+    name: OP_HALT
+    mnemonic: HALT
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops: { 0: ok }
+
+  - code: 0x01
+    name: OP_NOP
+    mnemonic: NOP
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: body_ok
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops: { 0: nop }
+
+  - code: 0x02
+    name: OP_TRAP
+    mnemonic: TRAP
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U32
+    sets_vm_flags: []
+    subops: { 0: trap }
+
+  - code: 0x03
+    name: OP_THROW
+    mnemonic: THROW
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: U32
+    sets_vm_flags: []
+    subops: { 0: imm, 1: reg }
+
+  - code: 0x04
+    name: OP_ASSERT
+    mnemonic: ASSERT
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: U32
+    sets_vm_flags: []
+    subops:
+      0: true_r
+      1: nonempty_f
+      2: empty_f
+      3: zf_set
+      4: zf_clear
+      5: st_set
+      6: not_null_r
+      7: is_null_r
+
+  - code: 0x05
+    name: OP_LOAD_CONST
+    mnemonic: LOAD_CONST
+    pillar: 1
+    allowed_flags: 0x8
+    morsel_role: forbidden
+    banks: { dst: R, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: CONST_PAYLOAD
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: i32
+      1: u32
+      2: f32
+      3: f32_raw
+      4: b64
+      5: "null"
+
+  - code: 0x06
+    name: OP_LOAD_CONST_POOL
+    mnemonic: LOAD_CONST_POOL
+    pillar: 1
+    allowed_flags: 0x4
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: POOL_DESC
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: vec
+      1: frontier
+      2: str
+
+  - code: 0x07
+    name: OP_LOAD_PARAM
+    mnemonic: LOAD_PARAM
+    pillar: 1
+    allowed_flags: 0x4
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: scalar
+      1: frontier
+      2: vec
+
+  - code: 0x08
+    name: OP_MOV
+    mnemonic: MOV
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: body_ok
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: OPT_DOMAIN_U16
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: r
+      1: f
+      2: v
+      3: clear_r
+      4: clear_f
+      5: clear_v
+
+  - code: 0x09
+    name: OP_SWAP
+    mnemonic: SWAP
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: body_ok
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: r
+      1: f
+      2: v
+
+  - code: 0x0A
+    name: OP_SPILL
+    mnemonic: SPILL
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: U16_LO
+    sets_vm_flags: []
+    subops:
+      0: r
+      1: f
+      2: v
+
+  - code: 0x0B
+    name: OP_RELOAD
+    mnemonic: RELOAD
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U16_LO
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: r
+      1: f
+      2: v
+
+  - code: 0x0C
+    name: OP_SCALAR_INT_ALU
+    mnemonic: SCALAR_INT_ALU
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: R, s2: R_OR_IMM_MODE, s3: IMM_MODE_TAG }
+    imm_layout: OPT_I32
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: add
+      1: sub
+      2: mul
+      3: div_s
+      4: div_u
+      5: rem_s
+      6: rem_u
+      7: "and"
+      8: "or"
+      9: xor
+      10: "not"
+      11: shl
+      12: shr_u
+      13: shr_s
+      14: min_s
+      15: max_s
+
+  - code: 0x0D
+    name: OP_SCALAR_FP_ALU
+    mnemonic: SCALAR_FP_ALU
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: R, s2: OPT_R, s3: OPT_R }
+    imm_layout: NONE
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: add
+      1: sub
+      2: mul
+      3: div
+      4: neg
+      5: abs
+      6: sqrt
+      7: min
+      8: max
+      9: fma
+      10: floor
+      11: ceil
+      12: round
+      13: i64_to_f64
+      14: f64_to_i64
+      15: safe_div
+
+  - code: 0x0E
+    name: OP_SCALAR_3VL
+    mnemonic: SCALAR_3VL
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: R, s2: OPT_R, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: cmp_eq_i64
+      1: cmp_ne_i64
+      2: cmp_lt_i64
+      3: cmp_le_i64
+      4: cmp_lt_u64
+      5: cmp_le_u64
+      6: cmp_eq_f64
+      7: cmp_ne_f64
+      8: cmp_lt_f64
+      9: cmp_le_f64
+      10: "and"
+      11: "or"
+      12: "not"
+      13: is_null
+      14: is_not_null
+      15: coalesce
+
+  - code: 0x0F
+    name: OP_JMP
+    mnemonic: JMP
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: fwd_jump_only
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: REL_PC_I32
+    sets_vm_flags: []
+    subops: { 0: jmp }
+
+  - code: 0x10
+    name: OP_JCC
+    mnemonic: JCC
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: fwd_jump_only
+    banks: { dst: NONE, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: REL_PC_I32
+    sets_vm_flags: []
+    subops:
+      0: jz
+      1: jnz
+      2: jst
+      3: jnst
+      4: jnull
+      5: jnnull
+      6: jtrue_r
+      7: jfalse_or_null_r
+      8: jempty_f
+      9: jnonempty_f
+
+  - code: 0x11
+    name: OP_LOOP_DECR
+    mnemonic: LOOP_DECR
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: REL_PC_I32
+    sets_vm_flags: [ZF]
+    subops: { 0: decr }
+
+  - code: 0x12
+    name: OP_CALL
+    mnemonic: CALL
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: STRIDE_IMM, s2: STRIDE_IMM, s3: STRIDE_IMM }
+    imm_layout: REL_PC_I32
+    sets_vm_flags: []
+    subops:
+      0: stride
+      1: full16
+
+  - code: 0x13
+    name: OP_RET
+    mnemonic: RET
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops: { 0: ret }
+
+  - code: 0x14
+    name: OP_SET_MAX_DOP
+    mnemonic: SET_MAX_DOP
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: OPT_R, s2: NONE, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: []
+    subops:
+      0: imm
+      1: reg
+
+  # --- Pillar 2: Polymorphic Frontier & Set Algebra (0x20 - 0x27) ---
+  - code: 0x20
+    name: OP_FSEED
+    mnemonic: FSEED
+    pillar: 2
+    allowed_flags: 0x4
+    morsel_role: forbidden
+    banks: { dst: F, s1: OPT_R, s2: NONE, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: empty
+      1: single_imm
+      2: single_reg
+      3: insert_reg
+      4: remove_reg
+
+  - code: 0x21
+    name: OP_INIT_DOMAIN_SPAN
+    mnemonic: INIT_DOMAIN_SPAN
+    pillar: 2
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: F, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U16_LO
+    sets_vm_flags: [ZF]
+    subops: { 0: all_span }
+
+  - code: 0x22
+    name: OP_SET_OP
+    mnemonic: SET_OP
+    pillar: 2
+    allowed_flags: 0x4
+    morsel_role: body_ok
+    banks: { dst: F, s1: F, s2: F, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF]
+    subops:
+      0: union
+      1: intersect
+      2: diff
+      3: sym_diff
+
+  - code: 0x23
+    name: OP_SET_COMPLEMENT
+    mnemonic: SET_COMPLEMENT
+    pillar: 2
+    allowed_flags: 0x0
+    morsel_role: body_ok
+    banks: { dst: F, s1: F, s2: NONE, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF]
+    subops: { 0: complement }
+
+  - code: 0x24
+    name: OP_SET_CARDINALITY
+    mnemonic: SET_CARDINALITY
+    pillar: 2
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: F, s2: NONE, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: card_1bit
+      1: lane_pop_sum
+      2: lane_any_nodes
+      3: lane_all_nodes
+      4: single_lane
+
+  - code: 0x25
+    name: OP_SET_CONTAINS
+    mnemonic: SET_CONTAINS
+    pillar: 2
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: F, s2: R, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: contains_1bit
+      1: get_lane_mask
+
+  - code: 0x26
+    name: OP_SET_CONVERT
+    mnemonic: SET_CONVERT
+    pillar: 2
+    allowed_flags: 0x4
+    morsel_role: body_ok
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF]
+    subops:
+      0: f2v_ids
+      1: v2f_ids
+      2: b2f
+      3: f2b
+
+  - code: 0x27
+    name: OP_STABLE_CHECK
+    mnemonic: STABLE_CHECK
+    pillar: 2
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: SUBOP_DEP, s3: OPT_R }
+    imm_layout: NONE
+    sets_vm_flags: [ZF, ST, NF]
+    subops:
+      0: frontier_eq
+      1: vec_l1
+
+  # --- Pillar 3: Graph Topology, Semiring SpMV, Lexical Morsels & Kernels (0x30 - 0x3B) ---
+  - code: 0x30
+    name: OP_WALK
+    mnemonic: WALK
+    pillar: 3
+    allowed_flags: 0x5
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, ST]
+    subops:
+      0: fwd
+      1: rev
+      2: both
+      3: fwd_fixpoint_plus
+      4: fwd_fixpoint_star
+      5: rev_fixpoint_plus
+      6: rev_fixpoint_star
+      7: fwd_bounded
+
+  - code: 0x31
+    name: OP_WALK_FILTERED
+    mnemonic: WALK_FILTERED
+    pillar: 3
+    allowed_flags: 0x5
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: OPT_R, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: eq
+      1: ne
+      2: lt
+      3: le
+      4: gt
+      5: ge
+      6: is_not_null
+      7: is_null
+      8: rev_eq
+      9: rev_ne
+      10: rev_lt
+      11: rev_le
+      12: rev_gt
+      13: rev_ge
+      14: rev_is_not_null
+      15: rev_is_null
+
+  - code: 0x32
+    name: OP_WALK_2HOP
+    mnemonic: WALK_2HOP
+    pillar: 3
+    allowed_flags: 0x5
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: fwd_fwd
+      1: fwd_rev
+      2: rev_fwd
+      3: rev_rev
+      4: fwd_fwd_simple
+
+  - code: 0x33
+    name: OP_DEGREE
+    mnemonic: DEGREE
+    pillar: 3
+    allowed_flags: 0x1
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: MASK_F }
+    imm_layout: U16_LO
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: sum_fwd_r
+      1: sum_rev_r
+      2: vec_fwd_v
+      3: vec_rev_v
+      4: node_fwd_r
+      5: node_rev_r
+
+  - code: 0x34
+    name: OP_SPMV
+    mnemonic: SPMV
+    pillar: 3
+    allowed_flags: 0x7
+    morsel_role: forbidden
+    banks: { dst: V, s1: F, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: fwd_plus_times
+      1: rev_plus_times
+      2: fwd_min_plus
+      3: rev_min_plus
+      4: fwd_max_plus
+      5: fwd_max_times
+      6: fwd_min_max
+      7: fwd_sum_edge
+      8: fwd_min_edge
+      9: fwd_max_edge
+      10: fwd_first_src
+      11: fwd_argmin_plus
+
+  - code: 0x35
+    name: OP_WALK_MORSEL
+    mnemonic: WALK_MORSEL
+    pillar: 3
+    allowed_flags: 0x1
+    morsel_role: header
+    banks: { dst: NONE, s1: F, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: fwd
+      1: rev
+
+  - code: 0x36
+    name: OP_FILTER_MORSEL
+    mnemonic: FILTER_MORSEL
+    pillar: 3
+    allowed_flags: 0x0
+    morsel_role: header
+    banks: { dst: NONE, s1: F, s2: NONE, s3: NONE }
+    imm_layout: U16_HI
+    sets_vm_flags: [ZF]
+    subops: { 0: node }
+
+  - code: 0x37
+    name: OP_MORSEL_COMMIT
+    mnemonic: MORSEL_COMMIT
+    pillar: 3
+    allowed_flags: 0x7
+    morsel_role: commit_only
+    banks: { dst: SUBOP_DEP, s1: OPT_V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: []
+    subops:
+      0: yield_frontier
+      1: yield_lane_or
+      2: scatter_add
+      3: scatter_min
+      4: scatter_max
+      5: scatter_min_src
+      6: scatter_argmin
+      7: scatter_argmax
+      8: count_add_r
+
+  - code: 0x38
+    name: OP_MORSEL_END
+    mnemonic: MORSEL_END
+    pillar: 3
+    allowed_flags: 0x0
+    morsel_role: end_only
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U16_HI
+    sets_vm_flags: [ZF]
+    subops: { 0: end }
+
+  - code: 0x39
+    name: OP_SAMPLE_NEIGHBORS
+    mnemonic: SAMPLE_NEIGHBORS
+    pillar: 3
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: R, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: frontier_wor
+      1: vec_wr
+      2: rw_step_fwd
+      3: rw_step_stay
+
+  - code: 0x3A
+    name: OP_HAS_TOPOLOGY
+    mnemonic: HAS_TOPOLOGY
+    pillar: 3
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: has_csr
+      1: has_csc
+      2: has_coo
+      3: has_dense
+      4: has_key_cat
+      5: has_node_attr
+      6: has_edge_attr
+      7: has_index
+      8: domain_card
+      9: rel_edges
+
+  - code: 0x3B
+    name: OP_GRAPH_KERNEL
+    mnemonic: GRAPH_KERNEL
+    pillar: 3
+    allowed_flags: 0x1
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: NONE, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: cc_afforest
+      1: kcore_nums
+      2: kcore_frontier
+      3: tri_count_total
+      4: tri_count_vec
+
+  # --- Pillar 4: Columnar Vectors, Split Math, 3VL, Strings, Indices & Collect (0x40 - 0x57) ---
+  - code: 0x40
+    name: OP_LOAD_COLUMN
+    mnemonic: LOAD_COLUMN
+    pillar: 4
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: V, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: []
+    subops:
+      0: node_attr
+      1: edge_attr
+
+  - code: 0x41
+    name: OP_GATHER_NODE_ATTR
+    mnemonic: GATHER_NODE_ATTR
+    pillar: 4
+    allowed_flags: 0x1
+    morsel_role: body_ok
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: vec
+      1: frontier_compact
+      2: scalar
+
+  - code: 0x42
+    name: OP_GATHER_EDGE_ATTR
+    mnemonic: GATHER_EDGE_ATTR
+    pillar: 4
+    allowed_flags: 0x1
+    morsel_role: body_ok
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: vec
+      1: scalar
+
+  - code: 0x43
+    name: OP_GATHER_VEC
+    mnemonic: GATHER_VEC
+    pillar: 4
+    allowed_flags: 0x1
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: V, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops: { 0: gather }
+
+  - code: 0x44
+    name: OP_NODE_FILTER
+    mnemonic: NODE_FILTER
+    pillar: 4
+    allowed_flags: 0x6
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: OPT_V_OR_R, s3: OPT_V_OR_R }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: eq
+      1: ne
+      2: lt
+      3: le
+      4: gt
+      5: ge
+      6: between
+      7: is_null
+      8: is_not_null
+
+  - code: 0x45
+    name: OP_VEC_CMP
+    mnemonic: VEC_CMP
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: V_OR_R, s3: MASK_F_OR_HI }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: eq
+      1: ne
+      2: lt
+      3: le
+      4: gt
+      5: ge
+      6: between
+
+  - code: 0x46
+    name: OP_VEC_3VL_OP
+    mnemonic: VEC_3VL_OP
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: OPT_V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: OPT_U32
+    sets_vm_flags: []
+    subops:
+      0: "and"
+      1: "or"
+      2: "not"
+      3: xor
+      4: is_null
+      5: is_not_null
+      6: is_true
+      7: is_false
+      8: is_nan
+      9: is_inf
+      10: is_finite
+      11: assert_finite
+
+  - code: 0x47
+    name: OP_VEC_STR_PRED
+    mnemonic: VEC_STR_PRED
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: eq
+      1: ne
+      2: lt
+      3: le
+      4: gt
+      5: ge
+      6: starts_with
+      7: ends_with
+      8: contains
+      9: len_eq
+
+  - code: 0x48
+    name: OP_VEC_MATH_ARITH
+    mnemonic: VEC_MATH_ARITH
+    pillar: 4
+    allowed_flags: 0x7
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: add
+      1: sub
+      2: mul
+      3: div
+      4: rem
+      5: min
+      6: max
+      7: copysign
+      8: neg
+      9: abs
+      10: sqrt
+      11: rsqrt
+      12: floor
+      13: ceil
+      14: trunc
+      15: round
+
+  - code: 0x49
+    name: OP_VEC_MATH_EXP_LOG
+    mnemonic: VEC_MATH_EXP_LOG
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: exp
+      1: exp2
+      2: exp10
+      3: expm1
+      4: log
+      5: log2
+      6: log10
+      7: log1p
+      8: pow
+      9: cbrt
+      10: hypot
+      11: erf
+      12: erfc
+      13: lgamma
+
+  - code: 0x4A
+    name: OP_VEC_MATH_TRIG_HYP
+    mnemonic: VEC_MATH_TRIG_HYP
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: sin
+      1: cos
+      2: tan
+      3: asin
+      4: acos
+      5: atan
+      6: atan2
+      7: sinc
+      8: sinh
+      9: cosh
+      10: tanh
+      11: asinh
+      12: acosh
+      13: atanh
+
+  - code: 0x4B
+    name: OP_VEC_MATH_ACT
+    mnemonic: VEC_MATH_ACT
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: relu
+      1: leaky_relu
+      2: sigmoid
+      3: gelu
+      4: silu
+      5: softplus
+
+  - code: 0x4C
+    name: OP_VEC_INT_BITWISE
+    mnemonic: VEC_INT_BITWISE
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: "and"
+      1: "or"
+      2: xor
+      3: "not"
+      4: and_not
+      5: shl
+      6: shr_u
+      7: shr_s
+      8: rotl
+      9: rotr
+      10: popcount
+      11: clz
+      12: ctz
+      13: bswap
+
+  - code: 0x4D
+    name: OP_VEC_TERNARY
+    mnemonic: VEC_TERNARY
+    pillar: 4
+    allowed_flags: 0x2
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: V_OR_R, s3: V_OR_R }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: fma
+      1: lerp
+      2: clamp
+      3: safe_div
+      4: time_valid_at
+
+  - code: 0x4E
+    name: OP_VEC_BLEND
+    mnemonic: VEC_BLEND
+    pillar: 4
+    allowed_flags: 0x2
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: V_OR_R, s3: SUBOP_DEP }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops:
+      0: kleene_vv
+      1: kleene_vr
+      2: case_vv
+      3: case_vr
+
+  - code: 0x4F
+    name: OP_COALESCE
+    mnemonic: COALESCE
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: V_OR_R, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: []
+    subops: { 0: coalesce }
+
+  - code: 0x50
+    name: OP_VEC_INIT
+    mnemonic: VEC_INIT
+    pillar: 4
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: V, s1: OPT_R, s2: OPT_R, s3: NONE }
+    imm_layout: LEN_OR_DOM
+    sets_vm_flags: []
+    subops:
+      0: i64
+      1: u64
+      2: i32
+      3: u32
+      4: f64
+      5: f32
+      6: bool_3vl
+      8: dom_i64
+      9: dom_u64
+      10: dom_i32
+      11: dom_u32
+      12: dom_f64
+      13: dom_f32
+      14: dom_bool_3vl
+
+  - code: 0x51
+    name: OP_VEC_POINT
+    mnemonic: VEC_POINT
+    pillar: 4
+    allowed_flags: 0x0
+    morsel_role: body_cast_only
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: OPT_R, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: vec_get
+      1: vec_set
+      2: vec_cast
+
+  - code: 0x52
+    name: OP_VEC_REDUCE
+    mnemonic: VEC_REDUCE
+    pillar: 4
+    allowed_flags: 0x1
+    morsel_role: forbidden
+    banks: { dst: R, s1: V, s2: NONE, s3: MASK_F }
+    imm_layout: NONE
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: sum
+      1: min
+      2: max
+      3: count_valid
+      4: mean
+      5: l1_norm
+      6: l2_norm_sq
+      7: argmin
+      8: argmax
+      9: any_true
+      10: all_true
+
+  - code: 0x53
+    name: OP_TOP_K
+    mnemonic: TOP_K
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: forbidden
+    banks: { dst: V, s1: V, s2: OPT_R, s3: MASK_F }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF]
+    subops:
+      0: desc_ids
+      1: asc_ids
+      2: desc_scores
+      3: asc_scores
+
+  - code: 0x54
+    name: OP_INDEX_SCAN
+    mnemonic: INDEX_SCAN
+    pillar: 4
+    allowed_flags: 0x4
+    morsel_role: forbidden
+    banks: { dst: F, s1: NONE, s2: R, s3: OPT_R }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: eq
+      1: between_cc
+      2: between_co
+      3: lt
+      4: le
+      5: gt
+      6: ge
+
+  - code: 0x55
+    name: OP_MAP_KEYS_TO_DENSE
+    mnemonic: MAP_KEYS_TO_DENSE
+    pillar: 4
+    allowed_flags: 0x4
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: param_to_f
+      1: vec_to_v
+      2: scalar_to_r
+
+  - code: 0x56
+    name: OP_MAP_DENSE_TO_KEYS
+    mnemonic: MAP_DENSE_TO_KEYS
+    pillar: 4
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: SUBOP_DEP, s1: SUBOP_DEP, s2: NONE, s3: NONE }
+    imm_layout: U16_LO
+    sets_vm_flags: []
+    subops:
+      0: vec
+      1: frontier_sorted
+      2: scalar
+
+  - code: 0x57
+    name: OP_COLLECT
+    mnemonic: COLLECT
+    pillar: 4
+    allowed_flags: 0x1
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: SUBOP_DEP, s2: NONE, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: frontier_bitset
+      1: frontier_ids
+      2: vec
+      3: scalar
+      4: table_col
+
+  # --- Pillar 5: Multi-Lane Bit-Sliced Execution & Vector ANN (0x60 - 0x6A) ---
+  - code: 0x60
+    name: OP_LANE_INIT_SEEDS
+    mnemonic: LANE_INIT_SEEDS
+    pillar: 5
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: F, s1: V, s2: NONE, s3: NONE }
+    imm_layout: U16_LO
+    sets_vm_flags: [ZF]
+    subops:
+      0: auto_width
+      1: force_w64
+
+  - code: 0x61
+    name: OP_LANE_INIT_GROUPS
+    mnemonic: LANE_INIT_GROUPS
+    pillar: 5
+    allowed_flags: 0x4
+    morsel_role: forbidden
+    banks: { dst: F, s1: V, s2: V, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops: { 0: groups }
+
+  - code: 0x62
+    name: OP_LANE_SET_EDGE_MASK
+    mnemonic: LANE_SET_EDGE_MASK
+    pillar: 5
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: V, s1: OPT_V, s2: OPT_R, s3: NONE }
+    imm_layout: U16_PAIR
+    sets_vm_flags: []
+    subops:
+      0: from_vec
+      1: from_attr
+
+  - code: 0x63
+    name: OP_LANE_WALK
+    mnemonic: LANE_WALK
+    pillar: 5
+    allowed_flags: 0x5
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: OPT_V, s3: MASK_F }
+    imm_layout: U16_LO
+    sets_vm_flags: [ZF, ST]
+    subops:
+      0: fwd
+      1: rev
+      2: both
+      3: fwd_fixpoint_plus
+      4: fwd_fixpoint_star
+      5: rev_fixpoint_plus
+      6: rev_fixpoint_star
+      7: fwd_edge_masked
+      8: both_fixpoint_star
+
+  - code: 0x64
+    name: OP_LANE_BITWISE
+    mnemonic: LANE_BITWISE
+    pillar: 5
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: SUBOP_DEP, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF]
+    subops:
+      0: prune_mask
+      1: keep_mask
+      2: and_not_lanes
+      3: extract_lane
+
+  - code: 0x65
+    name: OP_LANE_FILTER_QUORUM
+    mnemonic: LANE_FILTER_QUORUM
+    pillar: 5
+    allowed_flags: 0x6
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: OPT_R, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF]
+    subops:
+      0: at_least
+      1: exact
+      2: at_most_nonzero
+
+  - code: 0x66
+    name: OP_LANE_REDUCE_AND
+    mnemonic: LANE_REDUCE_AND
+    pillar: 5
+    allowed_flags: 0x6
+    morsel_role: forbidden
+    banks: { dst: F, s1: F, s2: OPT_R, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF]
+    subops: { 0: reduce_and }
+
+  - code: 0x67
+    name: OP_LANE_REDUCE_ATTR
+    mnemonic: LANE_REDUCE_ATTR
+    pillar: 5
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: V, s1: F, s2: OPT_V, s3: NONE }
+    imm_layout: NONE
+    sets_vm_flags: [ZF]
+    subops:
+      0: sum
+      1: min
+      2: max
+      3: count
+
+  - code: 0x68
+    name: OP_LANE_SET_COVER
+    mnemonic: LANE_SET_COVER
+    pillar: 5
+    allowed_flags: 0x2
+    morsel_role: forbidden
+    banks: { dst: V, s1: F, s2: OPT_R, s3: NONE }
+    imm_layout: OPT_U16_LO
+    sets_vm_flags: [ZF]
+    subops: { 0: set_cover }
+
+  - code: 0x69
+    name: OP_VECTOR_ANN_SEARCH
+    mnemonic: VECTOR_ANN_SEARCH
+    pillar: 5
+    allowed_flags: 0x3
+    morsel_role: forbidden
+    banks: { dst: V, s1: V, s2: R, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops: { 0: ids }
+
+  - code: 0x6A
+    name: OP_VECTOR_RERANK
+    mnemonic: VECTOR_RERANK
+    pillar: 5
+    allowed_flags: 0x1
+    morsel_role: forbidden
+    banks: { dst: V, s1: V, s2: V, s3: MASK_F }
+    imm_layout: U16_PAIR
+    sets_vm_flags: [ZF]
+    subops:
+      0: dot
+      1: cosine
+      2: neg_l2_sq
+      3: l2_sq
+
+  # --- Extension Payload Guard Word (0xFF) ---
+  - code: 0xFF
+    name: OP_EXTENSION_PAYLOAD
+    mnemonic: EXTENSION_PAYLOAD
+    pillar: 0
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: NONE, s1: NONE, s2: NONE, s3: NONE }
+    imm_layout: EXT_WORD_2
+    sets_vm_flags: []
+    subops: { 0: payload }
