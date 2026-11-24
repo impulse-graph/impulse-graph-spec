@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+; {{EXPECT: PC = 2}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+
+.code
+  INIT_DOMAIN_SPAN F0, dom=0
+  ; FILTER_MORSEL leaves M1/M2 uninitialized; committing M1 MUST fail static validation!
+  FILTER_MORSEL    F0
+    MORSEL_COMMIT.yield_frontier F1, M1, dom=0
+  MORSEL_END
+  HALT

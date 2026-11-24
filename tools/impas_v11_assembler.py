@@ -246,21 +246,26 @@ def resolve_banks(op: dict[str, Any], subop: int, flags: int) -> dict[str, str]:
         if subop in (0, 1):
             res["dst"], res["s1"] = "R", "F"
         elif subop in (2, 3):
-            res["dst"], res["s1"] = "V", "F"
+            res["dst"], res["s1"] = "V", "NONE"
         else:
             res["dst"], res["s1"] = "R", "R"
+    elif code == 0x34:  # SPMV
+        if subop == 7:  # fwd_first_src
+            res["s2"] = "NONE"
     elif code == 0x37:  # MORSEL_COMMIT
-        if subop in (0, 1):  # yield_frontier, yield_lane_or
-            res["dst"] = "F"
+        if subop == 0:  # yield_frontier
+            res["dst"], res["s1"], res["s2"] = "F", "V", "NONE"
+        elif subop == 1:  # yield_lane_or
+            res["dst"], res["s1"] = "F", "V"
         elif subop == 8:  # count_add_r
-            res["dst"] = "R"
+            res["dst"], res["s1"], res["s2"] = "R", "NONE", "NONE"
         else:
-            res["dst"] = "V"
+            res["dst"], res["s1"] = "V", "V"
     elif code == 0x39:  # SAMPLE_NEIGHBORS
         if subop == 0:  # frontier_wor
             res["dst"], res["s1"] = "F", "F"
         else:
-            res["dst"], res["s1"] = "V", "F"
+            res["dst"], res["s1"] = "V", "V"
     elif code == 0x3B:  # GRAPH_KERNEL
         if subop in (0, 1, 4):
             res["dst"] = "V"
@@ -948,6 +953,13 @@ class ImpAsmV11:
                     else:
                         hi = item["morsel_info"]["end_pc"] - item["pc"]
                     imm32 = (hi & 0xFFFF) << 16
+                elif code == 0x38:  # MORSEL_END: auto-fill hdr_word_distance in imm16_hi
+                    if "hdr_dist" in kv_tokens or "hdr" in kv_tokens or "hi" in kv_tokens or rem_pos:
+                        raw_hi = kv_tokens.pop("hdr_dist", kv_tokens.pop("hdr", kv_tokens.pop("hi", None))) or rem_pos.pop(0)
+                        hi = _parse_int_or_float_bits(raw_hi, "int", line_no)
+                    else:
+                        hi = item["pc"] - item["morsel_info"]["hdr_pc"]
+                    imm32 = (hi & 0xFFFF) << 16
                 else:
                     hi_key = next((k for k in ("hi", "attr", "imm") if k in kv_tokens), None)
                     hi = _parse_int_or_float_bits(kv_tokens.pop(hi_key), "int", line_no) if hi_key else (
@@ -1116,6 +1128,8 @@ class ImpAsmV11:
             elif imm_layout == "U16_HI":
                 if code == 0x36:
                     ops_out.append(f"end_off={hi}")
+                elif code == 0x38:
+                    ops_out.append(f"hdr_dist={hi}")
                 elif hi != 0 or imm_layout == "U16_HI":
                     ops_out.append(f"hi={hi}")
             elif imm_layout == "U16_PAIR":

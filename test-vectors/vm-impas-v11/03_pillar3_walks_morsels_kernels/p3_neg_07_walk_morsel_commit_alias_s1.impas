@@ -1,0 +1,15 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+; {{EXPECT: PC = 2}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 1, 1, 1] targets=[1]
+
+.code
+  INIT_DOMAIN_SPAN F0, dom=0
+  ; Output aliasing: committing into F0 which is also WALK_MORSEL input s1=F0 MUST fail static validation!
+  WALK_MORSEL.fwd  F0, rel=0
+    MORSEL_COMMIT.yield_frontier F0, M1, dom=0
+  MORSEL_END
+  HALT

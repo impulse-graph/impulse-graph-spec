@@ -1,0 +1,17 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 1, 1, 1] targets=[1]
+  .param 0 type=u64_vec values=[0]
+
+.code
+  LOAD_CONST.u32          R0, 42
+  LOAD_CONST.i32          R1, 3
+  LOAD_PARAM.vec          V0, param=0, type=u64
+loop_scc:
+  ; SAMPLE_NEIGHBORS.vec_wr inside a CFG loop SCC is forbidden by static validator!
+  SAMPLE_NEIGHBORS.vec_wr V0, V0, R0, rel=0, k=2
+  LOOP_DECR               R1, loop_scc
+  HALT

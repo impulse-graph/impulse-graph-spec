@@ -1,0 +1,37 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 1}}
+; {{EXPECT: R1 = 1}}
+; {{EXPECT: R2 = 0}}
+; {{EXPECT: R3 = 0}}
+; {{EXPECT: R4 = 1}}
+; {{EXPECT: R5 = 1}}
+; {{EXPECT: R6 = 1}}
+; {{EXPECT: R7 = 1}}
+; {{EXPECT: R8 = 4}}
+; {{EXPECT: R9 = 3}}
+; {{EXPECT: R10 = 0}}
+
+.data
+  .domain 0 name="User" count=4 width=u32
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 3, 3] targets=[1, 2, 3]
+  .csc_inline rel=0 offsets=[0, 0, 1, 2, 3] sources=[0, 0, 1]
+  .key_catalog dom=0 type=str keys=["a", "b", "c", "d"]
+  .node_attr dom=0 attr=0 name="age" type=i64 values=[10, 20, 30, 40]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[1.0, 2.0, 3.0]
+  .index dom=0 attr=0 kind=sorted
+
+.code
+  HAS_TOPOLOGY.has_csr       R0, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.has_csc       R1, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.has_coo       R2, lo=0, hi=0       ; 0
+  HAS_TOPOLOGY.has_dense     R3, lo=0, hi=0       ; 0
+  HAS_TOPOLOGY.has_key_cat   R4, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.has_node_attr R5, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.has_edge_attr R6, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.has_index     R7, lo=0, hi=0       ; 1
+  HAS_TOPOLOGY.domain_card   R8, lo=0, hi=0       ; 4
+  HAS_TOPOLOGY.rel_edges     R9, lo=0, hi=0       ; 3
+  ; OOB probe on subops 0..7 returns 0 cleanly (not error!)
+  HAS_TOPOLOGY.has_csr       R10, lo=99, hi=0     ; 0
+  HALT

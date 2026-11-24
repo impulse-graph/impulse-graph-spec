@@ -1,0 +1,47 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F1 = [1] (dom=1)}}
+; {{EXPECT: F2 = [0, 2] (dom=1)}}
+; {{EXPECT: F3 = [0] (dom=1)}}
+; {{EXPECT: F4 = [0, 1] (dom=1)}}
+; {{EXPECT: F5 = [2] (dom=1)}}
+; {{EXPECT: F6 = [1, 2] (dom=1)}}
+; {{EXPECT: F7 = [0, 1, 2] (dom=1)}}
+; {{EXPECT: F8 = [3] (dom=1)}}
+; {{EXPECT: F9 = [] (dom=1)}}
+
+.data
+  .domain 0 name="User" count=2 width=u16
+  .domain 1 name="Item" count=4 width=u16
+  .relation 0 name="RATED" src_dom=0 tgt_dom=1
+  ; User 0 -> Item 0 (10.0), Item 1 (20.0), Item 2 (30.0), Item 3 (null)
+  .csr_inline rel=0 offsets=[0, 4, 4] targets=[0, 1, 2, 3]
+  .edge_attr rel=0 attr=0 name="score" type=f64 values=[10.0, 20.0, 30.0, null]
+
+.code
+  FSEED.single_imm          F0, lo=0, hi=0
+  LOAD_CONST.f64.ext        R0, 20.0
+  LOAD_CONST.null           R1
+
+  WALK_FILTERED.eq          F1, F0, R0, rel=0, attr=0  ; {1}
+  ; Kleene 3VL: NULL edge (Item 3) MUST NOT match .ne!
+  WALK_FILTERED.ne          F2, F0, R0, rel=0, attr=0  ; {0, 2}
+  WALK_FILTERED.lt          F3, F0, R0, rel=0, attr=0  ; {0}
+  WALK_FILTERED.le          F4, F0, R0, rel=0, attr=0  ; {0, 1}
+  WALK_FILTERED.gt          F5, F0, R0, rel=0, attr=0  ; {2}
+  WALK_FILTERED.ge          F6, F0, R0, rel=0, attr=0  ; {1, 2}
+  WALK_FILTERED.is_not_null F7, F0, rel=0, attr=0      ; {0, 1, 2}
+  WALK_FILTERED.is_null     F8, F0, rel=0, attr=0      ; {3}
+  ; Kleene NULL RHS short-circuit -> EMPTY
+  WALK_FILTERED.ne          F9, F0, R1, rel=0, attr=0  ; {}
+
+  ; Also exercise reverse subops for 2-file positive coverage
+  INIT_DOMAIN_SPAN          F10, dom=1
+  WALK_FILTERED.rev_eq          F11, F10, R0, rel=0, attr=0
+  WALK_FILTERED.rev_ne          F11, F10, R0, rel=0, attr=0
+  WALK_FILTERED.rev_lt          F11, F10, R0, rel=0, attr=0
+  WALK_FILTERED.rev_le          F11, F10, R0, rel=0, attr=0
+  WALK_FILTERED.rev_gt          F11, F10, R0, rel=0, attr=0
+  WALK_FILTERED.rev_ge          F11, F10, R0, rel=0, attr=0
+  WALK_FILTERED.rev_is_not_null F11, F10, rel=0, attr=0
+  WALK_FILTERED.rev_is_null     F11, F10, rel=0, attr=0
+  HALT

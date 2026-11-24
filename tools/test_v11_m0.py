@@ -311,7 +311,7 @@ class TestV11M0Exhaustive(unittest.TestCase):
     VEC_POINT.vec_cast M6, M5, lo=1
     VECTOR_RERANK.pair_dot M7, M5, M6, lo=0, hi=1
     JCC.jempty_f MF0, skip_commit
-    MORSEL_COMMIT.yield_frontier.mask F2, M1, M2, MF0
+    MORSEL_COMMIT.yield_frontier.mask F2, M1, MF0
   skip_commit:
   MORSEL_END
 """
