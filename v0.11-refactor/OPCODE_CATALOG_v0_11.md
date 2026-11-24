@@ -31,8 +31,8 @@
 ### `0x00` — `OP_HALT`
 * **Summary**: Cleanly terminates VM program execution and returns `IMPULSE_VM_OK` (`0`).
 * **Encoding**:
-  - `flags:4`: `0x0` (none allowed) | `subop:4`: `0` (`HALT_OK`)
-  - `dst`: `0` (MBZ) | `s1`: `0` (MBZ) | `s2`: `0` (MBZ) | `s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `flags:4`: `0x0` (none allowed); `subop:4`: `0` (`HALT_OK`)
+  - `dst`: `0` (MBZ); `s1`: `0` (MBZ); `s2`: `0` (MBZ); `s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: Unchanged (preserves final `ZF`, `ST`, `NF` for host inspection and `ICTX v2` hashing).
 * **Operational Semantics**: Stops dispatch at the current `pc` (`state->pc` remains pointing at the `OP_HALT` word) without releasing terminal `OP_COLLECT` buffers in `VmQueryContext`.
 * **ImpAsm Usage**:
@@ -51,7 +51,7 @@
 ### `0x01` — `OP_NOP`
 * **Summary**: Architectural no-operation; advances `pc` by `+1`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst, s1, s2, s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst, s1, s2, s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: None.
 * **Operational Semantics**: `state->pc += 1`.
 * **ImpAsm Usage**:
@@ -66,7 +66,7 @@
 ### `0x02` — `OP_TRAP`
 * **Summary**: Synchronous debugger / host breakpoint trap (`IMPULSE_VM_ERR_TRAP` = `9`).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst, s1, s2, s3`: `0` (MBZ) | `imm32`: `trap_id` (`uint32_t`)
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst, s1, s2, s3`: `0` (MBZ); `imm32`: `trap_id` (`uint32_t`)
   - `vm_flags` updated: None.
 * **Operational Semantics**: Halts dispatch immediately with `pc` pointing at the `OP_TRAP` instruction and records `trap_id` in `ctx->last_error_code`, returning `IMPULSE_VM_ERR_TRAP` (`9`). Host debuggers may inspect `impulse_vm_state_v11_t`, advance `pc += 1`, and resume execution.
 * **ImpAsm Usage**:
@@ -81,9 +81,15 @@
 ### `0x03` — `OP_THROW`
 * **Summary**: Raises a deterministic user/query-level runtime exception (`IMPULSE_VM_ERR_USER_THROW` = `7`).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0 = IMM_CODE`, `1 = REG_DETAIL` (`s1 = R[s1]` auxiliary error payload)
-  - `dst`: `0` (MBZ) | `s1`: `0` (`subop=0`) or `R[s1]` (`subop=1`) | `s2, s3`: `0` (MBZ) | `imm32`: `user_err_code`
+  - `flags:4`: `0x0`; `dst, s2, s3`: `0` (MBZ); `imm32`: `user_err_code`
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | `s1` Operand | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.imm` | `0` (MBZ) | Raises `IMPULSE_VM_ERR_USER_THROW` with `imm32` error code only. |
+| `1` | `.reg` | `R[s1]` | Raises `IMPULSE_VM_ERR_USER_THROW` with `imm32` error code and auxiliary payload `R[s1]`. |
+
 * **Operational Semantics**: Stores `imm32` (and `R[s1]` if `subop == 1`) into `ctx->error_info` and terminates execution with `IMPULSE_VM_ERR_USER_THROW` (`7`) at current `pc`.
 * **ImpAsm Usage**:
   ```impas
@@ -99,19 +105,21 @@
 * **Summary**: Runtime invariant verification; traps with `IMPULSE_VM_ERR_ASSERTION_FAILED` (`8`) on failure.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`:
-    | `subop` | Mnemonic | Bank of `s1` | Pass Condition |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.true_r` | `R[s1]` | `valid(R[s1]) == 1 && R[s1] != 0` |
-    | `1` | `.nonempty_f` | `F[s1]` | `!is_empty(F[s1])` ($O(1)$ check, no popcount needed) |
-    | `2` | `.empty_f` | `F[s1]` | `is_empty(F[s1])` |
-    | `3` | `.zf_set` | `s1=0` (MBZ) | `(vm_flags & FLAG_VM_ZF) != 0` |
-    | `4` | `.zf_clear` | `s1=0` (MBZ) | `(vm_flags & FLAG_VM_ZF) == 0` |
-    | `5` | `.st_set` | `s1=0` (MBZ) | `(vm_flags & FLAG_VM_ST) != 0` |
-    | `6` | `.not_null_r` | `R[s1]` | `valid(R[s1]) == 1` |
-    | `7` | `.is_null_r` | `R[s1]` | `valid(R[s1]) == 0` |
-  - `dst, s2, s3`: `0` (MBZ) | `imm32`: `assert_tag` (`uint32_t`)
+  - `dst, s2, s3`: `0` (MBZ); `imm32`: `assert_tag` (`uint32_t`)
   - `vm_flags` updated: None (`OP_ASSERT` never mutates `ZF`/`ST`/`NF`!).
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Bank of `s1` | Pass Condition |
+| :--- | :--- | :--- | :--- |
+| `0` | `.true_r` | `R[s1]` | `valid(R[s1]) == 1 && R[s1] != 0` |
+| `1` | `.nonempty_f` | `F[s1]` | `!is_empty(F[s1])` ($O(1)$ check, no popcount needed) |
+| `2` | `.empty_f` | `F[s1]` | `is_empty(F[s1])` |
+| `3` | `.zf_set` | `s1=0` (MBZ) | `(vm_flags & FLAG_VM_ZF) != 0` |
+| `4` | `.zf_clear` | `s1=0` (MBZ) | `(vm_flags & FLAG_VM_ZF) == 0` |
+| `5` | `.st_set` | `s1=0` (MBZ) | `(vm_flags & FLAG_VM_ST) != 0` |
+| `6` | `.not_null_r` | `R[s1]` | `valid(R[s1]) == 1` |
+| `7` | `.is_null_r` | `R[s1]` | `valid(R[s1]) == 0` |
+
 * **ImpAsm Usage**:
   ```impas
   ASSERT.nonempty_f F0, 101
@@ -128,17 +136,19 @@
 * **Summary**: Loads a 32-bit inline constant, 64-bit extended constant, or Kleene `NULL` into scalar register `R[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0`, or `0x8` (`FLAG_EXTENDED`) **if and only if** `subop == 4` (`B64`)
-  - `subop:4`:
-    | `subop` | Mnemonic | Width | Semantics in `R[dst]` | `r_valid_mask[dst]` |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.i32` | 64b (1 word) | `(uint64_t)(int64_t)(int32_t)imm32` (sign-extended `i64`) | `1` |
-    | `1` | `.u32` | 64b (1 word) | `(uint64_t)(uint32_t)imm32` (zero-extended `u64`) | `1` |
-    | `2` | `.f32` | 64b (1 word) | Promotes IEEE-754 `float` in `imm32` to exact `double` (`f64`) bits in `R[dst]` (canonicalizes `NaN` $\to$ `NULL` `valid=0, bits=0`!) | `1` (`0` if `NaN`) |
-    | `3` | `.f32_raw` | 64b (1 word) | Zero-extends raw 32-bit `float` bit-pattern into low 32 bits of `R[dst]` | `1` (`0` if `NaN`) |
-    | `4` | `.b64` (`.ext`) | 128b (2 words) | `((uint64_t)w2.imm32 << 32) \| (uint64_t)w1.imm32` | `1` |
-    | `5` | `.null` | 64b (1 word) | `R[dst] = 0ULL` (`imm32` MBZ) | **`0`** |
   - `s1, s2, s3`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (!valid || R[dst] == 0)`, `NF = !valid` (`ST` preserved).
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Width | Semantics in `R[dst]` | `r_valid_mask[dst]` |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.i32` | 64b (1 word) | `(uint64_t)(int64_t)(int32_t)imm32` (sign-extended `i64`) | `1` |
+| `1` | `.u32` | 64b (1 word) | `(uint64_t)(uint32_t)imm32` (zero-extended `u64`) | `1` |
+| `2` | `.f32` | 64b (1 word) | Promotes IEEE-754 `float` in `imm32` to exact `double` (`f64`) bits in `R[dst]` (canonicalizes `NaN` $\to$ `NULL` `valid=0, bits=0`!) | `1` (`0` if `NaN`) |
+| `3` | `.f32_raw` | 64b (1 word) | Zero-extends raw 32-bit `float` bit-pattern into low 32 bits of `R[dst]` | `1` (`0` if `NaN`) |
+| `4` | `.b64` (`.ext`) | 128b (2 words) | `((uint64_t)w2.imm32 << 32) \| (uint64_t)w1.imm32` | `1` |
+| `5` | `.null` | 64b (1 word) | `R[dst] = 0ULL` (`imm32` MBZ) | **`0`** |
+
 * **ImpAsm Usage**:
   ```impas
   LOAD_CONST.i32      R0, -1
@@ -158,13 +168,15 @@
 * **Summary**: Zero-copy binds an immutable literal (`IN [...]` array, static node set, or `StringView`) from the `.impb` Constant Pool into `V[dst]`, `F[dst]`, or `R[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0` (or `0x4` `FLAG_ACCUM` when `subop == 1`)
-  - `subop:4`:
-    | `subop` | Mnemonic | `dst` Bank | Immediate Fields | Semantics |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.vec` | `V[dst]` | `imm32 = pool_entry_id` | Binds typed read-only constant vector (`I64`, `F64`, `STR_VIEW`, etc.) directly from Constant Pool memory (`COW/read-only` flag set on descriptor). |
-    | `1` | `.frontier` | `F[dst]` | `imm16_lo = pool_entry_id`, `imm16_hi = domain_id` | Initializes `F[dst]` bound to `domain_id` from sorted dense ID list in Constant Pool (validates `max_id < N_domain`). |
-    | `2` | `.str` | `R[dst]` | `imm32 = pool_entry_id` | Loads constant pool `StringView` handle into `R[dst]` (`valid=1`, `NF=0`, `ZF=(byte_len==0)`). |
   - `s1, s2, s3`: `0` (MBZ)
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | `dst` Bank | Immediate Fields | Semantics |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.vec` | `V[dst]` | `imm32 = pool_entry_id` | Binds typed read-only constant vector (`I64`, `F64`, `STR_VIEW`, etc.) directly from Constant Pool memory (`COW/read-only` flag set on descriptor). |
+| `1` | `.frontier` | `F[dst]` | `imm16_lo = pool_entry_id`, `imm16_hi = domain_id` | Initializes `F[dst]` bound to `domain_id` from sorted dense ID list in Constant Pool (validates `max_id < N_domain`). |
+| `2` | `.str` | `R[dst]` | `imm32 = pool_entry_id` | Loads constant pool `StringView` handle into `R[dst]` (`valid=1`, `NF=0`, `ZF=(byte_len==0)`). |
+
 * **ImpAsm Usage**:
   ```impas
   LOAD_CONST_POOL.str      R1, pool=0          ; "ACTIVE"
@@ -182,13 +194,15 @@
 * **Summary**: Loads a host-supplied query parameter from `VmQueryContext` into `R[dst]`, `F[dst]`, or `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0` (or `0x4` `FLAG_ACCUM` on `subop == 1`)
-  - `subop:4`:
-    | `subop` | Mnemonic | `dst` Bank | Immediate Layout | Semantics |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.scalar` | `R[dst]` | `imm16_lo = param_id`, `imm16_hi = expected_scalar_type` | Loads host scalar parameter (`0=I64`, `1=U64`, `2=F64`, `3=BOOL`, `4=STR_VIEW`). If host bound `NULL`, sets `r_valid_mask[dst]=0, R[dst]=0, NF=1, ZF=1`. |
-    | `1` | `.frontier` | `F[dst]` | `imm16_lo = param_id`, `imm16_hi = domain_id` | Binds host seed node or seed node array into 3-tier `F[dst]` for `domain_id` (`AGENTS.md` §3.14); sets `ZF = is_empty(F[dst])`. |
-    | `2` | `.vec` | `V[dst]` | `imm16_lo = param_id`, `imm16_hi = expected_elem_type` | Zero-copy borrows host vector parameter (e.g. `f32[D]` query embedding for `OP_VECTOR_ANN_SEARCH`). |
   - `s1, s2, s3`: `0` (MBZ)
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | `dst` Bank | Immediate Layout | Semantics |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.scalar` | `R[dst]` | `imm16_lo = param_id`, `imm16_hi = expected_scalar_type` | Loads host scalar parameter (`0=I64`, `1=U64`, `2=F64`, `3=BOOL`, `4=STR_VIEW`). If host bound `NULL`, sets `r_valid_mask[dst]=0, R[dst]=0, NF=1, ZF=1`. |
+| `1` | `.frontier` | `F[dst]` | `imm16_lo = param_id`, `imm16_hi = domain_id` | Binds host seed node or seed node array into 3-tier `F[dst]` for `domain_id` (`AGENTS.md` §3.14); sets `ZF = is_empty(F[dst])`. |
+| `2` | `.vec` | `V[dst]` | `imm16_lo = param_id`, `imm16_hi = expected_elem_type` | Zero-copy borrows host vector parameter (e.g. `f32[D]` query embedding for `OP_VECTOR_ANN_SEARCH`). |
+
 * **ImpAsm Usage**:
   ```impas
   LOAD_PARAM.frontier F0, param=0, dom=0     ; Anchor seed frontier on User domain (dom 0)
@@ -206,16 +220,18 @@
 * **Summary**: Copies a register within the same bank (via O(1) COW descriptor sharing for `F`/`V`) or explicitly resets/releases a register.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`:
-    | `subop` | Mnemonic | Bank | Operands | Semantics |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.r` | `R` | `dst`, `s1` | `R[dst] = R[s1]`; copies validity bit `s1 -> dst`; sets `ZF`, `NF`. |
-    | `1` | `.f` | `F` | `dst`, `s1` | Shares/clones `F[s1]` into `F[dst]` (ref-counted COW slab lease; releases prior `F[dst]`); sets `ZF = is_empty(F[dst])`. |
-    | `2` | `.v` | `V` | `dst`, `s1` | Shares/clones `V[s1]` into `V[dst]` (ref-counted COW buffer lease; releases prior `V[dst]`). |
-    | `3` | `.clear_r` | `R` | `dst` (`s1=0`) | `R[dst] = 0`, `valid[dst] = 1`, `ZF = 1, NF = 0`. |
-    | `4` | `.clear_f` | `F` | `dst` (`s1=0`, `imm16_lo=domain_id`) | Releases `F[dst]` slabs back to `ctx->pool`, leaving empty frontier in `domain_id` (`cached_card=0, ZF=1`). |
-    | `5` | `.clear_v` | `V` | `dst` (`s1=0`) | Releases `V[dst]` buffer back to `ctx->pool` immediately (`uninitialized`). |
-  - `s2, s3`: `0` (MBZ) | `imm32`: `0` (except `imm16_lo = domain_id` on `.clear_f`)
+  - `s2, s3`: `0` (MBZ); `imm32`: `0` (except `imm16_lo = domain_id` on `.clear_f`)
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Bank | Operands | Semantics |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.r` | `R` | `dst`, `s1` | `R[dst] = R[s1]`; copies validity bit `s1 -> dst`; sets `ZF`, `NF`. |
+| `1` | `.f` | `F` | `dst`, `s1` | Shares/clones `F[s1]` into `F[dst]` (ref-counted COW slab lease; releases prior `F[dst]`); sets `ZF = is_empty(F[dst])`. |
+| `2` | `.v` | `V` | `dst`, `s1` | Shares/clones `V[s1]` into `V[dst]` (ref-counted COW buffer lease; releases prior `V[dst]`). |
+| `3` | `.clear_r` | `R` | `dst` (`s1=0`) | `R[dst] = 0`, `valid[dst] = 1`, `ZF = 1, NF = 0`. |
+| `4` | `.clear_f` | `F` | `dst` (`s1=0`, `imm16_lo=domain_id`) | Releases `F[dst]` slabs back to `ctx->pool`, leaving empty frontier in `domain_id` (`cached_card=0, ZF=1`). |
+| `5` | `.clear_v` | `V` | `dst` (`s1=0`) | Releases `V[dst]` buffer back to `ctx->pool` immediately (`uninitialized`). |
+
 * **ImpAsm Usage**:
   ```impas
   MOV.f       F2, F0          ; O(1) COW snapshot of frontier F0 before fixed-point step
@@ -229,9 +245,16 @@
 ### `0x09` — `OP_SWAP`
 * **Summary**: $O(1)$ zero-copy swap of two registers within the same bank.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0 = .r`, `1 = .f`, `2 = .v`
-  - `dst`: first register (`a`) | `s1`: second register (`b`) | `s2, s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `flags:4`: `0x0`; `s2, s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | Bank (`dst`, `s1`) | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.r` | `R[dst] <-> R[s1]` | Swaps 64-bit values and `r_valid_mask` bits `dst` and `s1`. |
+| `1` | `.f` | `F[dst] <-> F[s1]` | $O(1)$ swap of frontier descriptor handles. |
+| `2` | `.v` | `V[dst] <-> V[s1]` | $O(1)$ swap of vector descriptor handles. |
+
 * **Operational Semantics**: Exchanges `R[dst] <-> R[s1]` (including their `r_valid_mask` bits!), `f_handles[dst] <-> f_handles[s1]`, or `v_handles[dst] <-> v_handles[s1]` in 2 register moves without touching underlying slab/vector memory.
 * **ImpAsm Usage**:
   ```impas
@@ -246,9 +269,16 @@
 ### `0x0A` — `OP_SPILL`
 * **Summary**: Spills register `s1` from bank (`R`, `F`, or `V`) into frame-local spill slot `imm16_lo` (`0..63`).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0 = .r`, `1 = .f`, `2 = .v`
-  - `dst`: `0` (MBZ) | `s1`: source register (`0..15`) | `s2, s3`: `0` (MBZ) | `imm16_lo`: `slot` (`0..63`), `imm16_hi`: `0` (MBZ)
+  - `flags:4`: `0x0`; `dst, s2, s3`: `0` (MBZ); `imm16_lo`: `slot` (`0..63`), `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | `s1` Bank | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.r` | `R[s1]` | Saves `(R[s1], valid[s1])` into frame spill slot `imm16_lo`. |
+| `1` | `.f` | `F[s1]` | Saves COW-retained frontier handle `F[s1]` into frame spill slot `imm16_lo`. |
+| `2` | `.v` | `V[s1]` | Saves COW-retained vector handle `V[s1]` into frame spill slot `imm16_lo`. |
+
 * **Operational Semantics**: Copies `(R[s1], valid[s1])` or COW-increments the descriptor handle of `F[s1]`/`V[s1]` into `ctx->spill_area[spill_base + slot]`. Checks `slot < 64` and `spill_base + slot < 256` (`ERR_STACK_OVERFLOW` otherwise).
 * **ImpAsm Usage**:
   ```impas
@@ -262,9 +292,16 @@
 ### `0x0B` — `OP_RELOAD`
 * **Summary**: Reloads frame-local spill slot `imm16_lo` (`0..63`) into `dst` in bank (`R`, `F`, or `V`).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0 = .r`, `1 = .f`, `2 = .v`
-  - `dst`: target register (`0..15`) | `s1, s2, s3`: `0` (MBZ) | `imm16_lo`: `slot` (`0..63`), `imm16_hi`: `0` (MBZ)
+  - `flags:4`: `0x0`; `s1, s2, s3`: `0` (MBZ); `imm16_lo`: `slot` (`0..63`), `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: On `.r`: `ZF`, `NF`; on `.f`: `ZF`; on `.v`: unchanged.
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | `dst` Bank | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.r` | `R[dst]` | Restores `(value, valid)` from spill slot `imm16_lo` into `R[dst]` (updates `ZF`, `NF`). |
+| `1` | `.f` | `F[dst]` | Restores frontier handle from spill slot `imm16_lo` into `F[dst]` (updates `ZF`). |
+| `2` | `.v` | `V[dst]` | Restores vector handle from spill slot `imm16_lo` into `V[dst]`. |
+
 * **Operational Semantics**: Restores the spilled value/descriptor from `ctx->spill_area[spill_base + slot]` into `dst` (verifying that `slot` was previously written in the current frame with the matching bank tag, else `IMPULSE_VM_ERR_TYPE_MISMATCH` `14`).
 * **ImpAsm Usage**:
   ```impas
@@ -280,26 +317,28 @@
 * **Encoding**:
   - `flags:4`: `0x0`
   - `s3` Addressing Mode: `s3 == 0` $\to$ register mode (`rhs = R[s2]`, `imm32` MBZ); `s3 == 1` $\to$ immediate mode (`rhs = (int64_t)(int32_t)imm32`, `valid_rhs = 1`, `s2` MBZ). (For unary `subop == 10` `NOT`, `s2=0, s3=0, imm32=0`.)
-  - `subop:4` (`0..15`):
-    | `subop` | Mnemonic | Operation (`i64` two's complement / `u64`) | Division / Overflow Behavior |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.add` | `a + b` | Wrapping two's-complement 64-bit (`u64` cast in C++ to avoid signed UB). |
-    | `1` | `.sub` | `a - b` | Wrapping two's-complement 64-bit. |
-    | `2` | `.mul` | `a * b` | Wrapping low 64-bit product. |
-    | `3` | `.div_s` | `a / b` (signed) | `b == 0` $\to$ Kleene `NULL` (`valid=0, dst=0`); `INT64_MIN / -1` $\to$ `INT64_MIN` (no x86 `#DE` trap!). |
-    | `4` | `.div_u` | `u64(a) / u64(b)` | `b == 0` $\to$ Kleene `NULL` (`valid=0, dst=0`). |
-    | `5` | `.rem_s` | `a % b` (signed) | `b == 0` $\to$ Kleene `NULL`; `INT64_MIN % -1` $\to$ `0` (no `#DE` trap!). |
-    | `6` | `.rem_u` | `u64(a) % u64(b)` | `b == 0` $\to$ Kleene `NULL`. |
-    | `7` | `.and` | `a & b` | Bitwise AND (propagates `valid_a & valid_b`; for 3VL logic use `OP_SCALAR_3VL`!). |
-    | `8` | `.or` | `a \| b` | Bitwise OR. |
-    | `9` | `.xor` | `a ^ b` | Bitwise XOR. |
-    | `10` | `.not` | `~a` | Bitwise complement (`s2=0, s3=0`). |
-    | `11` | `.shl` | `u64(a) << (b & 63)` | Shift count masked `& 63` (matches x86 `shlq`, ARM64 `lsl`, Java `<<`, OCaml `shift_left`). |
-    | `12` | `.shr_u` | `u64(a) >> (b & 63)` | Logical unsigned right shift (`& 63`). |
-    | `13` | `.shr_s` | `i64(a) >> (b & 63)` | Arithmetic signed right shift (`& 63`). |
-    | `14` | `.min_s` | `a < b ? a : b` | Signed `i64` minimum. |
-    | `15` | `.max_s` | `a > b ? a : b` | Signed `i64` maximum. |
   - `vm_flags` updated: `ZF = (!valid[dst] || R[dst] == 0)`, `NF = !valid[dst]`.
+* **Sub-Operations (`subop:4` (`0..15`))**:
+
+| `subop` | Mnemonic | Operation (`i64` two's complement / `u64`) | Division / Overflow Behavior |
+| :--- | :--- | :--- | :--- |
+| `0` | `.add` | `a + b` | Wrapping two's-complement 64-bit (`u64` cast in C++ to avoid signed UB). |
+| `1` | `.sub` | `a - b` | Wrapping two's-complement 64-bit. |
+| `2` | `.mul` | `a * b` | Wrapping low 64-bit product. |
+| `3` | `.div_s` | `a / b` (signed) | `b == 0` $\to$ Kleene `NULL` (`valid=0, dst=0`); `INT64_MIN / -1` $\to$ `INT64_MIN` (no x86 `#DE` trap!). |
+| `4` | `.div_u` | `u64(a) / u64(b)` | `b == 0` $\to$ Kleene `NULL` (`valid=0, dst=0`). |
+| `5` | `.rem_s` | `a % b` (signed) | `b == 0` $\to$ Kleene `NULL`; `INT64_MIN % -1` $\to$ `0` (no `#DE` trap!). |
+| `6` | `.rem_u` | `u64(a) % u64(b)` | `b == 0` $\to$ Kleene `NULL`. |
+| `7` | `.and` | `a & b` | Bitwise AND (propagates `valid_a & valid_b`; for 3VL logic use `OP_SCALAR_3VL`!). |
+| `8` | `.or` | `a \| b` | Bitwise OR. |
+| `9` | `.xor` | `a ^ b` | Bitwise XOR. |
+| `10` | `.not` | `~a` | Bitwise complement (`s2=0, s3=0`). |
+| `11` | `.shl` | `u64(a) << (b & 63)` | Shift count masked `& 63` (matches x86 `shlq`, ARM64 `lsl`, Java `<<`, OCaml `shift_left`). |
+| `12` | `.shr_u` | `u64(a) >> (b & 63)` | Logical unsigned right shift (`& 63`). |
+| `13` | `.shr_s` | `i64(a) >> (b & 63)` | Arithmetic signed right shift (`& 63`). |
+| `14` | `.min_s` | `a < b ? a : b` | Signed `i64` minimum. |
+| `15` | `.max_s` | `a > b ? a : b` | Signed `i64` maximum. |
+
 * **ImpAsm Usage**:
   ```impas
   SCALAR_INT_ALU.add     R2, R0, R1      ; s3=0: R2 = R0 + R1
@@ -317,26 +356,28 @@
 * **Summary**: IEEE-754 double-precision (`f64`) scalar arithmetic, rounding, FMA, and numeric conversions on `R0..R15`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4` (`0..15`):
-    | `subop` | Mnemonic | Arity | Semantics (`f64` bit-cast in `R`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.add` | Binary (`s1, s2`) | `a + b` |
-    | `1` | `.sub` | Binary (`s1, s2`) | `a - b` |
-    | `2` | `.mul` | Binary (`s1, s2`) | `a * b` |
-    | `3` | `.div` | Binary (`s1, s2`) | `b == 0.0 ? NULL : (a / b)` (Kleene `NULL` on div-by-zero; use `.safe_div` for fallback). |
-    | `4` | `.neg` | Unary (`s1`) | `-a` |
-    | `5` | `.abs` | Unary (`s1`) | `fabs(a)` |
-    | `6` | `.sqrt` | Unary (`s1`) | `a < 0.0 ? NULL : sqrt(a)` |
-    | `7` | `.min` | Binary (`s1, s2`) | `a < b ? a : b` (`min(-0.0, +0.0) = -0.0`) |
-    | `8` | `.max` | Binary (`s1, s2`) | `a > b ? a : b` (`max(-0.0, +0.0) = +0.0`) |
-    | `9` | `.fma` | Ternary (`s1, s2, s3`) | `fma(a, b, c)` (single-rounding IEEE-754 fused multiply-add) |
-    | `10` | `.floor` | Unary (`s1`) | `floor(a)` |
-    | `11` | `.ceil` | Unary (`s1`) | `ceil(a)` |
-    | `12` | `.round` | Unary (`s1`) | `round_half_away_from_zero(a)` (`std::round` — note Java `Math.round` differs on `.5` negatives!) |
-    | `13` | `.i64_to_f64` | Unary (`s1`) | `(double)(int64_t)R[s1]` |
-    | `14` | `.f64_to_i64` | Unary (`s1`) | UB-free saturating `trunc(a)` clamped to `[INT64_MIN, INT64_MAX]` (`±Inf` clamps; `NULL` propagates). |
-    | `15` | `.safe_div` | Ternary (`s1, s2, s3`) | `(b == 0.0 \|\| !valid[s2]) ? R[s3] : (a / b)` |
   - `vm_flags` updated: `ZF = (!valid[dst] || as_f64(R[dst]) == 0.0)`, `NF = !valid[dst]`.
+* **Sub-Operations (`subop:4` (`0..15`))**:
+
+| `subop` | Mnemonic | Arity | Semantics (`f64` bit-cast in `R`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.add` | Binary (`s1, s2`) | `a + b` |
+| `1` | `.sub` | Binary (`s1, s2`) | `a - b` |
+| `2` | `.mul` | Binary (`s1, s2`) | `a * b` |
+| `3` | `.div` | Binary (`s1, s2`) | `b == 0.0 ? NULL : (a / b)` (Kleene `NULL` on div-by-zero; use `.safe_div` for fallback). |
+| `4` | `.neg` | Unary (`s1`) | `-a` |
+| `5` | `.abs` | Unary (`s1`) | `fabs(a)` |
+| `6` | `.sqrt` | Unary (`s1`) | `a < 0.0 ? NULL : sqrt(a)` |
+| `7` | `.min` | Binary (`s1, s2`) | `a < b ? a : b` (`min(-0.0, +0.0) = -0.0`) |
+| `8` | `.max` | Binary (`s1, s2`) | `a > b ? a : b` (`max(-0.0, +0.0) = +0.0`) |
+| `9` | `.fma` | Ternary (`s1, s2, s3`) | `fma(a, b, c)` (single-rounding IEEE-754 fused multiply-add) |
+| `10` | `.floor` | Unary (`s1`) | `floor(a)` |
+| `11` | `.ceil` | Unary (`s1`) | `ceil(a)` |
+| `12` | `.round` | Unary (`s1`) | `round_half_away_from_zero(a)` (`std::round` — note Java `Math.round` differs on `.5` negatives!) |
+| `13` | `.i64_to_f64` | Unary (`s1`) | `(double)(int64_t)R[s1]` |
+| `14` | `.f64_to_i64` | Unary (`s1`) | UB-free saturating `trunc(a)` clamped to `[INT64_MIN, INT64_MAX]` (`±Inf` clamps; `NULL` propagates). |
+| `15` | `.safe_div` | Ternary (`s1, s2, s3`) | `(b == 0.0 \|\| !valid[s2]) ? R[s3] : (a / b)` |
+
 * **ImpAsm Usage**:
   ```impas
   ; PageRank teleport scalar: base = (1.0 - damping) / N
@@ -356,27 +397,29 @@
 * **Summary**: Scalar Kleene three-valued comparisons, logical connectives, null checks, and scalar `COALESCE` on `R0..R15` + `r_valid_mask`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4` (`0..15`):
-    | `subop` | Mnemonic | Operands | Semantics (Outputs `0` or `1` in `R[dst]`, except `COALESCE`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.cmp_eq_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) == i64(b))` |
-    | `1` | `.cmp_ne_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) != i64(b))` (**`NULL != 5` $\to$ `NULL`!**) |
-    | `2` | `.cmp_lt_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) < i64(b))` (`.gt_i64` swaps `s1, s2` in assembler!) |
-    | `3` | `.cmp_le_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) <= i64(b))` (`.ge_i64` swaps `s1, s2` in assembler!) |
-    | `4` | `.cmp_lt_u64` | `s1, s2` | `v = va & vb`; `d = v & (u64(a) < u64(b))` |
-    | `5` | `.cmp_le_u64` | `s1, s2` | `v = va & vb`; `d = v & (u64(a) <= u64(b))` |
-    | `6` | `.cmp_eq_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) == f64(b))` |
-    | `7` | `.cmp_ne_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) != f64(b))` |
-    | `8` | `.cmp_lt_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) < f64(b))` |
-    | `9` | `.cmp_le_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) <= f64(b))` |
-    | `10` | `.and` | `s1, s2` | Kleene AND (`FALSE && NULL == FALSE`, `TRUE && NULL == NULL`) |
-    | `11` | `.or` | `s1, s2` | Kleene OR (`TRUE \|\| NULL == TRUE`, `FALSE \|\| NULL == NULL`) |
-    | `12` | `.not` | `s1` (`s2=0`) | Kleene NOT (`NOT(NULL) == NULL`, `NOT(FALSE) == TRUE`) |
-    | `13` | `.is_null` | `s1` (`s2=0`) | `v = 1, d = !va` (always valid 2-valued `0`/`1`) |
-    | `14` | `.is_not_null` | `s1` (`s2=0`) | `v = 1, d = va` (always valid 2-valued `0`/`1`) |
-    | `15` | `.coalesce` | `s1, s2` | `va ? (va, R[s1]) : (vb, R[s2])` |
-  - `s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (!v || R[dst] == 0)`, `NF = !v`.
+* **Sub-Operations (`subop:4` (`0..15`))**:
+
+| `subop` | Mnemonic | Operands | Semantics (Outputs `0` or `1` in `R[dst]`, except `COALESCE`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.cmp_eq_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) == i64(b))` |
+| `1` | `.cmp_ne_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) != i64(b))` (**`NULL != 5` $\to$ `NULL`!**) |
+| `2` | `.cmp_lt_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) < i64(b))` (`.gt_i64` swaps `s1, s2` in assembler!) |
+| `3` | `.cmp_le_i64` | `s1, s2` | `v = va & vb`; `d = v & (i64(a) <= i64(b))` (`.ge_i64` swaps `s1, s2` in assembler!) |
+| `4` | `.cmp_lt_u64` | `s1, s2` | `v = va & vb`; `d = v & (u64(a) < u64(b))` |
+| `5` | `.cmp_le_u64` | `s1, s2` | `v = va & vb`; `d = v & (u64(a) <= u64(b))` |
+| `6` | `.cmp_eq_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) == f64(b))` |
+| `7` | `.cmp_ne_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) != f64(b))` |
+| `8` | `.cmp_lt_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) < f64(b))` |
+| `9` | `.cmp_le_f64` | `s1, s2` | `v = va & vb`; `d = v & (f64(a) <= f64(b))` |
+| `10` | `.and` | `s1, s2` | Kleene AND (`FALSE && NULL == FALSE`, `TRUE && NULL == NULL`) |
+| `11` | `.or` | `s1, s2` | Kleene OR (`TRUE \|\| NULL == TRUE`, `FALSE \|\| NULL == NULL`) |
+| `12` | `.not` | `s1` (`s2=0`) | Kleene NOT (`NOT(NULL) == NULL`, `NOT(FALSE) == TRUE`) |
+| `13` | `.is_null` | `s1` (`s2=0`) | `v = 1, d = !va` (always valid 2-valued `0`/`1`) |
+| `14` | `.is_not_null` | `s1` (`s2=0`) | `v = 1, d = va` (always valid 2-valued `0`/`1`) |
+| `15` | `.coalesce` | `s1, s2` | `va ? (va, R[s1]) : (vb, R[s2])` |
+
 * **ImpAsm Usage**:
   ```impas
   ; Bidirectional BFS step direction check: if (deg_fwd <= deg_rev) walk_fwd else walk_rev
@@ -391,7 +434,7 @@
 ### `0x0F` — `OP_JMP`
 * **Summary**: Unconditional PC-relative jump by signed 32-bit word offset `imm32`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst, s1, s2, s3`: `0` (MBZ) | `imm32`: `int32_t word_offset`
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst, s1, s2, s3`: `0` (MBZ); `imm32`: `int32_t word_offset`
   - `vm_flags` updated: None.
 * **Operational Semantics**: `state->pc = (uint32_t)((int64_t)state->pc + (int64_t)(int32_t)imm32)`.
 * **ImpAsm Usage**:
@@ -409,21 +452,23 @@
 * **Summary**: Conditional PC-relative branch testing `vm_flags` (`ZF`, `ST`, `NF`), scalar `R[s1]`, or frontier `F[s1]`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4` (`0..9`):
-    | `subop` | Mnemonic | `s1` Bank | Branch Taken Condition |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.jz` | `0` (MBZ) | `ZF == 1` |
-    | `1` | `.jnz` | `0` (MBZ) | `ZF == 0` |
-    | `2` | `.jst` | `0` (MBZ) | `ST == 1` (converged) |
-    | `3` | `.jnst` | `0` (MBZ) | `ST == 0` (not yet converged) |
-    | `4` | `.jnull` | `0` (MBZ) | `NF == 1` |
-    | `5` | `.jnnull` | `0` (MBZ) | `NF == 0` |
-    | `6` | `.jtrue_r` | `R[s1]` | `valid[s1] == 1 && R[s1] != 0` |
-    | `7` | `.jfalse_or_null_r` | `R[s1]` | `valid[s1] == 0 \|\| R[s1] == 0` |
-    | `8` | `.jempty_f` | `F[s1]` / `MF[s1&7]` | `is_empty(F[s1])` ($O(1)$ check!) |
-    | `9` | `.jnonempty_f` | `F[s1]` / `MF[s1&7]` | `!is_empty(F[s1])` ($O(1)$ check!) |
-  - `dst, s2, s3`: `0` (MBZ) | `imm32`: `int32_t word_offset`
+  - `dst, s2, s3`: `0` (MBZ); `imm32`: `int32_t word_offset`
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..9`))**:
+
+| `subop` | Mnemonic | `s1` Bank | Branch Taken Condition |
+| :--- | :--- | :--- | :--- |
+| `0` | `.jz` | `0` (MBZ) | `ZF == 1` |
+| `1` | `.jnz` | `0` (MBZ) | `ZF == 0` |
+| `2` | `.jst` | `0` (MBZ) | `ST == 1` (converged) |
+| `3` | `.jnst` | `0` (MBZ) | `ST == 0` (not yet converged) |
+| `4` | `.jnull` | `0` (MBZ) | `NF == 1` |
+| `5` | `.jnnull` | `0` (MBZ) | `NF == 0` |
+| `6` | `.jtrue_r` | `R[s1]` | `valid[s1] == 1 && R[s1] != 0` |
+| `7` | `.jfalse_or_null_r` | `R[s1]` | `valid[s1] == 0 \|\| R[s1] == 0` |
+| `8` | `.jempty_f` | `F[s1]` / `MF[s1&7]` | `is_empty(F[s1])` ($O(1)$ check!) |
+| `9` | `.jnonempty_f` | `F[s1]` / `MF[s1&7]` | `!is_empty(F[s1])` ($O(1)$ check!) |
+
 * **ImpAsm Usage**:
   ```impas
   ; Inside a morsel block, skip expensive target gathers if 0 lanes survived first filter:
@@ -437,7 +482,7 @@
 ### `0x11` — `OP_LOOP_DECR`
 * **Summary**: Decrements loop counter `R[dst]` and branches by `imm32` if `R[dst] > 0`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst`: counter `R[dst]` | `s1, s2, s3`: `0` (MBZ) | `imm32`: `int32_t word_offset`
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst`: counter `R[dst]`; `s1, s2, s3`: `0` (MBZ); `imm32`: `int32_t word_offset`
   - `vm_flags` updated: `ZF = (R[dst] == 0)`.
 * **Operational Semantics**: Requires `valid[dst] == 1` (if `R[dst]` is `NULL`, returns `IMPULSE_VM_ERR_INVALID_OPERAND` `6`). Computes `int64_t next = (int64_t)((uint64_t)R[dst] - 1ULL)`, writes `R[dst] = (uint64_t)next`, sets `ZF = (next == 0)`, and if `next > 0` sets `pc += (int32_t)imm32`, else `pc += 1`.
 * **ImpAsm Usage**:
@@ -457,9 +502,15 @@
 * **Summary**: Invokes subroutine at `pc + (int32_t)imm32` while shifting `(R, F, V)` register windows by `(s1, s2, s3)`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`: `0 = .stride` (`r_stride=s1, f_stride=s2, v_stride=s3`, each `0..15`), `1 = .full16` (`r_stride=16, f_stride=16, v_stride=16`; `s1, s2, s3` MBZ)
-  - `dst`: `0` (MBZ) | `s1`: `r_stride` | `s2`: `f_stride` | `s3`: `v_stride` | `imm32`: `int32_t word_offset`
+  - `dst`: `0` (MBZ); `imm32`: `int32_t word_offset`
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Stride Nibbles (`s1, s2, s3`) | Window Shift Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.stride` | `s1=r_stride, s2=f_stride, s3=v_stride` (`0..15`) | Shifts `(R, F, V)` windows by `(s1, s2, s3)`; overlaps `[stride..15]` into callee `[0..15-stride]`. |
+| `1` | `.full16` | `s1=0, s2=0, s3=0` (MBZ) | Shifts all three banks by full `16` slots (`0` register overlap; complete callee isolation). |
+
 * **Operational Semantics**:
   1. Verifies `call_depth < 16`, `r_win_base + r_stride + 16 <= 256`, `f_win_base + f_stride + 16 <= 128`, `v_win_base + v_stride + 16 <= 128`, `spill_base + 64 <= 256` (else returns `IMPULSE_VM_ERR_STACK_OVERFLOW` `4`).
   2. Saves caller registers `[0 .. stride - 1]` + validity bits onto `ctx` backing window stacks, shifts `[stride .. 15]` down into callee `[0 .. 15 - stride]`, and initializes newly exposed high registers `[16 - stride .. 15]` to clean empty/`NULL` state (`R = NULL`, `F = uninitialized`, `V = uninitialized`).
@@ -477,7 +528,7 @@
 ### `0x13` — `OP_RET`
 * **Summary**: Returns from subroutine, restoring caller register windows and deterministically releasing all callee-local `F`/`V` pool allocations (RAII).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst, s1, s2, s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst, s1, s2, s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: Preserved from callee (allows returning status in `ZF`/`ST` as well as overlapping window registers).
 * **Operational Semantics**:
   1. Checks `call_depth > 0` (else returns `IMPULSE_VM_ERR_STACK_UNDERFLOW` `5`).
@@ -496,9 +547,15 @@
 ### `0x14` — `OP_SET_MAX_DOP`
 * **Summary**: Configures maximum intra-instruction worker parallelism (`state->max_dop`).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0 = .imm` (`imm16_lo`), `1 = .reg` (`R[s1]`)
-  - `dst, s2, s3`: `0` (MBZ) | `s1`: `0` (`.imm`) or `R[s1]` (`.reg`) | `imm16_lo`: `dop` (`.imm`), `imm16_hi`: `0` (MBZ)
+  - `flags:4`: `0x0`; `dst, s2, s3`: `0` (MBZ); `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Source | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.imm` | `imm16_lo = dop` (`s1=0`) | Clamps `imm16_lo` to `[1, host_max_threads]` and updates `state->max_dop`. |
+| `1` | `.reg` | `R[s1]` (`imm32=0`) | Clamps `R[s1]` to `[1, host_max_threads]` and updates `state->max_dop`. |
+
 * **Operational Semantics**: Clamps requested `dop` (`<= 0` $\to$ `1`; `> ctx->host_max_threads` $\to$ `ctx->host_max_threads`) and writes `state->max_dop`.
 * **ImpAsm Usage**:
   ```impas
@@ -517,16 +574,18 @@
 * **Summary**: Initializes or point-mutates a 1-bit domain-bound frontier `F[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0`, or `0x4` (`FLAG_ACCUM` allowed on `subop = 1, 2`)
-  - `subop:4`:
-    | `subop` | Mnemonic | Operands | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.empty` | `dst`, `imm16_hi=domain_id` (`s1=0, imm16_lo=0`) | Initializes `F[dst]` as `EMPTY` ($W=1$) in `domain_id` (`cached_card = 0, ZF = 1`). |
-    | `1` | `.single_imm` | `dst`, `imm16_lo=node_u16`, `imm16_hi=domain_id` | Initializes `F[dst]` in `TIER0_INLINE` containing `{node_u16}` (or inserts if `.accum`); bounds-checks `node_u16 < N_domain`. |
-    | `2` | `.single_reg` | `dst`, `s1=R[s1]`, `imm16_hi=domain_id` | If `R[s1]` is `NULL`: yields empty frontier (or no-op if `.accum`). Else bounds-checks `0 <= R[s1] < N_domain` (`ERR_OUT_OF_BOUNDS` `2` if out of range) and seeds `{R[s1]}`. |
-    | `3` | `.insert_reg` | `dst`, `s1=R[s1]` (`imm32=0`) | Mutates existing 1-bit `F[dst]` by inserting `R[s1]` (promotes Tier 0 $\to$ Tier 1 if exceeding 64 unique IDs; updates `cached_card` if `>= 0`). |
-    | `4` | `.remove_reg` | `dst`, `s1=R[s1]` (`imm32=0`) | Removes `R[s1]` from existing 1-bit `F[dst]` (updates `cached_card` if `>= 0`). |
   - `s2, s3`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Operands | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.empty` | `dst`, `imm16_hi=domain_id` (`s1=0, imm16_lo=0`) | Initializes `F[dst]` as `EMPTY` ($W=1$) in `domain_id` (`cached_card = 0, ZF = 1`). |
+| `1` | `.single_imm` | `dst`, `imm16_lo=node_u16`, `imm16_hi=domain_id` | Initializes `F[dst]` in `TIER0_INLINE` containing `{node_u16}` (or inserts if `.accum`); bounds-checks `node_u16 < N_domain`. |
+| `2` | `.single_reg` | `dst`, `s1=R[s1]`, `imm16_hi=domain_id` | If `R[s1]` is `NULL`: yields empty frontier (or no-op if `.accum`). Else bounds-checks `0 <= R[s1] < N_domain` (`ERR_OUT_OF_BOUNDS` `2` if out of range) and seeds `{R[s1]}`. |
+| `3` | `.insert_reg` | `dst`, `s1=R[s1]` (`imm32=0`) | Mutates existing 1-bit `F[dst]` by inserting `R[s1]` (promotes Tier 0 $\to$ Tier 1 if exceeding 64 unique IDs; updates `cached_card` if `>= 0`). |
+| `4` | `.remove_reg` | `dst`, `s1=R[s1]` (`imm32=0`) | Removes `R[s1]` from existing 1-bit `F[dst]` (updates `cached_card` if `>= 0`). |
+
 * **ImpAsm Usage**:
   ```impas
   FSEED.single_imm       F0, node=42, dom=0
@@ -542,7 +601,7 @@
 ### `0x21` — `OP_INIT_DOMAIN_SPAN`
 * **Summary**: $O(1)$ virtual initialization of `F[dst]` to all nodes `[0, N_d)` of `domain_id = imm16_lo`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst`: `F[dst]` | `s1, s2, s3`: `0` (MBZ) | `imm16_lo`: `domain_id`, `imm16_hi`: `0` (MBZ)
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst`: `F[dst]`; `s1, s2, s3`: `0` (MBZ); `imm16_lo`: `domain_id`, `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (N_d == 0)`.
 * **Operational Semantics**: Validates `domain_id < snapshot.num_domains` (`ERR_NULL_SNAPSHOT` `3` if no snapshot, `ERR_OUT_OF_BOUNDS` `2` if invalid domain) and sets `F[dst]` descriptor to virtual tier `ALL_SPAN` (`domain_id`, `lane_width = 1`, `cached_card = N_d`) in **0 bytes allocated** (`EMPTY` if $N_d == 0$).
 * **ImpAsm Usage**:
@@ -559,9 +618,17 @@
 * **Summary**: Polymorphic binary set algebra (`UNION`, `INTERSECT`, `DIFF`, `SYM_DIFF`) over same-domain frontiers `F[s1]` and `F[s2]`.
 * **Encoding**:
   - `flags:4`: `0x0`, or `0x4` (`FLAG_ACCUM`)
-  - `subop:4`: `0 = .union` ($A \cup B$), `1 = .intersect` ($A \cap B$), `2 = .diff` ($A \setminus B$), `3 = .sym_diff` ($A \triangle B$)
-  - `dst`: `F[dst]` | `s1`: `F[s1]` | `s2`: `F[s2]` | `s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `dst`: `F[dst]`; `s1`: `F[s1]`; `s2`: `F[s2]`; `s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | Set / Multi-Lane Operation | Bitwise Word Formula |
+| :--- | :--- | :--- | :--- |
+| `0` | `.union` | $A \cup B$ | `w_a \| w_b` |
+| `1` | `.intersect` | $A \cap B$ | `w_a & w_b` |
+| `2` | `.diff` | $A \setminus B$ | `w_a & ~w_b` |
+| `3` | `.sym_diff` | $A \triangle B$ | `w_a ^ w_b` |
+
 * **Operational Semantics**:
   1. Verifies `F[s1].domain_id == F[s2].domain_id` (`ERR_DOMAIN_MISMATCH` `10` if unequal) and `F[s1].lane_width == F[s2].lane_width` (`ERR_TYPE_MISMATCH` `14` if unequal).
   2. Dispatches optimal cross-tier kernel:
@@ -584,7 +651,7 @@
 ### `0x23` — `OP_SET_COMPLEMENT`
 * **Summary**: Domain-bounded set complement `F[dst] = [0, N_d) \ F[s1]`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst`: `F[dst]` | `s1`: `F[s1]` (must be 1-bit $W=1$) | `s2, s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst`: `F[dst]`; `s1`: `F[s1]` (must be 1-bit $W=1$); `s2, s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
 * **Operational Semantics**: Produces a 1-bit frontier in `F[s1].domain_id` containing every dense ID $u \in [0, N_d)$ not in `F[s1]`. Fast paths: `COMPLEMENT(EMPTY) -> ALL_SPAN`; `COMPLEMENT(ALL_SPAN) -> EMPTY`. For `Tier 0`/`Tier 1`/`Tier 2`, writes `Tier 2` (unless $N_d - |F| \le 64$) and sets `cached_card = (F[s1].cached_card >= 0) ? (N_d - F[s1].cached_card) : popcnt_acc`.
 * **ImpAsm Usage**:
@@ -600,16 +667,18 @@
 * **Summary**: Computes or reads memoized cardinality of 1-bit or multi-lane frontier `F[s1]` into `R[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`:
-    | `subop` | Mnemonic | Required `F[s1]` | Semantics Written to `R[dst]` (`u64`, `valid=1`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.card_1bit` | $W = 1$ | Exact $|F[s1]|$. Returns `cached_card` in $O(1)$ if `>= 0`; else SIMD `vpopcntq` over `dirty_pages[]` / `L1` blocks and memoizes `F[s1].cached_card`. |
-    | `1` | `.lane_pop_sum` | $W \in \{8..64\}$ | $\sum_{u=0}^{N_d-1} \text{popcnt}(\text{lanes}[u])$ across all active lanes. |
-    | `2` | `.lane_any_nodes` | $W \in \{8..64\}$ | Count of nodes $u$ with $\text{lanes}[u] \ne 0$. |
-    | `3` | `.lane_all_nodes` | $W \in \{8..64\}$ | Count of nodes $u$ where `(lanes[u] & active_lane_mask) == active_lane_mask`. |
-    | `4` | `.single_lane` | $W \in \{8..64\}$ | Count of nodes active in lane `imm16_lo` (`0 <= imm16_lo < W`). |
-  - `s2, s3`: `0` (MBZ) | `imm32`: `0` (except `imm16_lo = lane_idx` on `subop == 4`)
+  - `s2, s3`: `0` (MBZ); `imm32`: `0` (except `imm16_lo = lane_idx` on `subop == 4`)
   - `vm_flags` updated: `ZF = (R[dst] == 0)`, `NF = 0`.
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Required `F[s1]` | Semantics Written to `R[dst]` (`u64`, `valid=1`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.card_1bit` | $W = 1$ | Exact $\lvert F[s1] \rvert$. Returns `cached_card` in $O(1)$ if `>= 0`; else SIMD `vpopcntq` over `dirty_pages[]` / `L1` blocks and memoizes `F[s1].cached_card`. |
+| `1` | `.lane_pop_sum` | $W \in \{8..64\}$ | $\sum_{u=0}^{N_d-1} \text{popcnt}(\text{lanes}[u])$ across all active lanes. |
+| `2` | `.lane_any_nodes` | $W \in \{8..64\}$ | Count of nodes $u$ with $\text{lanes}[u] \ne 0$. |
+| `3` | `.lane_all_nodes` | $W \in \{8..64\}$ | Count of nodes $u$ where `(lanes[u] & active_lane_mask) == active_lane_mask`. |
+| `4` | `.single_lane` | $W \in \{8..64\}$ | Count of nodes active in lane `imm16_lo` (`0 <= imm16_lo < W`). |
+
 * **ImpAsm Usage**:
   ```impas
   SET_CARDINALITY.card_1bit R0, F1
@@ -623,9 +692,15 @@
 * **Summary**: $O(1)$ point membership or lane-word lookup of node `R[s2]` in frontier `F[s1]`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`: `0 = .contains_1bit` ($W=1$, writes `0`/`1` into `R[dst]`), `1 = .get_lane_mask` ($W \in \{8..64\}$, writes `u64` lane mask of node `R[s2]` into `R[dst]`)
-  - `dst`: `R[dst]` | `s1`: `F[s1]` | `s2`: `R[s2]` | `s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `dst`: `R[dst]`; `s1`: `F[s1]`; `s2`: `R[s2]`; `s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (!valid[dst] || R[dst] == 0)`, `NF = !valid[dst]`.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Required `F[s1]` | Result in `R[dst]` (`NULL` if `R[s2]` is `NULL`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.contains_1bit` | $W = 1$ | `1` if `R[s2]` $\in F[s1]$, else `0`. |
+| `1` | `.get_lane_mask` | $W \in \{8..64\}$ | Zero-extended $W$-bit active lane mask of node `R[s2]` in `F[s1]`. |
+
 * **Operational Semantics**: If `R[s2]` is Kleene `NULL`, writes `NULL` (`valid[dst]=0, R[dst]=0, NF=1, ZF=1`). Otherwise verifies `0 <= R[s2] < N_domain` (`ERR_OUT_OF_BOUNDS` `2` if out of bounds) and probes `F[s1]` (`EMPTY -> 0`, `ALL_SPAN -> 1`, `TIER0_INLINE -> SIMD/binary search over <= 64 sorted IDs`, `TIER1_PAGED -> page_dir[u >> 12]`, `TIER2_DENSE -> bit test`).
 * **ImpAsm Usage**:
   ```impas
@@ -642,15 +717,17 @@
 * **Summary**: Converts between `F` frontiers, sorted dense-ID `V` vectors, and Kleene `BOOL_3VL` vectors.
 * **Encoding**:
   - `flags:4`: `0x0` (or `0x4` `FLAG_ACCUM` on `subop = 1, 2`)
-  - `subop:4`:
-    | `subop` | Mnemonic | Signature | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.f2v_ids` | `V[dst] <- F[s1]` | Extracts active dense IDs from 1-bit `F[s1]` in **strictly ascending order** into `V[dst]` (`U32` if $N_d \le 2^{32}$, else `U64`, `domain_id = 0xFFFF` compact list); sets `F[s1].cached_card = len`, `ZF = (len == 0)`. |
-    | `1` | `.v2f_ids` | `F[dst] <- V[s1]`, `imm16_lo=domain_id` | Scatters valid dense IDs from `V[s1]` (`I64`/`U64`/`I32`/`U32`) into 1-bit `F[dst]` in `domain_id` (skips `NULL` vector elements; bounds-checks `< N_domain`). |
-    | `2` | `.b2f` | `F[dst] <- V[s1]` | **Kleene 3VL Collapse**: converts domain-aligned (or morsel-aligned `M -> MF`) `BOOL_3VL` vector `V[s1]` into 1-bit frontier `F[dst]` (`bits = data` since `data <= valid`; both `FALSE` and `NULL` map to `0`!). Zero-copy bitmask borrow when `Tier 2` / morsel `MF`! |
-    | `3` | `.f2b` | `V[dst] <- F[s1]` | Converts 1-bit `F[s1]` (`domain_id` or morsel `MF`) into `BOOL_3VL` vector `V[dst]` with `valid = all_ones`, `data = frontier_bits`. |
-  - `s2, s3`: `0` (MBZ) | `imm32`: `0` (`imm16_lo = domain_id` on `subop == 1` outside morsel)
+  - `s2, s3`: `0` (MBZ); `imm32`: `0` (`imm16_lo = domain_id` on `subop == 1` outside morsel)
   - `vm_flags` updated: `ZF = is_empty_or_zero(dst)`.
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.f2v_ids` | `V[dst] <- F[s1]` | Extracts active dense IDs from 1-bit `F[s1]` in **strictly ascending order** into `V[dst]` (`U32` if $N_d \le 2^{32}$, else `U64`, `domain_id = 0xFFFF` compact list); sets `F[s1].cached_card = len`, `ZF = (len == 0)`. |
+| `1` | `.v2f_ids` | `F[dst] <- V[s1]`, `imm16_lo=domain_id` | Scatters valid dense IDs from `V[s1]` (`I64`/`U64`/`I32`/`U32`) into 1-bit `F[dst]` in `domain_id` (skips `NULL` vector elements; bounds-checks `< N_domain`). |
+| `2` | `.b2f` | `F[dst] <- V[s1]` | **Kleene 3VL Collapse**: converts domain-aligned (or morsel-aligned `M -> MF`) `BOOL_3VL` vector `V[s1]` into 1-bit frontier `F[dst]` (`bits = data` since `data <= valid`; both `FALSE` and `NULL` map to `0`!). Zero-copy bitmask borrow when `Tier 2` / morsel `MF`! |
+| `3` | `.f2b` | `V[dst] <- F[s1]` | Converts 1-bit `F[s1]` (`domain_id` or morsel `MF`) into `BOOL_3VL` vector `V[dst]` with `valid = all_ones`, `data = frontier_bits`. |
+
 * **ImpAsm Usage**:
   ```impas
   ; Inside morsel: collapse 3VL predicate M5 into morsel active mask MF0
@@ -668,13 +745,15 @@
 ### `0x27` — `OP_STABLE_CHECK`
 * **Summary**: Tests fixed-point convergence between two frontiers (`F[s1] == F[s2]`) or two numeric state vectors ($||V[s1] - V[s2]||_1 \le \epsilon$).
 * **Encoding**:
-  - `flags:4`: `0x0` (or `0x1` `FLAG_MASKED_S3` on `subop=0`? No: on `subop=1`, `s3` holds `R[s3]` tolerance $\epsilon$!)
-  - `subop:4`:
-    | `subop` | Mnemonic | Signature | Convergence Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.frontier_eq` | `s1=F[s1], s2=F[s2]` (`dst=0, s3=0`) | Exact set/lane equality across `F[s1]` and `F[s2]` (same `domain_id` and `lane_width`). Fast reject if both `cached_card >= 0` and unequal! Sets `ST = eq`, `ZF = eq`. |
-    | `1` | `.vec_l1` | `dst=R[dst], s1=V[s1], s2=V[s2], s3=R[s3]` | Computes deterministic 64-block pairwise $L_1$ distance $d = \sum_i |V[s1][i] - V[s2][i]|$ into `R[dst]` (`f64`, `valid=1`), setting `ST = (d <= as_f64(R[s3]))`, `ZF = (d == 0.0)`, `NF = 0`. |
+  - `flags:4`: `0x0` (none allowed; on `subop=1`, `s3` directly addresses `R[s3]` tolerance $\epsilon$)
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Signature | Convergence Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.frontier_eq` | `s1=F[s1], s2=F[s2]` (`dst=0, s3=0`) | Exact set/lane equality across `F[s1]` and `F[s2]` (same `domain_id` and `lane_width`). Fast reject if both `cached_card >= 0` and unequal! Sets `ST = eq`, `ZF = eq`. |
+| `1` | `.vec_l1` | `dst=R[dst], s1=V[s1], s2=V[s2], s3=R[s3]` | Computes deterministic 64-block pairwise $L_1$ distance $d = \sum_i \lvert V[s1][i] - V[s2][i] \rvert$ into `R[dst]` (`f64`, `valid=1`), setting `ST = (d <= as_f64(R[s3]))`, `ZF = (d == 0.0)`, `NF = 0`. |
+
 * **ImpAsm Usage**:
   ```impas
   STABLE_CHECK.vec_l1 R6, V1, V0, R5   ; R6 = ||V1 - V0||_1; ST = (R6 <= R5)
@@ -695,20 +774,22 @@
 * **Summary**: Physical-layout-agnostic 1-bit frontier expansion (`CSR`, `CSC`, `COO`, `Dense BitMatrix`) with automatic Beamer Push/Pull direction switching, fused exclude masking (`\ F[s3]`), and native transitive closure (`R^+`, `R^*`).
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x1` (`FLAG_MASKED_S3`) allowed (`0x5` combined)
-  - `subop:4` (`0..7`):
-    | `subop` | Mnemonic | Domain Constraint (`rel = imm16_lo`) | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.fwd` | `F[s1].dom == rel.src_dom` $\to$ `F[dst].dom = rel.tgt_dom` | 1-hop forward expansion $Src \to Tgt$ (`imm16_hi` MBZ). |
-    | `1` | `.rev` | `F[s1].dom == rel.tgt_dom` $\to$ `F[dst].dom = rel.src_dom` | 1-hop reverse expansion $Tgt \to Src$ (`imm16_hi` MBZ). |
-    | `2` | `.both` | Endo-relation (`rel.src_dom == rel.tgt_dom`) | 1-hop undirected union `fwd(F[s1]) | rev(F[s1])`. |
-    | `3` | `.fwd_fixpoint_plus` | Endo-relation (`src_dom == tgt_dom`) | Transitive closure $R^+(F[s1])$ ($\ge 1$ hops); sets `ST = 1` on convergence. |
-    | `4` | `.fwd_fixpoint_star` | Endo-relation (`src_dom == tgt_dom`) | Reflexive-transitive closure $R^*(F[s1]) = F[s1] \cup R^+(F[s1])$; sets `ST = 1`. |
-    | `5` | `.rev_fixpoint_plus` | Endo-relation (`src_dom == tgt_dom`) | Reverse transitive closure $(R^{-1})^+(F[s1])$; sets `ST = 1`. |
-    | `6` | `.rev_fixpoint_star` | Endo-relation (`src_dom == tgt_dom`) | Reverse reflexive-transitive closure $(R^{-1})^*(F[s1])$; sets `ST = 1`. |
-    | `7` | `.fwd_bounded` | Endo-relation (`src_dom == tgt_dom`) | Cumulative $1..k$ hop union ($\bigcup_{i=1}^{k} R^i(F[s1])$) where `k = imm16_hi` (`k >= 1`); sets `ST = 1` if delta empties before hop $k$. |
-  - `dst`: `F[dst]` ($W=1$) | `s1`: `F[s1]` ($W=1$) | `s2`: `0` (MBZ) | `s3`: `0`, or `F[s3]` exclude frontier (`F[s3].dom == out_dom`) when `FLAG_MASKED_S3` is set
+  - `dst`: `F[dst]` ($W=1$); `s1`: `F[s1]` ($W=1$); `s2`: `0` (MBZ); `s3`: `0`, or `F[s3]` exclude frontier (`F[s3].dom == out_dom`) when `FLAG_MASKED_S3` is set
   - `imm16_lo`: `rel_id`, `imm16_hi`: `0` (`k` on `subop == 7`)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`; `ST = 1` on `subop 3..6` (and `subop 7` if converged early, else `ST = 0`).
+* **Sub-Operations (`subop:4` (`0..7`))**:
+
+| `subop` | Mnemonic | Domain Constraint (`rel = imm16_lo`) | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.fwd` | `F[s1].dom == rel.src_dom` $\to$ `F[dst].dom = rel.tgt_dom` | 1-hop forward expansion $Src \to Tgt$ (`imm16_hi` MBZ). |
+| `1` | `.rev` | `F[s1].dom == rel.tgt_dom` $\to$ `F[dst].dom = rel.src_dom` | 1-hop reverse expansion $Tgt \to Src$ (`imm16_hi` MBZ). |
+| `2` | `.both` | Endo-relation (`rel.src_dom == rel.tgt_dom`) | 1-hop undirected union `fwd(F[s1]) \| rev(F[s1])`. |
+| `3` | `.fwd_fixpoint_plus` | Endo-relation (`src_dom == tgt_dom`) | Transitive closure $R^+(F[s1])$ ($\ge 1$ hops); sets `ST = 1` on convergence. |
+| `4` | `.fwd_fixpoint_star` | Endo-relation (`src_dom == tgt_dom`) | Reflexive-transitive closure $R^*(F[s1]) = F[s1] \cup R^+(F[s1])$; sets `ST = 1`. |
+| `5` | `.rev_fixpoint_plus` | Endo-relation (`src_dom == tgt_dom`) | Reverse transitive closure $(R^{-1})^+(F[s1])$; sets `ST = 1`. |
+| `6` | `.rev_fixpoint_star` | Endo-relation (`src_dom == tgt_dom`) | Reverse reflexive-transitive closure $(R^{-1})^*(F[s1])$; sets `ST = 1`. |
+| `7` | `.fwd_bounded` | Endo-relation (`src_dom == tgt_dom`) | Cumulative $1..k$ hop union ($\bigcup_{i=1}^{k} R^i(F[s1])$) where `k = imm16_hi` (`k >= 1`); sets `ST = 1` if delta empties before hop $k$. |
+
 * **Operational Semantics**:
   1. Validates `rel_id < snapshot.num_relations` and verifies `F[s1].domain_id` (and `F[s3].domain_id` if `.mask`, `F[dst].domain_id` if `.accum`) against `rel.src_domain_id` / `rel.tgt_domain_id` (`ERR_DOMAIN_MISMATCH` `10` on mismatch).
   2. **Beamer Push/Pull + Fused Exclude (`\ F[s3]`)**: When both CSR and CSC exist on `rel_id`, computes/estimates active edge volume $m_{F[s1]}$ vs unexcluded target count. In Pull mode with `FLAG_MASKED_S3`, **skips any target $v \in F[s3]$ before reading `col_offsets[v]`** and breaks out of `col_indices` on the **first** neighbor $u \in F[s1]$!
@@ -731,20 +812,22 @@
 * **Summary**: Fused single-attribute sargable edge-filtered walk (`F[dst] = { v | (u, v, e) \in E(rel), u \in F[s1], edge_attr[e] cmp R[s2] }`).
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x1` (`FLAG_MASKED_S3`) allowed (`FLAG_SCALAR_RHS` not needed: `s2` is **always** `R[s2]`!)
-  - `subop:4` (`0..13`):
-    | `subop` (`FWD`) | `subop` (`REV`) | Comparator on `edge_attr[e]` vs `R[s2]` |
-    | :--- | :--- | :--- |
-    | `0` (`.eq`) | `8` (`.rev_eq`) | `attr[e] == R[s2]` |
-    | `1` (`.ne`) | `9` (`.rev_ne`) | `attr[e] != R[s2]` (Kleene 3VL: `NULL` edge attr $\to$ `FALSE`, never `TRUE`!) |
-    | `2` (`.lt`) | `10` (`.rev_lt`) | `attr[e] < R[s2]` |
-    | `3` (`.le`) | `11` (`.rev_le`) | `attr[e] <= R[s2]` |
-    | `4` (`.gt`) | `12` (`.rev_gt`) | `attr[e] > R[s2]` |
-    | `5` (`.ge`) | `13` (`.rev_ge`) | `attr[e] >= R[s2]` |
-    | `6` (`.is_not_null`) | `14` (`.rev_is_not_null`) | `valid(attr[e]) == 1` (`s2` MBZ) |
-    | `7` (`.is_null`) | `15` (`.rev_is_null`) | `valid(attr[e]) == 0` (`s2` MBZ) |
-  - `dst`: `F[dst]` | `s1`: `F[s1]` | `s2`: `R[s2]` (`0` on `subop 6,7,14,15`) | `s3`: `0`, or `F[s3]` exclude mask if `.mask`
+  - `dst`: `F[dst]`; `s1`: `F[s1]`; `s2`: `R[s2]` (`0` on `subop 6,7,14,15`); `s3`: `0`, or `F[s3]` exclude mask if `.mask`
   - `imm16_lo`: `rel_id`, `imm16_hi`: `edge_attr_id`
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..13`))**:
+
+| `subop` (`FWD`) | `subop` (`REV`) | Comparator on `edge_attr[e]` vs `R[s2]` |
+| :--- | :--- | :--- |
+| `0` (`.eq`) | `8` (`.rev_eq`) | `attr[e] == R[s2]` |
+| `1` (`.ne`) | `9` (`.rev_ne`) | `attr[e] != R[s2]` (Kleene 3VL: `NULL` edge attr $\to$ `FALSE`, never `TRUE`!) |
+| `2` (`.lt`) | `10` (`.rev_lt`) | `attr[e] < R[s2]` |
+| `3` (`.le`) | `11` (`.rev_le`) | `attr[e] <= R[s2]` |
+| `4` (`.gt`) | `12` (`.rev_gt`) | `attr[e] > R[s2]` |
+| `5` (`.ge`) | `13` (`.rev_ge`) | `attr[e] >= R[s2]` |
+| `6` (`.is_not_null`) | `14` (`.rev_is_not_null`) | `valid(attr[e]) == 1` (`s2` MBZ) |
+| `7` (`.is_null`) | `15` (`.rev_is_null`) | `valid(attr[e]) == 0` (`s2` MBZ) |
+
 * **Operational Semantics**:
   - **Kleene Short-Circuit**: On `subop 0..5, 8..13`, if `R[s2]` is `NULL` (`r_valid_mask` bit `s2 == 0`), every edge comparison evaluates to Kleene `NULL` (non-true); `OP_WALK_FILTERED` immediately skips edge scanning in **$O(1)$** and produces an empty delta (`F[dst] = EMPTY` unless `.accum`)!
   - Automatically exploits `.imps` edge BRIN min/max zone maps or per-vertex sorted edge runs via binary search when present.
@@ -762,17 +845,19 @@
 * **Summary**: Fused register-resident 2-hop traversal across `(rel1 = imm16_lo, rel2 = imm16_hi)` without materializing full intermediate frontier `F_mid` when `F[s1]` is small.
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x1` (`FLAG_MASKED_S3` applied to final hop-2 targets)
-  - `subop:4` (`0..4`):
-    | `subop` | Mnemonic | Path Direction | Domain Chain |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.fwd_fwd` | $D_0 \xrightarrow{rel_1} D_1 \xrightarrow{rel_2} D_2$ | `rel1.tgt == rel2.src` |
-    | `1` | `.fwd_rev` | $D_0 \xrightarrow{rel_1} D_1 \xleftarrow{rel_2} D_2$ | `rel1.tgt == rel2.tgt` (co-purchased / shared target) |
-    | `2` | `.rev_fwd` | $D_0 \xleftarrow{rel_1} D_1 \xrightarrow{rel_2} D_2$ | `rel1.src == rel2.src` (collaborative filtering) |
-    | `3` | `.rev_rev` | $D_0 \xleftarrow{rel_1} D_1 \xleftarrow{rel_2} D_2$ | `rel1.src == rel2.tgt` |
-    | `4` | `.fwd_fwd_simple` | $u \to w \to v$ with $v \ne u$ | Requires $D_0 == D_2$ and $|F[s1]| == 1$ (or per-source $v \ne u$ exclusion!Wait: if $|F[s1]| > 1$, "simple 2-hop" excludes $v == u$ on the *same* path `(u -> w -> u)` while still allowing $u_1 \to w \to u_2$ for $u_2 \in F[s1]$!). |
-  - `dst`: `F[dst]` | `s1`: `F[s1]` | `s2`: `0` (MBZ) | `s3`: `0` or `F[s3]` (`.mask`)
+  - `dst`: `F[dst]`; `s1`: `F[s1]`; `s2`: `0` (MBZ); `s3`: `0` or `F[s3]` (`.mask`)
   - `imm16_lo`: `rel1_id`, `imm16_hi`: `rel2_id`
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..4`))**:
+
+| `subop` | Mnemonic | Path Direction | Domain Chain |
+| :--- | :--- | :--- | :--- |
+| `0` | `.fwd_fwd` | $D_0 \xrightarrow{rel_1} D_1 \xrightarrow{rel_2} D_2$ | `rel1.tgt == rel2.src` |
+| `1` | `.fwd_rev` | $D_0 \xrightarrow{rel_1} D_1 \xleftarrow{rel_2} D_2$ | `rel1.tgt == rel2.tgt` (co-purchased / shared target) |
+| `2` | `.rev_fwd` | $D_0 \xleftarrow{rel_1} D_1 \xrightarrow{rel_2} D_2$ | `rel1.src == rel2.src` (collaborative filtering) |
+| `3` | `.rev_rev` | $D_0 \xleftarrow{rel_1} D_1 \xleftarrow{rel_2} D_2$ | `rel1.src == rel2.tgt` |
+| `4` | `.fwd_fwd_simple` | $u \to w \to v$ with $v \ne u$ | Requires $D_0 == D_2$; excludes immediate 2-hop return $v == u$ along the same path `(u -> w -> u)` while still permitting $u_1 \to w \to u_2$ for distinct seeds $u_1, u_2 \in F[s1]$. |
+
 * **ImpAsm Usage**:
   ```impas
   ; Collaborative filtering: (User F0)-[:PURCHASED (0)]->(Item)<-[:PURCHASED (0)]-(SimilarUser F1) \ F0
@@ -787,17 +872,19 @@
 * **Summary**: Exact topological degree inspection (frontier degree sum, per-node degree vector, or single-node point degree).
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3` allowed on `subop = 2, 3`)
-  - `subop:4` (`0..5`):
-    | `subop` | Mnemonic | Signature | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.sum_fwd_r` | `R[dst] <- F[s1]` | Exact edge volume $\sum_{u \in F[s1]} \deg^+(u)$ (`u64`, `valid=1`). |
-    | `1` | `.sum_rev_r` | `R[dst] <- F[s1]` | Exact reverse edge volume $\sum_{v \in F[s1]} \deg^-(v)$ (`u64`, `valid=1`). |
-    | `2` | `.vec_fwd_v` | `V[dst] <- (s1=0)` | Per-node out-degree vector `V[dst][u] = deg^+(u)` (`U32`/`U64` over `rel.src_dom`; masked by `F[s3]` if `.mask`). |
-    | `3` | `.vec_rev_v` | `V[dst] <- (s1=0)` | Per-node in-degree vector `V[dst][v] = deg^-(v)` over `rel.tgt_dom`. |
-    | `4` | `.node_fwd_r` | `R[dst] <- R[s1]` | Single-node $O(1)$ `row_offsets[u+1] - row_offsets[u]` (`NULL` propagates). |
-    | `5` | `.node_rev_r` | `R[dst] <- R[s1]` | Single-node $O(1)$ `col_offsets[v+1] - col_offsets[v]` (`NULL` propagates). |
-  - `s2`: `0` (MBZ) | `s3`: `0` or `F[s3]` (`subop 2,3` w/ `.mask`) | `imm16_lo`: `rel_id`, `imm16_hi`: `0` (MBZ)
+  - `s2`: `0` (MBZ); `s3`: `0` or `F[s3]` (`subop 2,3` w/ `.mask`); `imm16_lo`: `rel_id`, `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: On `R[dst]` subops (`0, 1, 4, 5`): `ZF = (!valid[dst] || R[dst] == 0)`, `NF = !valid[dst]`.
+* **Sub-Operations (`subop:4` (`0..5`))**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.sum_fwd_r` | `R[dst] <- F[s1]` | Exact edge volume $\sum_{u \in F[s1]} \deg^+(u)$ (`u64`, `valid=1`). |
+| `1` | `.sum_rev_r` | `R[dst] <- F[s1]` | Exact reverse edge volume $\sum_{v \in F[s1]} \deg^-(v)$ (`u64`, `valid=1`). |
+| `2` | `.vec_fwd_v` | `V[dst] <- (s1=0)` | Per-node out-degree vector `V[dst][u] = deg^+(u)` (`U32`/`U64` over `rel.src_dom`; masked by `F[s3]` if `.mask`). |
+| `3` | `.vec_rev_v` | `V[dst] <- (s1=0)` | Per-node in-degree vector `V[dst][v] = deg^-(v)` over `rel.tgt_dom`. |
+| `4` | `.node_fwd_r` | `R[dst] <- R[s1]` | Single-node $O(1)$ `row_offsets[u+1] - row_offsets[u]` (`NULL` propagates). |
+| `5` | `.node_rev_r` | `R[dst] <- R[s1]` | Single-node $O(1)$ `col_offsets[v+1] - col_offsets[v]` (`NULL` propagates). |
+
 * **ImpAsm Usage**:
   ```impas
   ; Exact edge-balanced bidirectional BFS heuristic:
@@ -813,24 +900,26 @@
 * **Summary**: Unified GraphBLAS Semiring Sparse Matrix-Vector Multiplication (`V[dst] = A(rel) \otimes_{\oplus} rhs` over active frontier `F[s1]`).
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x2` (`FLAG_SCALAR_RHS`: `s2` is `R[s2]`), `0x1` (`FLAG_MASKED_S3`: `F[s3]` target mask) allowed
-  - `subop:4` (`0..11`):
-    | `subop` | Mnemonic | Dir | Semiring $(\oplus, \otimes, \mathbb{0})$ | Typical Workload |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.fwd_plus_times` | $Src \to Tgt$ | $(+, \times, 0)$ | Forward Markov walk, Katz centrality, GNN feature sum |
-    | `1` | `.rev_plus_times` | $Tgt \to Src$ | $(+, \times, 0)$ | Pull PageRank (`sum_{u->v} contrib[u]`), transpose SpMV |
-    | `2` | `.fwd_min_plus` | $Src \to Tgt$ | $(\min, +, +\infty)$ | Weighted SSSP / Bellman-Ford relaxation |
-    | `3` | `.rev_min_plus` | $Tgt \to Src$ | $(\min, +, +\infty)$ | Reverse shortest paths to target |
-    | `4` | `.fwd_max_plus` | $Src \to Tgt$ | $(\max, +, -\infty)$ | Critical path / PERT scheduling |
-    | `5` | `.fwd_max_times` | $Src \to Tgt$ | $(\max, \times, 0)$ | Viterbi / max-trust propagation |
-    | `6` | `.fwd_min_max` | $Src \to Tgt$ | $(\min, \max, +\infty)$ | Minimax bottleneck path |
-    | `7` | `.fwd_sum_edge` | $Src \to Tgt$ | $(+, \text{edge\_w}, 0)$ (`s2=0`) | Sum incoming edge weights from `F[s1]` |
-    | `8` | `.fwd_min_edge` | $Src \to Tgt$ | $(\min, \text{edge\_w}, +\infty)$ (`s2=0`) | Minimum incoming edge weight |
-    | `9` | `.fwd_max_edge` | $Src \to Tgt$ | $(\max, \text{edge\_w}, -\infty)$ (`s2=0`) | Maximum incoming edge weight |
-    | `10` | `.fwd_first_src` | $Src \to Tgt$ | $(\min_u, u, \text{NULL})$ (`s2=0, attr=0xFFFF`) | Deterministic BFS parent pointer (`min` `src_id` tie-break!) |
-    | `11` | `.fwd_argmin_plus` | $Src \to Tgt$ | $(\arg\min_u, d[u]+w, \text{NULL})$ | Writes winning predecessor `src_id` (`U32`/`U64`) for SSSP path reconstruction |
-  - `dst`: `V[dst]` | `s1`: `F[s1]` (active source frontier) | `s2`: `V[s2]` (or `R[s2]` w/ `.scalar`; `0` on `subop 7..10`) | `s3`: `0` or `F[s3]` target mask (`.mask`)
+  - `dst`: `V[dst]`; `s1`: `F[s1]` (active source frontier); `s2`: `V[s2]` (or `R[s2]` w/ `.scalar`; `0` on `subop 7..10`); `s3`: `0` or `F[s3]` target mask (`.mask`)
   - `imm16_lo`: `rel_id`, `imm16_hi`: `edge_attr_id` (`0xFFFF` = unweighted topological edge weight `1` / `0` identity)
   - `vm_flags` updated: `ZF = (active_updated_targets == 0)`.
+* **Sub-Operations (`subop:4` (`0..11`))**:
+
+| `subop` | Mnemonic | Dir | Semiring $(\oplus, \otimes, \mathbb{0})$ | Typical Workload |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.fwd_plus_times` | $Src \to Tgt$ | $(+, \times, 0)$ | Forward Markov walk, Katz centrality, GNN feature sum |
+| `1` | `.rev_plus_times` | $Tgt \to Src$ | $(+, \times, 0)$ | Pull PageRank (`sum_{u->v} contrib[u]`), transpose SpMV |
+| `2` | `.fwd_min_plus` | $Src \to Tgt$ | $(\min, +, +\infty)$ | Weighted SSSP / Bellman-Ford relaxation |
+| `3` | `.rev_min_plus` | $Tgt \to Src$ | $(\min, +, +\infty)$ | Reverse shortest paths to target |
+| `4` | `.fwd_max_plus` | $Src \to Tgt$ | $(\max, +, -\infty)$ | Critical path / PERT scheduling |
+| `5` | `.fwd_max_times` | $Src \to Tgt$ | $(\max, \times, 0)$ | Viterbi / max-trust propagation |
+| `6` | `.fwd_min_max` | $Src \to Tgt$ | $(\min, \max, +\infty)$ | Minimax bottleneck path |
+| `7` | `.fwd_sum_edge` | $Src \to Tgt$ | $(+, \text{edge\_w}, 0)$ (`s2=0`) | Sum incoming edge weights from `F[s1]` |
+| `8` | `.fwd_min_edge` | $Src \to Tgt$ | $(\min, \text{edge\_w}, +\infty)$ (`s2=0`) | Minimum incoming edge weight |
+| `9` | `.fwd_max_edge` | $Src \to Tgt$ | $(\max, \text{edge\_w}, -\infty)$ (`s2=0`) | Maximum incoming edge weight |
+| `10` | `.fwd_first_src` | $Src \to Tgt$ | $(\min_u, u, \text{NULL})$ (`s2=0, attr=0xFFFF`) | Deterministic BFS parent pointer (`min` `src_id` tie-break!) |
+| `11` | `.fwd_argmin_plus` | $Src \to Tgt$ | $(\arg\min_u, d[u]+w, \text{NULL})$ | Writes winning predecessor `src_id` (`U32`/`U64`) for SSSP path reconstruction |
+
 * **ImpAsm Usage**:
   ```impas
   ; Unweighted PageRank pull step (edge_attr = 0xFFFF): V_next[v] = sum_{(u->v)} V_contrib[u]
@@ -850,16 +939,22 @@
 * **Summary**: Opens an inline lexical edge-morsel vectorized block over `F[s1]` along `rel_id = imm16_lo`, streaming $\le 2048$-edge L1 slices into thread-private `MF0` and `M0..M3`.
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`: pre-filters targets against `\ F[s3]` before emitting morsel lanes!)
-  - `subop:4`: `0 = .fwd` ($Src \to Tgt$), `1 = .rev` ($Tgt \to Src$)
-  - `dst`: `0` (MBZ) | `s1`: `F[s1]` (`0..7`) | `s2`: `0` (MBZ) | `s3`: `0`, or `F[s3]` (`0..7`) when `.mask`
+  - `dst`: `0` (MBZ); `s1`: `F[s1]` (`0..7`); `s2`: `0` (MBZ); `s3`: `0`, or `F[s3]` (`0..7`) when `.mask`
   - `imm16_lo`: `rel_id`, `imm16_hi`: `end_word_offset` (unsigned relative word offset `end_pc - hdr_pc` to matching `0x38 OP_MORSEL_END`)
   - `vm_flags` updated: Updated at `OP_MORSEL_END` (`ZF = (total_committed_items == 0)`).
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Expansion Direction | Domain Requirement (`rel = imm16_lo`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.fwd` | Forward ($Src \to Tgt$) | `F[s1].dom == rel.src_dom`; optional `.mask` `F[s3].dom == rel.tgt_dom`. |
+| `1` | `.rev` | Reverse ($Tgt \to Src$) | `F[s1].dom == rel.tgt_dom`; optional `.mask` `F[s3].dom == rel.src_dom`. |
+
 * **Operational Semantics**:
   1. Partitions active edges of `F[s1]` on `rel_id` into deterministic monotonic morsels (`32 -> 256 -> 2048` ramp on `max_dop == 1`; fixed `2048` per worker on `max_dop > 1`). If `F[s1]` is empty, jumps directly to `pc + end_word_offset + 1` with `ZF = 1`!
   2. For each non-empty morsel of length $L \in [1, 2048]$, populates thread-private registers:
      - `MF0` (`F8`): bits `[0..L)` = `1`
-     - `M0` (`V8`): `src_id[0..L)` (dense ID in `SrcDomain` for `.fwd`, or `TgtDomain`? **Rule**: `M0` is ALWAYS topological `src_id` in `rel.src_domain_id` and `M1` is ALWAYS topological `tgt_id` in `rel.tgt_domain_id`, whether `.fwd` or `.rev`, eliminating source/target confusion on reverse walks!)
-     - `M1` (`V9`): `tgt_id[0..L)`
+     - `M0` (`V8`): `src_id[0..L)` — **always** topological `src_id` in `rel.src_domain_id` (both `.fwd` and `.rev`), eliminating endpoint swap bugs on reverse morsel walks.
+     - `M1` (`V9`): `tgt_id[0..L)` — **always** topological `tgt_id` in `rel.tgt_domain_id`.
      - `M2` (`V10`): `edge_idx[0..L)` (physical edge attribute index)
      - `M3` (`V11`): `lane_mask[0..L)` (`u64` active lane bits of the expanding endpoint).
   3. Executes body `(hdr_pc, end_pc)` per morsel across up to `state->max_dop` worker threads.
@@ -883,8 +978,8 @@
 ### `0x36` — `OP_FILTER_MORSEL`
 * **Summary**: Opens an inline lexical node-morsel vectorized block over `F[s1]`, streaming $\le 2048$ active node IDs at a time into `MF0` (`F8`), `M0` (`V8 = node_id`), and `M3` (`V11 = lane_mask`).
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0`
-  - `dst`: `0` (MBZ) | `s1`: `F[s1]` (`0..7`) | `s2, s3`: `0` (MBZ)
+  - `flags:4`: `0x0`; `subop:4`: `0`
+  - `dst`: `0` (MBZ); `s1`: `F[s1]` (`0..7`); `s2, s3`: `0` (MBZ)
   - `imm16_lo`: `0` (MBZ; domain inherited from `F[s1]`), `imm16_hi`: `end_word_offset`
   - `vm_flags` updated: At `OP_MORSEL_END` (`ZF = (total_committed_items == 0)`).
 * **ImpAsm Usage**:
@@ -908,19 +1003,21 @@
 * **Summary**: Commits surviving thread-private morsel lanes into an outer domain register `F[dst]`, `V[dst]`, or `R[dst]` (`dst` $\in 0..7$).
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`: preserve pre-block `dst` state across block entry), `0x2` (`FLAG_SCALAR_RHS`: `s2` is outer scalar `R[s2]`), `0x1` (`FLAG_MASKED_S3`: `s3` is morsel mask `MF[s3 & 7]`, else defaults to `MF0`)
-  - `subop:4` (`0..8`):
-    | `subop` | Mnemonic | `dst` Bank (`0..7`) | Operands (`s1, s2` $\in 8..15$) | Semantics (for each active lane $i$ in mask) |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.yield_frontier` | `F[dst]` ($W=1$) | `s1=M_idx` (`s2=0`) | Sets dense node `M[s1][i]` in `F[dst]`. |
-    | `1` | `.yield_lane_or` | `F[dst]` ($W>1$) | `s1=M_idx`, `s2=M_lanes` | Bitwise-ORs `M[s2][i]` into `F[dst]` at node `M[s1][i]`. |
-    | `2` | `.scatter_add` | `V[dst]` | `s1=M_idx`, `s2=M_val`/`R[s2]` | Deterministic scatter-sum `V[dst][idx] += val` (skips `NULL` `val`). |
-    | `3` | `.scatter_min` | `V[dst]` | `s1=M_idx`, `s2=M_val`/`R[s2]` | `V[dst][idx] = min(V[dst][idx], val)`. |
-    | `4` | `.scatter_max` | `V[dst]` | `s1=M_idx`, `s2=M_val`/`R[s2]` | `V[dst][idx] = max(V[dst][idx], val)`. |
-    | `5` | `.scatter_min_src` | `V[dst]` | `s1=M_idx`, `s2=M_src` | Deterministic min-ID parent update (`U32`/`U64`). |
-    | `6` | `.scatter_argmin` | `V[dst]` (`U64`) | `s1=M_idx`, `s2=M_packed64` | Atomic/deterministic min on `(ord_key32 << 32) \| tie_id32`. |
-    | `7` | `.scatter_argmax` | `V[dst]` (`U64`) | `s1=M_idx`, `s2=M_packed64` | Atomic/deterministic max on `(ord_key32 << 32) \| (~tie_id32)`. |
-    | `8` | `.count_add_r` | `R[dst]` (`U64`) | `s1=0, s2=0` | Adds `popcnt(active_mask)` to outer scalar `R[dst]`. |
   - `imm16_lo`: `domain_id` (required on `subop 0, 1` when `.accum` is not set; `0` otherwise), `imm16_hi`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..8`))**:
+
+| `subop` | Mnemonic | `dst` Bank (`0..7`) | Operands (`s1, s2` $\in 8..15$) | Semantics (for each active lane $i$ in mask) |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.yield_frontier` | `F[dst]` ($W=1$) | `s1=M_idx` (`s2=0`) | Sets dense node `M[s1][i]` in `F[dst]`. |
+| `1` | `.yield_lane_or` | `F[dst]` ($W>1$) | `s1=M_idx`, `s2=M_lanes` | Bitwise-ORs `M[s2][i]` into `F[dst]` at node `M[s1][i]`. |
+| `2` | `.scatter_add` | `V[dst]` | `s1=M_idx`, `s2=M_val`/`R[s2]` | Deterministic scatter-sum `V[dst][idx] += val` (skips `NULL` `val`). |
+| `3` | `.scatter_min` | `V[dst]` | `s1=M_idx`, `s2=M_val`/`R[s2]` | `V[dst][idx] = min(V[dst][idx], val)`. |
+| `4` | `.scatter_max` | `V[dst]` | `s1=M_idx`, `s2=M_val`/`R[s2]` | `V[dst][idx] = max(V[dst][idx], val)`. |
+| `5` | `.scatter_min_src` | `V[dst]` | `s1=M_idx`, `s2=M_src` | Deterministic min-ID parent update (`U32`/`U64`). |
+| `6` | `.scatter_argmin` | `V[dst]` (`U64`) | `s1=M_idx`, `s2=M_packed64` | Atomic/deterministic min on `(ord_key32 << 32) \| tie_id32`. |
+| `7` | `.scatter_argmax` | `V[dst]` (`U64`) | `s1=M_idx`, `s2=M_packed64` | Atomic/deterministic max on `(ord_key32 << 32) \| (~tie_id32)`. |
+| `8` | `.count_add_r` | `R[dst]` (`U64`) | `s1=0, s2=0` | Adds `popcnt(active_mask)` to outer scalar `R[dst]`. |
+
 * **ImpAsm Usage**:
   ```impas
   MORSEL_COMMIT.yield_frontier.mask F2, M1, MF0, dom=1
@@ -936,7 +1033,7 @@
 ### `0x38` — `OP_MORSEL_END`
 * **Summary**: Lexical closing delimiter of `OP_WALK_MORSEL` or `OP_FILTER_MORSEL`; merges worker partitions and sets `ZF`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0` | `dst, s1, s2, s3`: `0` (MBZ)
+  - `flags:4`: `0x0`; `subop:4`: `0`; `dst, s1, s2, s3`: `0` (MBZ)
   - `imm16_lo`: `0` (MBZ), `imm16_hi`: `hdr_word_distance` (unsigned distance `end_pc - hdr_pc`, matching `hdr.imm16_hi`)
   - `vm_flags` updated: `ZF = (total_committed_items_across_all_sinks == 0)`.
 * **Operational Semantics**: Marks the end of a single morsel body iteration; once all morsels complete, merges thread-local reduction buffers in deterministic ascending morsel/thread order and advances `pc = end_pc + 1`.
@@ -953,15 +1050,17 @@
 * **Summary**: Deterministic SplitMix64-seeded uniform neighbor sampling and single-step random walk transition.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4` (`0..3`):
-    | `subop` | Mnemonic | Signature | Semantics (`rel_id = imm16_lo`, `fanout_k = imm16_hi`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.frontier_wor` | `F[dst] <- F[s1], R[s2]` | Samples up to `k` neighbors **without replacement** per $u \in F[s1]$ (`FWD`) and unions into 1-bit `F[dst]`. |
-    | `1` | `.vec_wr` | `V[dst] <- V[s1], R[s2]` | For each seed `V[s1][i]`, samples exactly `k` neighbors **with replacement** into `V[dst]` (`len = len(V[s1]) * k`; isolated nodes with $\deg^+(u) == 0$ emit Kleene `NULL` lanes!). |
-    | `2` | `.rw_step_fwd` | `V[dst] <- V[s1], R[s2]` | Advances each active walker `V[s1][i]` (`k=1` MBZ/`1`) by 1 uniform outgoing edge using `R[s2]` step seed (walkers at dead-ends emit `NULL` or stay if `subop=3`). |
-    | `3` | `.rw_step_stay` | `V[dst] <- V[s1], R[s2]` | Same as `.rw_step_fwd`, but walkers at dead-ends ($\deg^+(u) == 0$) remain at `u`. |
   - `s3`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty_or_all_null(dst)`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | Signature | Semantics (`rel_id = imm16_lo`, `fanout_k = imm16_hi`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.frontier_wor` | `F[dst] <- F[s1], R[s2]` | Samples up to `k` neighbors **without replacement** per $u \in F[s1]$ (`FWD`) and unions into 1-bit `F[dst]`. |
+| `1` | `.vec_wr` | `V[dst] <- V[s1], R[s2]` | For each seed `V[s1][i]`, samples exactly `k` neighbors **with replacement** into `V[dst]` (`len = len(V[s1]) * k`; isolated nodes with $\deg^+(u) == 0$ emit Kleene `NULL` lanes!). |
+| `2` | `.rw_step_fwd` | `V[dst] <- V[s1], R[s2]` | Advances each active walker `V[s1][i]` (`k=1` MBZ/`1`) by 1 uniform outgoing edge using `R[s2]` step seed (walkers at dead-ends emit `NULL` or stay if `subop=3`). |
+| `3` | `.rw_step_stay` | `V[dst] <- V[s1], R[s2]` | Same as `.rw_step_fwd`, but walkers at dead-ends ($\deg^+(u) == 0$) remain at `u`. |
+
 * **Normative PRNG Formula (4-Way Bit-Identity Mandate)**:
   For seed index/node $u$, slot $j \in [0, k)$, given `uint64_t seed = R[s2]`:
   ```c
@@ -988,21 +1087,23 @@
 * **Summary**: Queries `.imps` snapshot structural metadata, index presence, or domain/relation cardinalities into `R[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4` (`0..9`):
-    | `subop` | Mnemonic | Immediates | Result in `R[dst]` (`u64`, `valid=1`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.has_csr` | `imm16_lo=rel_id` | `1` if forward CSR present on `rel_id`, else `0`. |
-    | `1` | `.has_csc` | `imm16_lo=rel_id` | `1` if reverse CSC present on `rel_id`, else `0`. |
-    | `2` | `.has_coo` | `imm16_lo=rel_id` | `1` if COO edge pairs present on `rel_id`, else `0`. |
-    | `3` | `.has_dense` | `imm16_lo=rel_id` | `1` if Dense BitMatrix present on `rel_id`, else `0`. |
-    | `4` | `.has_key_cat` | `imm16_lo=domain_id` | `1` if external Key Catalog present on `domain_id`, else `0`. |
-    | `5` | `.has_node_attr` | `imm16_lo=dom_id, imm16_hi=attr_id` | `1` if node attribute column exists, else `0`. |
-    | `6` | `.has_edge_attr` | `imm16_lo=rel_id, imm16_hi=attr_id` | `1` if edge attribute column exists, else `0`. |
-    | `7` | `.has_index` | `imm16_lo=dom_id, imm16_hi=attr_id` | `1` if sorted/hash secondary index exists on `(dom_id, attr_id)`, else `0`. |
-    | `8` | `.domain_card` | `imm16_lo=domain_id` | Exact node count $N_d$ of `domain_id`. |
-    | `9` | `.rel_edges` | `imm16_lo=rel_id` | Exact edge count $M_r$ of `rel_id`. |
   - `s1, s2, s3`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (R[dst] == 0)`, `NF = 0`.
+* **Sub-Operations (`subop:4` (`0..9`))**:
+
+| `subop` | Mnemonic | Immediates | Result in `R[dst]` (`u64`, `valid=1`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.has_csr` | `imm16_lo=rel_id` | `1` if forward CSR present on `rel_id`, else `0`. |
+| `1` | `.has_csc` | `imm16_lo=rel_id` | `1` if reverse CSC present on `rel_id`, else `0`. |
+| `2` | `.has_coo` | `imm16_lo=rel_id` | `1` if COO edge pairs present on `rel_id`, else `0`. |
+| `3` | `.has_dense` | `imm16_lo=rel_id` | `1` if Dense BitMatrix present on `rel_id`, else `0`. |
+| `4` | `.has_key_cat` | `imm16_lo=domain_id` | `1` if external Key Catalog present on `domain_id`, else `0`. |
+| `5` | `.has_node_attr` | `imm16_lo=dom_id, imm16_hi=attr_id` | `1` if node attribute column exists, else `0`. |
+| `6` | `.has_edge_attr` | `imm16_lo=rel_id, imm16_hi=attr_id` | `1` if edge attribute column exists, else `0`. |
+| `7` | `.has_index` | `imm16_lo=dom_id, imm16_hi=attr_id` | `1` if sorted/hash secondary index exists on `(dom_id, attr_id)`, else `0`. |
+| `8` | `.domain_card` | `imm16_lo=domain_id` | Exact node count $N_d$ of `domain_id`. |
+| `9` | `.rel_edges` | `imm16_lo=rel_id` | Exact edge count $M_r$ of `rel_id`. |
+
 * **ImpAsm Usage**:
   ```impas
   HAS_TOPOLOGY.domain_card R2, dom=0
@@ -1016,16 +1117,18 @@
 * **Summary**: Irreducible whole-graph linear/wedge topology kernels (`CC_AFFOREST`, `KCORE`, `TRIANGLE_COUNT`).
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`: restricts subgraph to `F[s3]` induced vertex set!)
-  - `subop:4` (`0..4`):
-    | `subop` | Mnemonic | `dst` Bank | Semantics (`rel_id = imm16_lo` must be endo-relation `src_dom == tgt_dom`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.cc_afforest` | `V[dst]` (`U32`/`U64`) | Weakly Connected Components (treats `rel_id` as undirected `CSR ∪ CSC`). **Canonicalizes every component label to the minimum dense node ID in that component!** |
-    | `1` | `.kcore_nums` | `V[dst]` (`U32`) | Undirected $k$-core peeling writing exact coreness number `core[u]` for every node $u \in [0, N_d)$. |
-    | `2` | `.kcore_frontier` | `F[dst]` ($W=1$) | Extracts 1-bit frontier `{ u | core[u] >= imm16_hi }`. |
-    | `3` | `.tri_count_total` | `R[dst]` (`U64`) | Total undirected simple triangle count (self-loops & parallel multi-edges deduplicated in DODG orientation `deg(u) < deg(v) || (deg(u)==deg(v) && u < v)`). |
-    | `4` | `.tri_count_vec` | `V[dst]` (`U64`) | Per-node undirected simple triangle participation count `tri[u]`. |
-  - `s1, s2`: `0` (MBZ) | `s3`: `0` or `F[s3]` vertex-induced subgraph mask (`.mask`)
+  - `s1, s2`: `0` (MBZ); `s3`: `0` or `F[s3]` vertex-induced subgraph mask (`.mask`)
   - `vm_flags` updated: `ZF = is_zero_or_empty(dst)`.
+* **Sub-Operations (`subop:4` (`0..4`))**:
+
+| `subop` | Mnemonic | `dst` Bank | Semantics (`rel_id = imm16_lo` must be endo-relation `src_dom == tgt_dom`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.cc_afforest` | `V[dst]` (`U32`/`U64`) | Weakly Connected Components (treats `rel_id` as undirected `CSR ∪ CSC`). **Canonicalizes every component label to the minimum dense node ID in that component!** |
+| `1` | `.kcore_nums` | `V[dst]` (`U32`) | Undirected $k$-core peeling writing exact coreness number `core[u]` for every node $u \in [0, N_d)$. |
+| `2` | `.kcore_frontier` | `F[dst]` ($W=1$) | Extracts 1-bit frontier `{ u \| core[u] >= imm16_hi }`. |
+| `3` | `.tri_count_total` | `R[dst]` (`U64`) | Total undirected simple triangle count (self-loops & parallel multi-edges deduplicated in DODG orientation `deg(u) < deg(v) \|\| (deg(u)==deg(v) && u < v)`). |
+| `4` | `.tri_count_vec` | `V[dst]` (`U64`) | Per-node undirected simple triangle participation count `tri[u]`. |
+
 * **ImpAsm Usage**:
   ```impas
   ; Island detection in impulse-powergrid: filter closed breakers into induced mask or walk, run CC:
@@ -1046,9 +1149,15 @@
 * **Summary**: Zero-copy binds an immutable `.imps` node or edge attribute column (plus Arrow validity bitmap) into `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`: `0 = .node_attr` (`imm16_lo = domain_id, imm16_hi = attr_id`), `1 = .edge_attr` (`imm16_lo = rel_id, imm16_hi = attr_id`)
-  - `dst`: `V[dst]` | `s1, s2, s3`: `0` (MBZ)
+  - `dst`: `V[dst]`; `s1, s2, s3`: `0` (MBZ)
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Immediates (`imm16_lo, imm16_hi`) | Bound Slice in `V[dst]` |
+| :--- | :--- | :--- | :--- |
+| `0` | `.node_attr` | `domain_id, attr_id` | Zero-copy node column (`len = N_d`, `domain_id = imm16_lo`) + validity bitmap. |
+| `1` | `.edge_attr` | `rel_id, attr_id` | Zero-copy edge column (`len = M_r`, `domain_id = 0xFFFF`) + validity bitmap. |
+
 * **Operational Semantics**: Binds `V[dst]` directly to the memory-mapped `.imps` column pointer and nullability bitmap (`is_readonly_borrow = 1`, `length = N_d` or `M_r`, `domain_id = dom_id` or `0xFFFF` for edges) in **$O(1)$ with 0 bytes copied**. Narrow integer columns (`I8`, `I16`, `U8`, `U16`) either expose typed stride metadata or widen lazily on first arithmetic consumption.
 * **ImpAsm Usage**:
   ```impas
@@ -1063,13 +1172,15 @@
 * **Summary**: Indexed gather of node attribute `(domain_id = imm16_lo, attr_id = imm16_hi)` over an index vector, compact frontier, or single scalar node ID.
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`: skips unmasked lanes in `F[s3]` / `MF[s3 & 7]`, marking them `NULL` `valid=0`!)
-  - `subop:4`:
-    | `subop` | Mnemonic | Signature | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.vec` | `V[dst] <- V[s1]` | For each valid lane $i$: `V[dst][i] = attr[V[s1][i]]`, `valid[i] = mask[i] & valid_idx[i] & valid_col[idx]`. Primary node attribute loader inside `OP_WALK_MORSEL` (`M0`/`M1` $\to$ `M4..M7`) and `OP_FILTER_MORSEL`! |
-    | `1` | `.frontier_compact` | `V[dst] <- F[s1]` | Gathers `attr[u]` for active nodes $u \in F[s1]$ in ascending $u$ order (`len = |F[s1]|`). |
-    | `2` | `.scalar` | `R[dst] <- R[s1]` | Point lookup of `attr[R[s1]]` into scalar `R[dst]` (updates `r_valid_mask[dst]`, `ZF`, `NF`). |
-  - `s2`: `0` (MBZ) | `s3`: `0` or `F[s3]`/`MF[s3&7]` (`.mask` on `subop 0`)
+  - `s2`: `0` (MBZ); `s3`: `0` or `F[s3]`/`MF[s3&7]` (`.mask` on `subop 0`)
+* **Sub-Operations (`subop:4`)**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.vec` | `V[dst] <- V[s1]` | For each valid lane $i$: `V[dst][i] = attr[V[s1][i]]`, `valid[i] = mask[i] & valid_idx[i] & valid_col[idx]`. Primary node attribute loader inside `OP_WALK_MORSEL` (`M0`/`M1` $\to$ `M4..M7`) and `OP_FILTER_MORSEL`! |
+| `1` | `.frontier_compact` | `V[dst] <- F[s1]` | Gathers `attr[u]` for active nodes $u \in F[s1]$ in ascending $u$ order (`len = card(F[s1])`). |
+| `2` | `.scalar` | `R[dst] <- R[s1]` | Point lookup of `attr[R[s1]]` into scalar `R[dst]` (updates `r_valid_mask[dst]`, `ZF`, `NF`). |
+
 * **ImpAsm Usage**:
   ```impas
   ; Inside morsel: gather tgt.country only for lanes still active in MF0
@@ -1084,9 +1195,15 @@
 * **Summary**: Indexed gather of edge attribute `(rel_id = imm16_lo, attr_id = imm16_hi)` at physical edge indices `V[s1]` (typically `M2 = edge_idx` inside `OP_WALK_MORSEL`).
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4`: `0 = .vec` (`V[dst] <- V[s1]`), `1 = .scalar` (`R[dst] <- R[s1]`)
-  - `s2`: `0` (MBZ) | `s3`: `0` or `F[s3]`/`MF[s3&7]` (`.mask`)
+  - `s2`: `0` (MBZ); `s3`: `0` or `F[s3]`/`MF[s3&7]` (`.mask`)
   - `imm16_lo`: `rel_id`, `imm16_hi`: `edge_attr_id`
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.vec` | `V[dst] <- V[s1]` | Indexed vector gather `edge_attr[V[s1][i]]` (masked by `F[s3]`/`MF[s3&7]` if `.mask`). |
+| `1` | `.scalar` | `R[dst] <- R[s1]` | Single edge attribute lookup `edge_attr[R[s1]]` into `R[dst]` (updates `ZF`, `NF`). |
+
 * **ImpAsm Usage**:
   ```impas
   GATHER_EDGE_ATTR.vec M4, M2, rel=0, attr=0
@@ -1099,8 +1216,8 @@
 ### `0x43` — `OP_GATHER_VEC`
 * **Summary**: Indirect in-register vector gather: `V[dst][i] = V[s1][V[s2][i]]`.
 * **Encoding**:
-  - `flags:4`: `0x1` (`FLAG_MASKED_S3`) | `subop:4`: `0`
-  - `dst`: `V[dst]` (`M4..M7` inside morsel) | `s1`: `V[s1]` (data table) | `s2`: `V[s2]` (index vector, e.g. `M0`/`M1`) | `s3`: `0` or `F[s3]`/`MF[s3&7]` (`.mask`) | `imm32`: `0` (MBZ)
+  - `flags:4`: `0x1` (`FLAG_MASKED_S3`); `subop:4`: `0`
+  - `dst`: `V[dst]` (`M4..M7` inside morsel); `s1`: `V[s1]` (data table); `s2`: `V[s2]` (index vector, e.g. `M0`/`M1`); `s3`: `0` or `F[s3]`/`MF[s3&7]` (`.mask`); `imm32`: `0` (MBZ)
   - `vm_flags` updated: None.
 * **Operational Semantics**: For each active lane $i$, if `valid_idx[i] == 0`, sets `valid_dst[i] = 0`; else bounds-checks `idx = V[s2][i] < len(V[s1])` (`ERR_OUT_OF_BOUNDS` `2` if exceeded) and copies `(valid_s1[idx], V[s1][idx])` to `V[dst][i]`.
 * **ImpAsm Usage**:
@@ -1118,20 +1235,22 @@
 * **Summary**: Fused in-domain node attribute predicate filter (`F[dst] = { u \in F[s1] | attr(u) cmp rhs }`) across **all** `.imps` numeric/boolean/dict column types under strict Kleene 3VL.
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x2` (`FLAG_SCALAR_RHS`: `s2` is `R[s2]`, and on `BETWEEN` `s3` is `R[s3]`)
-  - `subop:4` (`0..8`):
-    | `subop` | Mnemonic | Operands | Predicate (`NULL` attr or `NULL` rhs $\to$ `0`!) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.eq` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] == rhs` |
-    | `1` | `.ne` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] != rhs` (`NULL != 5` $\to$ excluded!) |
-    | `2` | `.lt` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] < rhs` |
-    | `3` | `.le` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] <= rhs` |
-    | `4` | `.gt` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] > rhs` |
-    | `5` | `.ge` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] >= rhs` |
-    | `6` | `.between` | `s1=F_in`, `s2=lo`, `s3=hi` | `lo <= attr[u] && attr[u] <= hi` |
-    | `7` | `.is_null` | `s1=F_in` (`s2=0, s3=0`) | `valid(attr[u]) == 0` |
-    | `8` | `.is_not_null` | `s1=F_in` (`s2=0, s3=0`) | `valid(attr[u]) == 1` |
   - `imm16_lo`: `domain_id`, `imm16_hi`: `attr_id`
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..8`))**:
+
+| `subop` | Mnemonic | Operands | Predicate (`NULL` attr or `NULL` rhs $\to$ `0`!) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.eq` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] == rhs` |
+| `1` | `.ne` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] != rhs` (`NULL != 5` $\to$ excluded!) |
+| `2` | `.lt` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] < rhs` |
+| `3` | `.le` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] <= rhs` |
+| `4` | `.gt` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] > rhs` |
+| `5` | `.ge` | `s1=F_in`, `s2=V[s2]/R[s2]` | `attr[u] >= rhs` |
+| `6` | `.between` | `s1=F_in`, `s2=lo`, `s3=hi` | `lo <= attr[u] && attr[u] <= hi` |
+| `7` | `.is_null` | `s1=F_in` (`s2=0, s3=0`) | `valid(attr[u]) == 0` |
+| `8` | `.is_not_null` | `s1=F_in` (`s2=0, s3=0`) | `valid(attr[u]) == 1` |
+
 * **ImpAsm Usage**:
   ```impas
   NODE_FILTER.between.scalar F1, F0, R1, R2, dom=0, attr=1   ; age BETWEEN 21 AND 65 in 1 word!
@@ -1147,9 +1266,20 @@
 * **Summary**: Branchless SIMD vector comparison producing a dual-bitmask Kleene `BOOL_3VL` vector in `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `s2` is `R[s2]`, and on `.between` `s3` is `R[s3]`), `0x1` (`FLAG_MASKED_S3` allowed on `subop 0..5`)
-  - `subop:4` (`0..6`): `0 = .eq`, `1 = .ne`, `2 = .lt`, `3 = .le`, `4 = .gt`, `5 = .ge`, `6 = .between` (`s2=lo, s3=hi`)
-  - `dst`: `V[dst]` (`BOOL_3VL`) | `s1`: `V[s1]` | `s2`: `V[s2]`/`R[s2]` | `s3`: `0`, `F[s3]` (`.mask` on `0..5`), or `V[s3]`/`R[s3]` (on `.between`) | `imm32`: `0` (MBZ)
+  - `dst`: `V[dst]` (`BOOL_3VL`); `s1`: `V[s1]`; `s2`: `V[s2]`/`R[s2]`; `s3`: `0`, `F[s3]` (`.mask` on `0..5`), or `V[s3]`/`R[s3]` (on `.between`); `imm32`: `0` (MBZ)
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..6`))**:
+
+| `subop` | Mnemonic | Operands | Kleene 3VL Predicate (`NULL` operand $\to$ `NULL (0,0)`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.eq` | `s1, s2` | `s1 == s2` |
+| `1` | `.ne` | `s1, s2` | `s1 != s2` (`NULL != x` $\to$ `NULL`, never `TRUE`!) |
+| `2` | `.lt` | `s1, s2` | `s1 < s2` |
+| `3` | `.le` | `s1, s2` | `s1 <= s2` |
+| `4` | `.gt` | `s1, s2` | `s1 > s2` |
+| `5` | `.ge` | `s1, s2` | `s1 >= s2` |
+| `6` | `.between` | `s1, s2=lo, s3=hi` | `lo <= s1 && s1 <= hi` (`.mask` disallowed on `subop=6`) |
+
 * **Operational Semantics**: Computes `v_out = mask & v_s1 & v_s2 (& v_s3)` and `d_out = v_out & cmp(s1, s2 [, s3])` across 64 lanes per `uint64_t` mask word.
 * **ImpAsm Usage**:
   ```impas
@@ -1164,21 +1294,23 @@
 * **Summary**: Branchless dual-bitmask Kleene 3VL boolean connectives, SQL `IS [NOT] NULL` / `IS TRUE` / `IS FALSE` predicates, and IEEE-754 finiteness checks/assertions.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` allowed on `subop 0, 1, 3`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..11`):
-    | `subop` | Mnemonic | Input `V[s1]` | Exact Dual-Bitmask Output `(v, d)` in `V[dst]` (`BOOL_3VL`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.and` | `BOOL_3VL` (`s1, s2`) | `d = dA & dB`; `v = (vA & vB) \| (vA & ~dA) \| (vB & ~dB)` |
-    | `1` | `.or` | `BOOL_3VL` (`s1, s2`) | `d = dA \| dB`; `v = (vA & vB) \| d` |
-    | `2` | `.not` | `BOOL_3VL` (`s1`) | `v = vA`; `d = vA & ~dA` |
-    | `3` | `.xor` | `BOOL_3VL` (`s1, s2`) | `v = vA & vB`; `d = v & (dA ^ dB)` |
-    | `4` | `.is_null` | Any `V[s1]` | `v = ~0ULL`; `d = ~vA` (2-valued total predicate!) |
-    | `5` | `.is_not_null` | Any `V[s1]` | `v = ~0ULL`; `d = vA` (replaces `OP_EXTRACT_VALIDITY` `0x3C`!) |
-    | `6` | `.is_true` | `BOOL_3VL` (`s1`) | `v = ~0ULL`; `d = dA` (SQL `IS TRUE`: `NULL -> FALSE (1,0)`) |
-    | `7` | `.is_false` | `BOOL_3VL` (`s1`) | `v = ~0ULL`; `d = vA & ~dA` (SQL `IS FALSE`: `NULL -> FALSE (1,0)`) |
-    | `8` | `.is_nan` | `F32`/`F64` (`s1`) | `v = vA`; `d = vA & isnan(x)` |
-    | `9` | `.is_inf` | `F32`/`F64` (`s1`) | `v = vA`; `d = vA & isinf(x)` |
-    | `10` | `.is_finite` | `F32`/`F64` (`s1`) | `v = vA`; `d = vA & isfinite(x)` |
-    | `11` | `.assert_finite` | `F32`/`F64` (`s1`, `dst=0`) | Traps with `IMPULSE_VM_ERR_ASSERTION_FAILED` (`8`) if any active valid lane is `±Inf` or `NaN` (`imm32 = tag`). |
+* **Sub-Operations (`subop:4` (`0..11`))**:
+
+| `subop` | Mnemonic | Input `V[s1]` | Exact Dual-Bitmask Output `(v, d)` in `V[dst]` (`BOOL_3VL`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.and` | `BOOL_3VL` (`s1, s2`) | `d = dA & dB`; `v = (vA & vB) \| (vA & ~dA) \| (vB & ~dB)` |
+| `1` | `.or` | `BOOL_3VL` (`s1, s2`) | `d = dA \| dB`; `v = (vA & vB) \| d` |
+| `2` | `.not` | `BOOL_3VL` (`s1`) | `v = vA`; `d = vA & ~dA` |
+| `3` | `.xor` | `BOOL_3VL` (`s1, s2`) | `v = vA & vB`; `d = v & (dA ^ dB)` |
+| `4` | `.is_null` | Any `V[s1]` | `v = ~0ULL`; `d = ~vA` (2-valued total predicate!) |
+| `5` | `.is_not_null` | Any `V[s1]` | `v = ~0ULL`; `d = vA` (replaces `OP_EXTRACT_VALIDITY` `0x3C`!) |
+| `6` | `.is_true` | `BOOL_3VL` (`s1`) | `v = ~0ULL`; `d = dA` (SQL `IS TRUE`: `NULL -> FALSE (1,0)`) |
+| `7` | `.is_false` | `BOOL_3VL` (`s1`) | `v = ~0ULL`; `d = vA & ~dA` (SQL `IS FALSE`: `NULL -> FALSE (1,0)`) |
+| `8` | `.is_nan` | `F32`/`F64` (`s1`) | `v = vA`; `d = vA & isnan(x)` |
+| `9` | `.is_inf` | `F32`/`F64` (`s1`) | `v = vA`; `d = vA & isinf(x)` |
+| `10` | `.is_finite` | `F32`/`F64` (`s1`) | `v = vA`; `d = vA & isfinite(x)` |
+| `11` | `.assert_finite` | `F32`/`F64` (`s1`, `dst=0`) | Traps with `IMPULSE_VM_ERR_ASSERTION_FAILED` (`8`) if any active valid lane is `±Inf` or `NaN` (`imm32 = tag`). |
+
 * **ImpAsm Usage**:
   ```impas
   VEC_3VL_OP.not M5, M5          ; Preserves NULL -> NULL!
@@ -1193,20 +1325,22 @@
 * **Summary**: Zero-copy 16-byte `StringView` (`[len:u32, prefix4_be:u32, offset:u64]`) & dictionary-ID vector comparisons/substring predicates producing `BOOL_3VL` in `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `s2` is `R[s2]` holding `StringView` or integer length), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..9`):
-    | `subop` | Mnemonic | Semantics (UTF-8 bytewise lexicographical / exact match) |
-    | :--- | :--- | :--- |
-    | `0` | `.eq` | `a == b` (1-cycle reject on `len` or `prefix4_be` mismatch; dict-ID fast path when shared pool!) |
-    | `1` | `.ne` | `a != b` (Kleene `NULL` propagates!) |
-    | `2` | `.lt` | `a < b` (unsigned byte order; resolved in registers via `prefix4_be` whenever first 4 bytes differ!) |
-    | `3` | `.le` | `a <= b` |
-    | `4` | `.gt` | `a > b` |
-    | `5` | `.ge` | `a >= b` |
-    | `6` | `.starts_with` | `a` has byte prefix `b` (`len(a) >= len(b)` + `prefix4_be` fast check + tail `memcmp`) |
-    | `7` | `.ends_with` | `a` has byte suffix `b` (`len(a) >= len(b)` + tail `memcmp`) |
-    | `8` | `.contains` | `b` is a contiguous byte substring of `a` (SIMD two-byte first/last needle scan) |
-    | `9` | `.len_eq` | `byte_len(a) == u64(rhs)` (evaluates 100% inside `StringView` header without touching pool bytes!) |
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..9`))**:
+
+| `subop` | Mnemonic | Semantics (UTF-8 bytewise lexicographical / exact match) |
+| :--- | :--- | :--- |
+| `0` | `.eq` | `a == b` (1-cycle reject on `len` or `prefix4_be` mismatch; dict-ID fast path when shared pool!) |
+| `1` | `.ne` | `a != b` (Kleene `NULL` propagates!) |
+| `2` | `.lt` | `a < b` (unsigned byte order; resolved in registers via `prefix4_be` whenever first 4 bytes differ!) |
+| `3` | `.le` | `a <= b` |
+| `4` | `.gt` | `a > b` |
+| `5` | `.ge` | `a >= b` |
+| `6` | `.starts_with` | `a` has byte prefix `b` (`len(a) >= len(b)` + `prefix4_be` fast check + tail `memcmp`) |
+| `7` | `.ends_with` | `a` has byte suffix `b` (`len(a) >= len(b)` + tail `memcmp`) |
+| `8` | `.contains` | `b` is a contiguous byte substring of `a` (SIMD two-byte first/last needle scan) |
+| `9` | `.len_eq` | `byte_len(a) == u64(rhs)` (evaluates 100% inside `StringView` header without touching pool bytes!) |
+
 * **ImpAsm Usage**:
   ```impas
   LOAD_CONST_POOL.str         R1, pool=0       ; "https://impulsegraph.io/"
@@ -1221,26 +1355,28 @@
 * **Summary**: Hardware-SIMD vector arithmetic, roots, min/max, and IEEE-754 rounding (`16` subops `0..15`, zero `libm` transcendental calls).
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM` on `0=add, 2=mul, 5=min, 6=max`), `0x2` (`FLAG_SCALAR_RHS` on binary `0..7`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..15`):
-    | `subop` | Mnemonic | Arity | Supported Types | Semantics (`NULL` propagates!) |
-    | :--- | :--- | :--- | :--- | :--- |
-    | `0` | `.add` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `x + y` (wrapping 64b on int) |
-    | `1` | `.sub` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `x - y` |
-    | `2` | `.mul` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `x * y` |
-    | `3` | `.div` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `y == 0` $\to$ Kleene `NULL` (`valid=0, data=0`); `INT64_MIN / -1` $\to$ `INT64_MIN` |
-    | `4` | `.rem` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `y == 0` $\to$ `NULL`; `fmod(x, y)` on floats |
-    | `5` | `.min` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `min(x, y)` (`min(-0.0, +0.0) = -0.0`) |
-    | `6` | `.max` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `max(x, y)` (`max(-0.0, +0.0) = +0.0`) |
-    | `7` | `.copysign` | Binary (`s1, s2`) | `F32, F64` | `copysign(x, y)` |
-    | `8` | `.neg` | Unary (`s1`, `s2=0`) | `I64, F32, F64` | `-x` |
-    | `9` | `.abs` | Unary (`s1`, `s2=0`) | `I64, F32, F64` | `|x|` (`abs(INT64_MIN)` wraps to `INT64_MIN` two's-complement) |
-    | `10` | `.sqrt` | Unary (`s1`, `s2=0`) | `F32, F64` | `x < 0 ? NULL : sqrt(x)` |
-    | `11` | `.rsqrt` | Unary (`s1`, `s2=0`) | `F32, F64` | `x <= 0 ? NULL : (1 / sqrt(x))` (exact IEEE division, NOT 12-bit `vrsqrtps` approx!) |
-    | `12` | `.floor` | Unary (`s1`, `s2=0`) | `F32, F64` | `floor(x)` |
-    | `13` | `.ceil` | Unary (`s1`, `s2=0`) | `F32, F64` | `ceil(x)` |
-    | `14` | `.trunc` | Unary (`s1`, `s2=0`) | `F32, F64` | `trunc(x)` |
-    | `15` | `.round` | Unary (`s1`, `s2=0`) | `F32, F64` | `round_half_away_from_zero(x)` |
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..15`))**:
+
+| `subop` | Mnemonic | Arity | Supported Types | Semantics (`NULL` propagates!) |
+| :--- | :--- | :--- | :--- | :--- |
+| `0` | `.add` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `x + y` (wrapping 64b on int) |
+| `1` | `.sub` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `x - y` |
+| `2` | `.mul` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `x * y` |
+| `3` | `.div` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `y == 0` $\to$ Kleene `NULL` (`valid=0, data=0`); `INT64_MIN / -1` $\to$ `INT64_MIN` |
+| `4` | `.rem` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `y == 0` $\to$ `NULL`; `fmod(x, y)` on floats |
+| `5` | `.min` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `min(x, y)` (`min(-0.0, +0.0) = -0.0`) |
+| `6` | `.max` | Binary (`s1, s2`) | `I64, U64, F32, F64` | `max(x, y)` (`max(-0.0, +0.0) = +0.0`) |
+| `7` | `.copysign` | Binary (`s1, s2`) | `F32, F64` | `copysign(x, y)` |
+| `8` | `.neg` | Unary (`s1`, `s2=0`) | `I64, F32, F64` | `-x` |
+| `9` | `.abs` | Unary (`s1`, `s2=0`) | `I64, F32, F64` | $\lvert x \rvert$ (`abs(INT64_MIN)` wraps to `INT64_MIN` two's-complement) |
+| `10` | `.sqrt` | Unary (`s1`, `s2=0`) | `F32, F64` | `x < 0 ? NULL : sqrt(x)` |
+| `11` | `.rsqrt` | Unary (`s1`, `s2=0`) | `F32, F64` | `x <= 0 ? NULL : (1 / sqrt(x))` (exact IEEE division, NOT 12-bit `vrsqrtps` approx!) |
+| `12` | `.floor` | Unary (`s1`, `s2=0`) | `F32, F64` | `floor(x)` |
+| `13` | `.ceil` | Unary (`s1`, `s2=0`) | `F32, F64` | `ceil(x)` |
+| `14` | `.trunc` | Unary (`s1`, `s2=0`) | `F32, F64` | `trunc(x)` |
+| `15` | `.round` | Unary (`s1`, `s2=0`) | `F32, F64` | `round_half_away_from_zero(x)` |
+
 * **ImpAsm Usage**:
   ```impas
   VEC_MATH_ARITH.mul.scalar V2, V1, R1     ; V2 = V1 * 0.85
@@ -1255,9 +1391,27 @@
 * **Summary**: Exponential, logarithmic, power, root, and statistical error/gamma vector functions (`14` subops `0..13`, `F32`/`F64`).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` allowed on binary `8=pow, 10=hypot`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..13`):
-    `0 = .exp` ($e^x$), `1 = .exp2` ($2^x$), `2 = .exp10` ($10^x$), `3 = .expm1` ($e^x - 1$), `4 = .log` ($\ln x$), `5 = .log2` ($\log_2 x$), `6 = .log10` ($\log_{10} x$), `7 = .log1p` ($\ln(1+x)$), `8 = .pow` (binary $x^y$), `9 = .cbrt` ($\sqrt[3]{x}$), `10 = .hypot` (binary $\sqrt{x^2+y^2}$), `11 = .erf`, `12 = .erfc`, `13 = .lgamma`
+  - `dst`: `V[dst]` (`F32`/`F64`); `s1`: `V[s1]`; `s2`: `0` (unary) or `V[s2]`/`R[s2]` (binary `8, 10`); `s3`: `0` or `F[s3]` (`.mask`)
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..13`))**:
+
+| `subop` | Mnemonic | Arity | Formula / Semantics (`NULL` propagates) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.exp` | Unary (`s1`) | $e^x$ |
+| `1` | `.exp2` | Unary (`s1`) | $2^x$ |
+| `2` | `.exp10` | Unary (`s1`) | $10^x$ |
+| `3` | `.expm1` | Unary (`s1`) | $e^x - 1$ (accurate near $x = 0$) |
+| `4` | `.log` | Unary (`s1`) | $\ln(x)$ (`x < 0` $\to$ `NULL`; `x == 0` $\to$ `-Inf`) |
+| `5` | `.log2` | Unary (`s1`) | $\log_2(x)$ (`x < 0` $\to$ `NULL`) |
+| `6` | `.log10` | Unary (`s1`) | $\log_{10}(x)$ (`x < 0` $\to$ `NULL`) |
+| `7` | `.log1p` | Unary (`s1`) | $\ln(1 + x)$ (`x < -1` $\to$ `NULL`) |
+| `8` | `.pow` | Binary (`s1, s2`) | $x^y$ (`NaN` domain errors $\to$ `NULL`) |
+| `9` | `.cbrt` | Unary (`s1`) | $\sqrt[3]{x}$ |
+| `10` | `.hypot` | Binary (`s1, s2`) | $\sqrt{x^2 + y^2}$ (overflow/underflow-safe) |
+| `11` | `.erf` | Unary (`s1`) | Gauss error function $\operatorname{erf}(x)$ |
+| `12` | `.erfc` | Unary (`s1`) | Complementary error function $\operatorname{erfc}(x) = 1 - \operatorname{erf}(x)$ |
+| `13` | `.lgamma` | Unary (`s1`) | $\ln \lvert \Gamma(x) \rvert$ (poles at non-positive integers $\to$ `+Inf`) |
+
 * **ImpAsm Usage**:
   ```impas
   VEC_MATH_EXP_LOG.log1p V1, V0
@@ -1273,9 +1427,27 @@
 * **Summary**: Circular, inverse circular, spatial `sinc`/`atan2`, and Poincaré hyperbolic vector functions (`14` subops `0..13`, `F32`/`F64`).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` allowed on binary `6=atan2`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..13`):
-    `0 = .sin`, `1 = .cos`, `2 = .tan`, `3 = .asin`, `4 = .acos`, `5 = .atan`, `6 = .atan2` (binary `atan2(y=s1, x=s2)`), `7 = .sinc` (`|x| < eps ? 1 : sin(x)/x`), `8 = .sinh`, `9 = .cosh`, `10 = .tanh`, `11 = .asinh`, `12 = .acosh`, `13 = .atanh`
+  - `dst`: `V[dst]` (`F32`/`F64`); `s1`: `V[s1]`; `s2`: `0` (unary) or `V[s2]`/`R[s2]` (binary `6=atan2`); `s3`: `0` or `F[s3]` (`.mask`)
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..13`))**:
+
+| `subop` | Mnemonic | Arity | Formula / Semantics (`NULL` propagates) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.sin` | Unary (`s1`) | $\sin(x)$ (`±Inf` $\to$ `NULL`) |
+| `1` | `.cos` | Unary (`s1`) | $\cos(x)$ (`±Inf` $\to$ `NULL`) |
+| `2` | `.tan` | Unary (`s1`) | $\tan(x)$ (`±Inf` $\to$ `NULL`) |
+| `3` | `.asin` | Unary (`s1`) | $\arcsin(x)$ ($\lvert x \rvert > 1 \to$ `NULL`) |
+| `4` | `.acos` | Unary (`s1`) | $\arccos(x)$ ($\lvert x \rvert > 1 \to$ `NULL`) |
+| `5` | `.atan` | Unary (`s1`) | $\arctan(x)$ |
+| `6` | `.atan2` | Binary (`s1, s2`) | $\operatorname{atan2}(y = s1, x = s2)$ |
+| `7` | `.sinc` | Unary (`s1`) | $\lvert x \rvert < \epsilon \; ? \; 1.0 : \sin(x) / x$ ($\epsilon = 10^{-7}$ `f32`, $10^{-15}$ `f64`) |
+| `8` | `.sinh` | Unary (`s1`) | $\sinh(x)$ |
+| `9` | `.cosh` | Unary (`s1`) | $\cosh(x)$ |
+| `10` | `.tanh` | Unary (`s1`) | $\tanh(x)$ |
+| `11` | `.asinh` | Unary (`s1`) | $\operatorname{asinh}(x)$ |
+| `12` | `.acosh` | Unary (`s1`) | $\operatorname{acosh}(x)$ ($x < 1 \to$ `NULL`) |
+| `13` | `.atanh` | Unary (`s1`) | $\operatorname{atanh}(x)$ ($\lvert x \rvert > 1 \to$ `NULL`; $\lvert x \rvert == 1 \to \pm\infty$) |
+
 * **ImpAsm Usage**:
   ```impas
   VEC_MATH_TRIG_HYP.atan2 V2, V0, V1
@@ -1289,16 +1461,18 @@
 * **Summary**: Graph Neural Network (GNN) & neural activation functions (`6` subops `0..5`, `F32`/`F64`, `10` reserved subop slots for future activations).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` allowed on binary `1=leaky_relu`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..5`):
-    | `subop` | Mnemonic | Arity | Exact Normative Formula (`NULL` propagates) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.relu` | Unary (`s1`) | `x > 0 ? x : +0.0` (note: `-0.0` canonicalizes to `+0.0`!) |
-    | `1` | `.leaky_relu` | Binary (`s1, s2`) | `x > 0 ? x : (alpha * x)` where `alpha` is `V[s2]` or `R[s2]` (`.scalar`, e.g. `0.01`) |
-    | `2` | `.sigmoid` | Unary (`s1`) | `1 / (1 + exp(-x))` |
-    | `3` | `.gelu` | Unary (`s1`) | `x <= -15 ? 0 : (x >= 15 ? x : 0.5 * x * (1 + tanh(k0 * (x + 0.044715 * x^3))))` |
-    | `4` | `.silu` | Unary (`s1`) | `isinf(x) ? (x > 0 ? +Inf : 0) : x / (1 + exp(-x))` |
-    | `5` | `.softplus` | Unary (`s1`) | `x > thresh ? x : log1p(exp(x))` (`thresh = 20.0f` for `F32`, `40.0` for `F64`) |
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..5`))**:
+
+| `subop` | Mnemonic | Arity | Exact Normative Formula (`NULL` propagates) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.relu` | Unary (`s1`) | `x > 0 ? x : +0.0` (note: `-0.0` canonicalizes to `+0.0`!) |
+| `1` | `.leaky_relu` | Binary (`s1, s2`) | `x > 0 ? x : (alpha * x)` where `alpha` is `V[s2]` or `R[s2]` (`.scalar`, e.g. `0.01`) |
+| `2` | `.sigmoid` | Unary (`s1`) | `1 / (1 + exp(-x))` |
+| `3` | `.gelu` | Unary (`s1`) | `x <= -15 ? 0 : (x >= 15 ? x : 0.5 * x * (1 + tanh(k0 * (x + 0.044715 * x^3))))` |
+| `4` | `.silu` | Unary (`s1`) | `isinf(x) ? (x > 0 ? +Inf : 0) : x / (1 + exp(-x))` |
+| `5` | `.softplus` | Unary (`s1`) | `x > thresh ? x : log1p(exp(x))` (`thresh = 20.0f` for `F32`, `40.0` for `F64`) |
+
 * **ImpAsm Usage**:
   ```impas
   VEC_MATH_ACT.leaky_relu.scalar V1, V0, R1   ; R1 = 0.01
@@ -1312,24 +1486,26 @@
 * **Summary**: Native 64-bit / 32-bit integer vector bitwise logic, shifts, rotations, bit-counting, and byte-swap (`14` subops `0..13`, `I64`/`U64`/`I32`/`U32`).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` allowed on binary `0..2, 4..9`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..13`):
-    | `subop` | Mnemonic | Arity | Semantics (Shift/rotate count masked `& (W_bits - 1)`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.and` | Binary (`s1, s2`) | `x & y` |
-    | `1` | `.or` | Binary (`s1, s2`) | `x \| y` |
-    | `2` | `.xor` | Binary (`s1, s2`) | `x ^ y` |
-    | `3` | `.not` | Unary (`s1`) | `~x` |
-    | `4` | `.and_not` | Binary (`s1, s2`) | `x & ~y` |
-    | `5` | `.shl` | Binary (`s1, s2`) | `x << (y & mask)` |
-    | `6` | `.shr_u` | Binary (`s1, s2`) | `(uint)x >> (y & mask)` |
-    | `7` | `.shr_s` | Binary (`s1, s2`) | `(int)x >> (y & mask)` |
-    | `8` | `.rotl` | Binary (`s1, s2`) | Rotate left (`s == 0 ? x : (x << s) \| (x >> (W - s))`) |
-    | `9` | `.rotr` | Binary (`s1, s2`) | Rotate right (`s == 0 ? x : (x >> s) \| (x << (W - s))`) |
-    | `10` | `.popcount` | Unary (`s1`) | Hardware population count (`0..64` / `0..32`) |
-    | `11` | `.clz` | Unary (`s1`) | Count leading zeros (`x == 0 ? W : clz(x)`) |
-    | `12` | `.ctz` | Unary (`s1`) | Count trailing zeros (`x == 0 ? W : ctz(x)`) |
-    | `13` | `.bswap` | Unary (`s1`) | Byte-reverse (`bswap32` / `bswap64`) |
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..13`))**:
+
+| `subop` | Mnemonic | Arity | Semantics (Shift/rotate count masked `& (W_bits - 1)`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.and` | Binary (`s1, s2`) | `x & y` |
+| `1` | `.or` | Binary (`s1, s2`) | `x \| y` |
+| `2` | `.xor` | Binary (`s1, s2`) | `x ^ y` |
+| `3` | `.not` | Unary (`s1`) | `~x` |
+| `4` | `.and_not` | Binary (`s1, s2`) | `x & ~y` |
+| `5` | `.shl` | Binary (`s1, s2`) | `x << (y & mask)` |
+| `6` | `.shr_u` | Binary (`s1, s2`) | `(uint)x >> (y & mask)` |
+| `7` | `.shr_s` | Binary (`s1, s2`) | `(int)x >> (y & mask)` |
+| `8` | `.rotl` | Binary (`s1, s2`) | Rotate left (`s == 0 ? x : (x << s) \| (x >> (W - s))`) |
+| `9` | `.rotr` | Binary (`s1, s2`) | Rotate right (`s == 0 ? x : (x >> s) \| (x << (W - s))`) |
+| `10` | `.popcount` | Unary (`s1`) | Hardware population count (`0..64` / `0..32`) |
+| `11` | `.clz` | Unary (`s1`) | Count leading zeros (`x == 0 ? W : clz(x)`) |
+| `12` | `.ctz` | Unary (`s1`) | Count trailing zeros (`x == 0 ? W : ctz(x)`) |
+| `13` | `.bswap` | Unary (`s1`) | Byte-reverse (`bswap32` / `bswap64`) |
+
 * **ImpAsm Usage**:
   ```impas
   ; Pack deterministic ARGMIN key: (ord_f32 << 32) | src_id
@@ -1347,15 +1523,17 @@
 * **Summary**: Single-word 3-operand vector math and temporal interval predicates (`V[dst] = op(V[s1], s2, s3)`).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: on `.clamp` and `.safe_div`, `s2` and `s3` read `R[s2]` and `R[s3]`; on `.lerp` and `.time_valid_at`, `s3` reads `R[s3]` while `s2` stays `V[s2]`!)
-  - `subop:4` (`0..4`):
-    | `subop` | Mnemonic | Scalar Mode (`FLAG_SCALAR_RHS`) | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.fma` | `s2=R[s2], s3=R[s3]` | `fma(V[s1], s2, s3)` (single-rounding fused `a * b + c`) |
-    | `1` | `.lerp` | `s2=V[s2], s3=R[s3]` | `a + t * (b - a)` (`s1=a, s2=b, s3=t`) |
-    | `2` | `.clamp` | `s2=R[s2], s3=R[s3]` | `clamp(x=V[s1], lo=s2, hi=s3)` (`lo > hi` returns `ERR_INVALID_OPERAND` `6`) |
-    | `3` | `.safe_div` | `s2=R[s2], s3=R[s3]` | `(y == 0 \|\| !valid_y) ? (valid_z, z) : (valid_x, x / y)` |
-    | `4` | `.time_valid_at` | `s2=V[s2], s3=R[s3]` | Outputs `BOOL_3VL`: `valid_from <= ts && (isnull(valid_to) \|\| ts < valid_to)`! |
   - `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..4`))**:
+
+| `subop` | Mnemonic | Scalar Mode (`FLAG_SCALAR_RHS`) | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.fma` | `s2=R[s2], s3=R[s3]` | `fma(V[s1], s2, s3)` (single-rounding fused `a * b + c`) |
+| `1` | `.lerp` | `s2=V[s2], s3=R[s3]` | `a + t * (b - a)` (`s1=a, s2=b, s3=t`) |
+| `2` | `.clamp` | `s2=R[s2], s3=R[s3]` | `clamp(x=V[s1], lo=s2, hi=s3)` (`lo > hi` returns `ERR_INVALID_OPERAND` `6`) |
+| `3` | `.safe_div` | `s2=R[s2], s3=R[s3]` | `(y == 0 \|\| !valid_y) ? (valid_z, z) : (valid_x, x / y)` |
+| `4` | `.time_valid_at` | `s2=V[s2], s3=R[s3]` | Outputs `BOOL_3VL`: `valid_from <= ts && (isnull(valid_to) \|\| ts < valid_to)`! |
+
 * **ImpAsm Usage**:
   ```impas
   ; Temporal edge validity check inside WALK_MORSEL: valid_from <= $now && (valid_to IS NULL || $now < valid_to)
@@ -1370,14 +1548,16 @@
 * **Summary**: Vector conditional ternary select (`cond ? true_val : false_val`) with explicit Kleene-propagating vs SQL `CASE WHEN` modes.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `s2` reads `R[s2]`)
-  - `subop:4` (`0..3`):
-    | `subop` | Mnemonic | `s3` Bank | `NULL` Condition (`v_cond == 0`) Behavior |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.kleene_vv` | `V[s3]` | Propagates `NULL` (`valid_dst = 0`) when `cond` is `NULL`. |
-    | `1` | `.kleene_vr` | `R[s3]` | Same as `.kleene_vv`, with false branch read from scalar `R[s3]`. |
-    | `2` | `.case_vv` | `V[s3]` | SQL `CASE WHEN cond THEN s2 ELSE s3 END`: `FALSE` **and** `NULL` both select `s3`! |
-    | `3` | `.case_vr` | `R[s3]` | Same as `.case_vv`, with `ELSE` branch read from scalar `R[s3]`. |
-  - `dst`: `V[dst]` | `s1`: `V[s1]` (`BOOL_3VL`) | `s2`: `V[s2]` (or `R[s2]` w/ `.scalar`) | `s3`: `V[s3]` or `R[s3]` | `imm32`: `0` (MBZ)
+  - `dst`: `V[dst]`; `s1`: `V[s1]` (`BOOL_3VL`); `s2`: `V[s2]` (or `R[s2]` w/ `.scalar`); `s3`: `V[s3]` or `R[s3]`; `imm32`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | `s3` Bank | `NULL` Condition (`v_cond == 0`) Behavior |
+| :--- | :--- | :--- | :--- |
+| `0` | `.kleene_vv` | `V[s3]` | Propagates `NULL` (`valid_dst = 0`) when `cond` is `NULL`. |
+| `1` | `.kleene_vr` | `R[s3]` | Same as `.kleene_vv`, with false branch read from scalar `R[s3]`. |
+| `2` | `.case_vv` | `V[s3]` | SQL `CASE WHEN cond THEN s2 ELSE s3 END`: `FALSE` **and** `NULL` both select `s3`! |
+| `3` | `.case_vr` | `R[s3]` | Same as `.case_vv`, with `ELSE` branch read from scalar `R[s3]`. |
+
 * **ImpAsm Usage**:
   ```impas
   ; SQL CASE WHEN e.tier == 1 THEN e.weight * 2.0 ELSE 1.0 END:
@@ -1392,7 +1572,7 @@
 * **Summary**: Vector null-coalescing select (`V[dst][i] = valid_s1[i] ? V[s1][i] : rhs[i]`).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `rhs = R[s2]`), `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4`: `0` | `dst`: `V[dst]` | `s1`: `V[s1]` | `s2`: `V[s2]` or `R[s2]` | `s3`: `0` or `F[s3]` (`.mask`) | `imm32`: `0` (MBZ)
+  - `subop:4`: `0`; `dst`: `V[dst]`; `s1`: `V[s1]`; `s2`: `V[s2]` or `R[s2]`; `s3`: `0` or `F[s3]` (`.mask`); `imm32`: `0` (MBZ)
 * **Operational Semantics**: When `V[s1]` has `valid_ptr == NULL` (all-valid `.imps` column fast path!), `OP_COALESCE` short-circuits in **$O(1)$** via COW alias `V[dst] = V[s1]` without touching a single element! Otherwise `valid_dst = v_s1 | v_s2` and blends `V[s2]`/`R[s2]` into null lanes of `V[s1]`.
 * **ImpAsm Usage**:
   ```impas
@@ -1407,12 +1587,19 @@
 * **Summary**: Allocates and initializes a typed vector `V[dst]` filled with a scalar value (or `NULL`).
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: fill value from `R[s2]`; if `0`, fills with `0` / `valid=1`, or all-`NULL` when `subop` or `R[s2]` is `NULL`)
-  - `subop:4`:
-    - Bits `2..0` (Element Type): `0 = .i64`, `1 = .u64`, `2 = .i32`, `3 = .u32`, `4 = .f64`, `5 = .f32`, `6 = .bool_3vl`
-    - Bit `3` (Length Source):
-      - `0` (`subop 0..6`): length from `R[s1]` (if `s1 != 0` or `imm32 == 0`) else `imm32` literal length (`domain_id = 0xFFFF`).
-      - `1` (`subop 8..14`, `.dom_*`): length = $N_d$ of `domain_id = imm16_lo` (`s1 = 0` MBZ, `V[dst].domain_id = domain_id`)!
   - `s3`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..6` explicit length via `R[s1]`/`imm32`; `8..14` domain-sized $N_d$ via `imm16_lo = domain_id`))**:
+
+| `subop` (Explicit Len) | `subop` (Domain Len $N_d$) | Element Type | Bytes / Element (+ `1/8 B` validity) |
+| :--- | :--- | :--- | :--- |
+| `0` (`.i64`) | `8` (`.dom_i64`) | `INT64` | `8 B` |
+| `1` (`.u64`) | `9` (`.dom_u64`) | `UINT64` | `8 B` |
+| `2` (`.i32`) | `10` (`.dom_i32`) | `INT32` | `4 B` |
+| `3` (`.u32`) | `11` (`.dom_u32`) | `UINT32` | `4 B` |
+| `4` (`.f64`) | `12` (`.dom_f64`) | `FLOAT64` | `8 B` |
+| `5` (`.f32`) | `13` (`.dom_f32`) | `FLOAT32` | `4 B` |
+| `6` (`.bool_3vl`) | `14` (`.dom_bool_3vl`) | `BOOL_3VL` | `2/8 B` (`valid` + `data` bitmasks) |
+
 * **ImpAsm Usage**:
   ```impas
   ; Initialize SSSP distance vector V0[0..N_d) to NULL (+infinity / unreached) on domain 0:
@@ -1431,13 +1618,15 @@
 * **Summary**: Controlled point read/write between scalar `R` and vector `V`, plus bulk numeric vector type casting.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4` (`0..2`):
-    | `subop` | Mnemonic | Signature | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.vec_get` | `R[dst] <- V[s1][R[s2]]` | Bounds-checks `R[s2] < len(V[s1])`; reads element + validity bit into `R[dst]` (widening `I32->I64`, `U32->U64`, `F32->F64`); sets `ZF`, `NF`. |
-    | `1` | `.vec_set` | `V[dst][R[s1]] <- R[s2]` | Bounds-checks `R[s1] < len(V[dst])`; triggers COW unshare if `V[dst]` is read-only/shared; writes `(valid[s2], R[s2])` at index `R[s1]`. |
-    | `2` | `.vec_cast` | `V[dst] <- V[s1]`, `imm16_lo=tgt_type` | Vectorized SIMD cast across `[0..len)` (`0=I64, 1=U64, 2=I32, 3=U32, 4=F64, 5=F32`), preserving validity bitmap (`F64->I64` uses UB-free saturating `trunc`). |
   - `s3`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.vec_get` | `R[dst] <- V[s1][R[s2]]` | Bounds-checks `R[s2] < len(V[s1])`; reads element + validity bit into `R[dst]` (widening `I32->I64`, `U32->U64`, `F32->F64`); sets `ZF`, `NF`. |
+| `1` | `.vec_set` | `V[dst][R[s1]] <- R[s2]` | Bounds-checks `R[s1] < len(V[dst])`; triggers COW unshare if `V[dst]` is read-only/shared; writes `(valid[s2], R[s2])` at index `R[s1]`. |
+| `2` | `.vec_cast` | `V[dst] <- V[s1]`, `imm16_lo=tgt_type` | Vectorized SIMD cast across `[0..len)` (`0=I64, 1=U64, 2=I32, 3=U32, 4=F64, 5=F32`), preserving validity bitmap (`F64->I64` uses UB-free saturating `trunc`). |
+
 * **ImpAsm Usage**:
   ```impas
   VEC_POINT.vec_set  V0, R1, R2          ; V0[seed] = 0.0
@@ -1454,22 +1643,24 @@
 * **Summary**: Deterministic parallel SIMD reduction of `V[s1]` into scalar `R[dst]` (skipping `NULL` elements; optionally masked by `F[s3]`).
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`: restricts reduction to active nodes in `F[s3]`)
-  - `subop:4` (`0..10`):
-    | `subop` | Mnemonic | Empty / All-`NULL` Result | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.sum` | `0` / `0.0` (`valid=1`) | Deterministic 64-block pairwise tree sum (`I64`, `U64`, `F32->F64`, `F64`). |
-    | `1` | `.min` | `NULL` (`valid=0, NF=1`) | Minimum valid element. |
-    | `2` | `.max` | `NULL` (`valid=0, NF=1`) | Maximum valid element. |
-    | `3` | `.count_valid` | `0` (`valid=1`) | Count of active non-`NULL` elements (`u64`). |
-    | `4` | `.mean` | `NULL` (`valid=0, NF=1`) | `sum / (double)count_valid` (`f64`). |
-    | `5` | `.l1_norm` | `0.0` (`valid=1`) | $\sum |x_i|$ (`f64`). |
-    | `6` | `.l2_norm_sq` | `0.0` (`valid=1`) | $\sum x_i^2$ (`f64`). |
-    | `7` | `.argmin` | `NULL` (`valid=0, NF=1`) | Index $i$ (`u64`) of minimum valid value (**lowest index $i$ wins ties!**). |
-    | `8` | `.argmax` | `NULL` (`valid=0, NF=1`) | Index $i$ (`u64`) of maximum valid value (**lowest index $i$ wins ties!**). |
-    | `9` | `.any_true` | `0` (`valid=1`) | `1` if at least one active `BOOL_3VL` lane is `TRUE (1,1)`, else `0`. |
-    | `10` | `.all_true` | `1` (`valid=1`) | `1` if every active lane is `TRUE (1,1)`, else `0`. |
-  - `s2`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `s2`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (!valid[dst] || R[dst] == 0)`, `NF = !valid[dst]`.
+* **Sub-Operations (`subop:4` (`0..10`))**:
+
+| `subop` | Mnemonic | Empty / All-`NULL` Result | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.sum` | `0` / `0.0` (`valid=1`) | Deterministic 64-block pairwise tree sum (`I64`, `U64`, `F32->F64`, `F64`). |
+| `1` | `.min` | `NULL` (`valid=0, NF=1`) | Minimum valid element. |
+| `2` | `.max` | `NULL` (`valid=0, NF=1`) | Maximum valid element. |
+| `3` | `.count_valid` | `0` (`valid=1`) | Count of active non-`NULL` elements (`u64`). |
+| `4` | `.mean` | `NULL` (`valid=0, NF=1`) | `sum / (double)count_valid` (`f64`). |
+| `5` | `.l1_norm` | `0.0` (`valid=1`) | $\sum \lvert x_i \rvert$ (`f64`). |
+| `6` | `.l2_norm_sq` | `0.0` (`valid=1`) | $\sum x_i^2$ (`f64`). |
+| `7` | `.argmin` | `NULL` (`valid=0, NF=1`) | Index $i$ (`u64`) of minimum valid value (**lowest index $i$ wins ties!**). |
+| `8` | `.argmax` | `NULL` (`valid=0, NF=1`) | Index $i$ (`u64`) of maximum valid value (**lowest index $i$ wins ties!**). |
+| `9` | `.any_true` | `0` (`valid=1`) | `1` if at least one active `BOOL_3VL` lane is `TRUE (1,1)`, else `0`. |
+| `10` | `.all_true` | `1` (`valid=1`) | `1` if every active lane is `TRUE (1,1)`, else `0`. |
+
 * **ImpAsm Usage**:
   ```impas
   ; Sum dangling-node PageRank mass over sink frontier F_dangling (F3):
@@ -1484,15 +1675,17 @@
 * **Summary**: Deterministic bounded heap / SIMD quickselect over score vector `V[s1]`, outputting ordered top-$k$ indices or scores into `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `k = R[s2]`, else `k = imm16_lo`), `0x1` (`FLAG_MASKED_S3`: restricts candidates to `F[s3]`)
-  - `subop:4` (`0..3`):
-    | `subop` | Mnemonic | Output `V[dst]` | Ordering & Tie-Breaking |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.desc_ids` | `U32`/`U64` indices | Largest `k` valid scores descending; **equal scores broken by ascending index `i`**! |
-    | `1` | `.asc_ids` | `U32`/`U64` indices | Smallest `k` valid scores ascending; **equal scores broken by ascending index `i`**! |
-    | `2` | `.desc_scores` | Same type as `V[s1]` | Sorted score values matching `.desc_ids`. |
-    | `3` | `.asc_scores` | Same type as `V[s1]` | Sorted score values matching `.asc_ids`. |
   - `imm16_lo`: `k` (MBZ if `.scalar`), `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | Output `V[dst]` | Ordering & Tie-Breaking |
+| :--- | :--- | :--- | :--- |
+| `0` | `.desc_ids` | `U32`/`U64` indices | Largest `k` valid scores descending; **equal scores broken by ascending index `i`**! |
+| `1` | `.asc_ids` | `U32`/`U64` indices | Smallest `k` valid scores ascending; **equal scores broken by ascending index `i`**! |
+| `2` | `.desc_scores` | Same type as `V[s1]` | Sorted score values matching `.desc_ids`. |
+| `3` | `.asc_scores` | Same type as `V[s1]` | Sorted score values matching `.asc_ids`. |
+
 * **ImpAsm Usage**:
   ```impas
   ; Return top 10 highest-PageRank nodes within candidate frontier F1:
@@ -1507,18 +1700,20 @@
 * **Summary**: $O(\log N_d)$ / $O(1)$ point or range lookup against an immutable `.imps` secondary attribute index `(domain_id = imm16_lo, attr_id = imm16_hi)` into 1-bit `F[dst]`.
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`) (`s2` and `s3` are **always** scalar registers `R[s2]`, `R[s3]`)
-  - `subop:4` (`0..6`):
-    | `subop` | Mnemonic | Scalar Bounds | Matched Predicate |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.eq` | `R[s2]` (`s3=0`) | `attr == R[s2]` |
-    | `1` | `.between_cc` | `R[s2], R[s3]` | `R[s2] <= attr && attr <= R[s3]` (closed-closed `[lo, hi]`) |
-    | `2` | `.between_co` | `R[s2], R[s3]` | `R[s2] <= attr && attr < R[s3]` (closed-open `[lo, hi)`) |
-    | `3` | `.lt` | `R[s2]` (`s3=0`) | `attr < R[s2]` |
-    | `4` | `.le` | `R[s2]` (`s3=0`) | `attr <= R[s2]` |
-    | `5` | `.gt` | `R[s2]` (`s3=0`) | `attr > R[s2]` |
-    | `6` | `.ge` | `R[s2]` (`s3=0`) | `attr >= R[s2]` |
   - `s1`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..6`))**:
+
+| `subop` | Mnemonic | Scalar Bounds | Matched Predicate |
+| :--- | :--- | :--- | :--- |
+| `0` | `.eq` | `R[s2]` (`s3=0`) | `attr == R[s2]` |
+| `1` | `.between_cc` | `R[s2], R[s3]` | `R[s2] <= attr && attr <= R[s3]` (closed-closed `[lo, hi]`) |
+| `2` | `.between_co` | `R[s2], R[s3]` | `R[s2] <= attr && attr < R[s3]` (closed-open `[lo, hi)`) |
+| `3` | `.lt` | `R[s2]` (`s3=0`) | `attr < R[s2]` |
+| `4` | `.le` | `R[s2]` (`s3=0`) | `attr <= R[s2]` |
+| `5` | `.gt` | `R[s2]` (`s3=0`) | `attr > R[s2]` |
+| `6` | `.ge` | `R[s2]` (`s3=0`) | `attr >= R[s2]` |
+
 * **ImpAsm Usage**:
   ```impas
   INDEX_SCAN.eq F0, R1, dom=0, attr=0
@@ -1532,13 +1727,15 @@
 * **Summary**: Translates external domain keys (`.imps` Section 2 Key Catalog strings or `u64` keys) into 0-indexed dense domain IDs `[0, N_d)`.
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM` allowed on `subop == 0`)
-  - `subop:4` (`0..2`):
-    | `subop` | Mnemonic | Signature | Missing-Key Behavior |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.param_to_f` | `F[dst] <- param_id=imm16_hi, dom=imm16_lo` (`s1=0`) | Missing external keys in host parameter set are **ignored** (not added to `F[dst]`); sets `ZF = is_empty(F[dst])`. |
-    | `1` | `.vec_to_v` | `V[dst] <- V[s1], dom=imm16_lo` (`imm16_hi=0`) | Positional 1:1 mapping (`len(V[dst]) == len(V[s1])`); missing keys produce Kleene `NULL` (`valid=0`) at that lane! |
-    | `2` | `.scalar_to_r` | `R[dst] <- R[s1], dom=imm16_lo` (`imm16_hi=0`) | Maps single external key `R[s1]` to dense ID `R[dst]`; missing key sets `R[dst] = NULL` (`valid=0, NF=1, ZF=1`)! |
   - `s2, s3`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | Signature | Missing-Key Behavior |
+| :--- | :--- | :--- | :--- |
+| `0` | `.param_to_f` | `F[dst] <- param_id=imm16_hi, dom=imm16_lo` (`s1=0`) | Missing external keys in host parameter set are **ignored** (not added to `F[dst]`); sets `ZF = is_empty(F[dst])`. |
+| `1` | `.vec_to_v` | `V[dst] <- V[s1], dom=imm16_lo` (`imm16_hi=0`) | Positional 1:1 mapping (`len(V[dst]) == len(V[s1])`); missing keys produce Kleene `NULL` (`valid=0`) at that lane! |
+| `2` | `.scalar_to_r` | `R[dst] <- R[s1], dom=imm16_lo` (`imm16_hi=0`) | Maps single external key `R[s1]` to dense ID `R[dst]`; missing key sets `R[dst] = NULL` (`valid=0, NF=1, ZF=1`)! |
+
 * **ImpAsm Usage**:
   ```impas
   MAP_KEYS_TO_DENSE.param_to_f F0, dom=0, param=0
@@ -1552,8 +1749,15 @@
 * **Summary**: Translates 0-indexed dense domain IDs `[0, N_d)` back to external Key Catalog `StringView` or `U64` keys.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`: `0 = .vec` (`V[dst] <- V[s1]`), `1 = .frontier_sorted` (`V[dst] <- F[s1]`, ascending dense ID order), `2 = .scalar` (`R[dst] <- R[s1]`)
-  - `s2, s3`: `0` (MBZ) | `imm16_lo`: `domain_id`, `imm16_hi`: `0` (MBZ)
+  - `s2, s3`: `0` (MBZ); `imm16_lo`: `domain_id`, `imm16_hi`: `0` (MBZ)
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.vec` | `V[dst] <- V[s1]` | Translates dense IDs in `V[s1]` positional 1:1 into external `StringView`/`U64` keys in `V[dst]` (preserves rank order!). |
+| `1` | `.frontier_sorted` | `V[dst] <- F[s1]` | Translates active nodes of 1-bit `F[s1]` in ascending dense ID order into `V[dst]`. |
+| `2` | `.scalar` | `R[dst] <- R[s1]` | Translates single dense ID `R[s1]` into external `StringView`/`U64` key in `R[dst]`. |
+
 * **ImpAsm Usage**:
   ```impas
   TOP_K.desc_ids         V2, V0, k=10
@@ -1568,16 +1772,18 @@
 * **Summary**: Materializes terminal query outputs (`F`, `V`, `R`, or multi-column Arrow table columns) into `VmQueryContext` output slots.
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3` allowed on `subop = 2, 4`: compacts `V[s1]` over active nodes in `F[s3]`!)
-  - `subop:4` (`0..4`):
-    | `subop` | Mnemonic | Source `s1` | Materialized Output in `ctx->outputs[imm16_lo]` |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.frontier_bitset` | `F[s1]` | Zero-copy/packed dense bitset `[0, N_d)` (or multi-lane slab view) + `domain_id`. |
-    | `1` | `.frontier_ids` | `F[s1]` | Contiguous Arrow array of ascending dense node IDs (`U32`/`U64`). |
-    | `2` | `.vec` | `V[s1]` | Arrow columnar buffer + validity bitmap (if `.mask F[s3]`, compacts `(node_id, V[s1][node_id])` for $u \in F[s3]$ in ascending $u$ order!). |
-    | `3` | `.scalar` | `R[s1]` | Single 64-bit scalar value + validity bit. |
-    | `4` | `.table_col` | `V[s1]` | Binds `V[s1]` (compacted by `F[s3]` if `.mask`) as column `imm16_hi` of Arrow RecordBatch `imm16_lo`. |
   - `dst, s2`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty_output`.
+* **Sub-Operations (`subop:4` (`0..4`))**:
+
+| `subop` | Mnemonic | Source `s1` | Materialized Output in `ctx->outputs[imm16_lo]` |
+| :--- | :--- | :--- | :--- |
+| `0` | `.frontier_bitset` | `F[s1]` | Zero-copy/packed dense bitset `[0, N_d)` (or multi-lane slab view) + `domain_id`. |
+| `1` | `.frontier_ids` | `F[s1]` | Contiguous Arrow array of ascending dense node IDs (`U32`/`U64`). |
+| `2` | `.vec` | `V[s1]` | Arrow columnar buffer + validity bitmap (if `.mask F[s3]`, compacts `(node_id, V[s1][node_id])` for $u \in F[s3]$ in ascending $u$ order!). |
+| `3` | `.scalar` | `R[s1]` | Single 64-bit scalar value + validity bit. |
+| `4` | `.table_col` | `V[s1]` | Binds `V[s1]` (compacted by `F[s3]` if `.mask`) as column `imm16_hi` of Arrow RecordBatch `imm16_lo`. |
+
 * **ImpAsm Usage**:
   ```impas
   ; Project (node_id, distance) for all reached nodes F1 into Arrow RecordBatch 0:
@@ -1598,9 +1804,16 @@
 ### `0x60` — `OP_LANE_INIT_SEEDS`
 * **Summary**: Initializes a multi-lane bit-sliced frontier `F[dst]` (`Width8/16/32/64`) in **Tier 1 4K-node paged slabs** from seed node vector `V[s1]`.
 * **Encoding**:
-  - `flags:4`: `0x0` | `subop:4`: `0 = .auto_width` (`8/16/32/64` chosen from `len(V[s1])`), `1 = .force_w64`
-  - `dst`: `F[dst]` | `s1`: `V[s1]` (`len <= 64`) | `s2, s3`: `0` (MBZ) | `imm16_lo`: `domain_id`, `imm16_hi`: `0` (MBZ)
+  - `flags:4`: `0x0`
+  - `dst`: `F[dst]`; `s1`: `V[s1]` (`len <= 64`); `s2, s3`: `0` (MBZ); `imm16_lo`: `domain_id`, `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (active_seed_count == 0)`.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Allocated `lane_width` | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.auto_width` | Smallest of `{8, 16, 32, 64}` $\ge \operatorname{len}(V[s1])$ | Minimizes Tier 1 4K-page byte width (`4 KB`..`32 KB`/page). |
+| `1` | `.force_w64` | `64` | Forces 64-bit lane words (when later merging dynamically up to 64 lanes). |
+
 * **Operational Semantics**: Validates `len(V[s1]) <= 64` (`ERR_BUFFER_OVERFLOW` `11` if `> 64`). Assigns lane $k \in [0, \text{len})$ to seed `u = V[s1][k]` (`lanes[u] |= (1ULL << k)`; `NULL` lanes in `V[s1]` leave lane $k$ empty) inside **Tier 1 4K-node paged slabs** (`Tier 2` if $N_d \le 4096$). Records `active_lane_count = len(V[s1])`.
 * **ImpAsm Usage**:
   ```impas
@@ -1614,8 +1827,8 @@
 ### `0x61` — `OP_LANE_INIT_GROUPS`
 * **Summary**: Initializes multi-lane frontier `F[dst]` from `(node_ids = V[s1], group_lane_ids = V[s2])`.
 * **Encoding**:
-  - `flags:4`: `0x4` (`FLAG_ACCUM`) | `subop:4`: `0`
-  - `dst`: `F[dst]` | `s1`: `V[s1]` (dense node IDs) | `s2`: `V[s2]` (lane indices `0..63`) | `s3`: `0` (MBZ) | `imm16_lo`: `domain_id`, `imm16_hi`: `lane_width` (`0` = auto from `max_lane`, or `8/16/32/64`)
+  - `flags:4`: `0x4` (`FLAG_ACCUM`); `subop:4`: `0`
+  - `dst`: `F[dst]`; `s1`: `V[s1]` (dense node IDs); `s2`: `V[s2]` (lane indices `0..63`); `s3`: `0` (MBZ); `imm16_lo`: `domain_id`, `imm16_hi`: `lane_width` (`0` = auto from `max_lane`, or `8/16/32/64`)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
 * **ImpAsm Usage**:
   ```impas
@@ -1629,8 +1842,15 @@
 ### `0x62` — `OP_LANE_SET_EDGE_MASK`
 * **Summary**: Associates or updates per-edge 64-bit lane visibility masks (`U64[M_r]`) in `V[dst]` or context slot for `OP_LANE_WALK.fwd_edge_masked`.
 * **Encoding**:
-  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: uniform mask `R[s2]`) | `subop:4`: `0 = .from_vec` (`V[dst] <- V[s1]`), `1 = .from_attr` (`V[dst]` bound to `U64` edge attr `(rel=imm16_lo, attr=imm16_hi)`)
+  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: uniform mask `R[s2]`)
   - `vm_flags` updated: None.
+* **Sub-Operations (`subop:4` (`0..1`))**:
+
+| `subop` | Mnemonic | Source | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.from_vec` | `V[s1]` (or broadcast `R[s2]` w/ `.scalar`) | Binds/initializes `U64[M_r]` per-edge lane visibility mask in `V[dst]`. |
+| `1` | `.from_attr` | `rel_id=imm16_lo, attr_id=imm16_hi` | Zero-copy binds `U64` snapshot edge mask column into `V[dst]`. |
+
 * **ImpAsm Usage**:
   ```impas
   LANE_SET_EDGE_MASK.from_attr V2, rel=0, attr=2
@@ -1644,19 +1864,21 @@
 * **Summary**: Bit-sliced multi-lane frontier traversal (`lanes_dst[v] |= lanes_src[u]`) across `FWD`, `REV`, `BOTH`, `FIXPOINT`, and `EDGE_MASKED` modes over Tier 1 paged slabs or Tier 2 dense arrays.
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x1` (`FLAG_MASKED_S3`: excludes 1-bit `F[s3]` nodes **or** subtracts per-lane visited bits `~F[s3]` when `F[s3]` is multi-lane!)
-  - `subop:4` (`0..8`):
-    | `subop` | Mnemonic | Operands | Semantics (`rel_id = imm16_lo`) |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.fwd` | `F[dst] <- F[s1]` | 1-hop $Src \to Tgt$ bit-sliced OR propagation. |
-    | `1` | `.rev` | `F[dst] <- F[s1]` | 1-hop $Tgt \to Src$ bit-sliced OR propagation. |
-    | `2` | `.both` | `F[dst] <- F[s1]` | Undirected 1-hop propagation (`src_dom == tgt_dom`). |
-    | `3` | `.fwd_fixpoint_plus` | `F[dst] <- F[s1]` | Multi-lane transitive closure $R^+$; tracks per-lane delta `next & ~visited`! Sets `ST = 1`. |
-    | `4` | `.fwd_fixpoint_star` | `F[dst] <- F[s1]` | Reflexive-transitive closure $R^*$; sets `ST = 1`. |
-    | `5` | `.rev_fixpoint_plus` | `F[dst] <- F[s1]` | Reverse multi-lane transitive closure; sets `ST = 1`. |
-    | `6` | `.rev_fixpoint_star` | `F[dst] <- F[s1]` | Reverse reflexive-transitive closure; sets `ST = 1`. |
-    | `7` | `.fwd_edge_masked` | `F[dst] <- F[s1], V[s2]` | `lanes_dst[v] \|= (lanes_src[u] & edge_mask[e])` (`V[s2]` = `U64[M_r]`). |
-    | `8` | `.both_fixpoint_star` | `F[dst] <- F[s1], V[s2]` | Undirected edge-masked reachability (`s2=0` unweighted or `V[s2]` edge mask — 64-contingency N-1 island check in 1 instruction!). |
   - `vm_flags` updated: `ZF = is_empty(F[dst])`, `ST = 1` on fixpoint subops.
+* **Sub-Operations (`subop:4` (`0..8`))**:
+
+| `subop` | Mnemonic | Operands | Semantics (`rel_id = imm16_lo`) |
+| :--- | :--- | :--- | :--- |
+| `0` | `.fwd` | `F[dst] <- F[s1]` | 1-hop $Src \to Tgt$ bit-sliced OR propagation. |
+| `1` | `.rev` | `F[dst] <- F[s1]` | 1-hop $Tgt \to Src$ bit-sliced OR propagation. |
+| `2` | `.both` | `F[dst] <- F[s1]` | Undirected 1-hop propagation (`src_dom == tgt_dom`). |
+| `3` | `.fwd_fixpoint_plus` | `F[dst] <- F[s1]` | Multi-lane transitive closure $R^+$; tracks per-lane delta `next & ~visited`! Sets `ST = 1`. |
+| `4` | `.fwd_fixpoint_star` | `F[dst] <- F[s1]` | Reflexive-transitive closure $R^*$; sets `ST = 1`. |
+| `5` | `.rev_fixpoint_plus` | `F[dst] <- F[s1]` | Reverse multi-lane transitive closure; sets `ST = 1`. |
+| `6` | `.rev_fixpoint_star` | `F[dst] <- F[s1]` | Reverse reflexive-transitive closure; sets `ST = 1`. |
+| `7` | `.fwd_edge_masked` | `F[dst] <- F[s1], V[s2]` | `lanes_dst[v] \|= (lanes_src[u] & edge_mask[e])` (`V[s2]` = `U64[M_r]`). |
+| `8` | `.both_fixpoint_star` | `F[dst] <- F[s1], V[s2]` | Undirected edge-masked reachability (`s2=0` unweighted or `V[s2]` edge mask — 64-contingency N-1 island check in 1 instruction!). |
+
 * **ImpAsm Usage**:
   ```impas
   ; Simultaneous 64-seed BFS step pruning per-lane visited bits in F0:
@@ -1672,14 +1894,16 @@
 * **Summary**: Bitwise lane-mask filtering, pruning, and single-lane extraction on multi-lane frontiers.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` on `subop 0, 1`)
-  - `subop:4` (`0..3`):
-    | `subop` | Mnemonic | Signature | Semantics |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.prune_mask` | `F[dst] <- F[s1], R[s2]` | Clears lane bits set in `R[s2]`: `lanes[u] &= ~R[s2]` (replaces `0xC5`). |
-    | `1` | `.keep_mask` | `F[dst] <- F[s1], R[s2]` | Retains only lane bits set in `R[s2]`: `lanes[u] &= R[s2]`. |
-    | `2` | `.and_not_lanes` | `F[dst] <- F[s1], F[s2]` | Per-node `F[s1][u] & ~F[s2][u]`. |
-    | `3` | `.extract_lane` | `F[dst] <- F[s1], imm16_lo=lane_k` | Extracts single lane `lane_k` (`0..63`) into a **1-bit frontier** `F[dst]` ($W=1$)! |
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | Signature | Semantics |
+| :--- | :--- | :--- | :--- |
+| `0` | `.prune_mask` | `F[dst] <- F[s1], R[s2]` | Clears lane bits set in `R[s2]`: `lanes[u] &= ~R[s2]` (replaces `0xC5`). |
+| `1` | `.keep_mask` | `F[dst] <- F[s1], R[s2]` | Retains only lane bits set in `R[s2]`: `lanes[u] &= R[s2]`. |
+| `2` | `.and_not_lanes` | `F[dst] <- F[s1], F[s2]` | Per-node `F[s1][u] & ~F[s2][u]`. |
+| `3` | `.extract_lane` | `F[dst] <- F[s1], imm16_lo=lane_k` | Extracts single lane `lane_k` (`0..63`) into a **1-bit frontier** `F[dst]` ($W=1$)! |
+
 * **ImpAsm Usage**:
   ```impas
   LANE_BITWISE.extract_lane F3, F0, lane=0
@@ -1693,9 +1917,16 @@
 * **Summary**: Collapses multi-lane frontier `F[s1]` into a 1-bit frontier `F[dst]` ($W=1$) keeping nodes whose active lane popcount satisfies quorum `k`.
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x2` (`FLAG_SCALAR_RHS`: `k = R[s2]`, else `k = imm16_lo`)
-  - `subop:4`: `0 = .at_least` (`popcnt(lanes[u]) >= k`), `1 = .exact` (`== k`), `2 = .at_most_nonzero` (`1 <= popcnt(lanes[u]) <= k`)
-  - `dst`: `F[dst]` ($W=1$) | `s1`: `F[s1]` ($W>1$) | `s3`: `0` (MBZ)
+  - `dst`: `F[dst]` ($W=1$); `s1`: `F[s1]` ($W>1$); `s3`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
+* **Sub-Operations (`subop:4` (`0..2`))**:
+
+| `subop` | Mnemonic | Quorum Condition on $c = \operatorname{popcnt}(\text{lanes}[u])$ |
+| :--- | :--- | :--- |
+| `0` | `.at_least` | $c \ge k$ |
+| `1` | `.exact` | $c == k$ |
+| `2` | `.at_most_nonzero` | $1 \le c \le k$ (excludes unreached `0`-lane nodes!) |
+
 * **ImpAsm Usage**:
   ```impas
   ; Find entities reachable from at least 3 of 10 watchlist seeds:
@@ -1710,7 +1941,7 @@
 * **Summary**: Intersects active lanes of `F[s1]` into a 1-bit frontier `F[dst]` (`{ u | (lanes[u] & target_mask) == target_mask }`).
 * **Encoding**:
   - `flags:4`: `0x4` (`FLAG_ACCUM`), `0x2` (`FLAG_SCALAR_RHS`: `target_mask = R[s2]`; if `0`, uses `impulse_make_active_mask_u64(F[s1].active_lane_count)`)
-  - `subop:4`: `0` | `dst`: `F[dst]` ($W=1$) | `s1`: `F[s1]` ($W>1$) | `s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `subop:4`: `0`; `dst`: `F[dst]` ($W=1$); `s1`: `F[s1]` ($W>1$); `s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = is_empty(F[dst])`.
 * **ImpAsm Usage**:
   ```impas
@@ -1726,9 +1957,17 @@
 * **Summary**: Reduces node vector `V[s2]` independently for each active lane $k \in [0, K)$ of multi-lane `F[s1]`, writing a $K$-element vector into `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x0`
-  - `subop:4`: `0 = .sum` (`F64`/`I64`), `1 = .min`, `2 = .max`, `3 = .count` (`U64`, `s2=0` MBZ)
-  - `dst`: `V[dst]` (`len = F[s1].active_lane_count`) | `s1`: `F[s1]` ($W>1$) | `s2`: `V[s2]` (`0` on `.count`) | `s3`: `0` (MBZ) | `imm32`: `0` (MBZ)
+  - `dst`: `V[dst]` (`len = F[s1].active_lane_count`); `s1`: `F[s1]` ($W>1$); `s2`: `V[s2]` (`0` on `.count`); `s3`: `0` (MBZ); `imm32`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | Per-Lane Reduction (`k = 0 .. K-1`) | Empty-Lane Output |
+| :--- | :--- | :--- | :--- |
+| `0` | `.sum` | Deterministic 64-block sum of `V[s2][u]` where bit $k$ set | `0` / `0.0` (`valid=1`) |
+| `1` | `.min` | Minimum valid `V[s2][u]` where bit $k$ set | `NULL` (`valid=0`) |
+| `2` | `.max` | Maximum valid `V[s2][u]` where bit $k$ set | `NULL` (`valid=0`) |
+| `3` | `.count` | Count of active nodes in lane $k$ (`s2=0` MBZ) | `0` (`valid=1`) |
+
 * **ImpAsm Usage**:
   ```impas
   ; Sum generation MW (V0) per contingency scenario (lanes 0..63 in F1):
@@ -1743,7 +1982,7 @@
 * **Summary**: Deterministic greedy maximum-coverage node selection over multi-lane `F[s1]`, outputting up to `k` node IDs into ordered `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `k = R[s2]`, else `k = imm16_lo`)
-  - `subop:4`: `0` | `dst`: `V[dst]` (`U32`/`U64`) | `s1`: `F[s1]` ($W>1$) | `s3`: `0` (MBZ) | `imm16_lo`: `k`, `imm16_hi`: `0` (MBZ)
+  - `subop:4`: `0`; `dst`: `V[dst]` (`U32`/`U64`); `s1`: `F[s1]` ($W>1$); `s3`: `0` (MBZ); `imm16_lo`: `k`, `imm16_hi`: `0` (MBZ)
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
 * **Operational Semantics**: Maintains `uncovered_mask = active_lane_mask`. Repeatedly (up to `k` steps or until `uncovered_mask == 0`) selects node $u$ maximizing `popcnt(lanes[u] & uncovered_mask) > 0`, **breaking ties strictly by minimum dense node ID $u$**, appends $u$ to `V[dst]`, and updates `uncovered_mask &= ~lanes[u]`.
 * **ImpAsm Usage**:
@@ -1758,9 +1997,9 @@
 ### `0x69` — `OP_VECTOR_ANN_SEARCH`
 * **Summary**: Queries an `.imps` HNSW / DiskANN vector index `(domain_id = imm16_lo, ann_index_id = imm16_hi)` with query embedding `V[s1]`, outputting **rank-ordered** candidate dense node IDs into `V[dst]`.
 * **Encoding**:
-  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS`: `k = R[s2]`, else `k = imm32`? Note `imm16_lo=dom, imm16_hi=idx`, so `s2` is **always** `R[s2]` holding `k` — or `(ef_search << 16) | k`!), `0x1` (`FLAG_MASKED_S3`: pre-filter candidate nodes to `F[s3]`!)
-  - `subop:4`: `0 = .ids` (writes rank-ordered `U32`/`U64` node IDs into `V[dst]`), `1 = .frontier` (writes unordered 1-bit `F`? **No**: keep `dst = V[dst]` static; use `OP_SET_CONVERT.v2f_ids` when a frontier is wanted!)
-  - `dst`: `V[dst]` | `s1`: `V[s1]` (`F32[D]` query embedding) | `s2`: `R[s2]` (`low 32b = k`, `high 32b = ef_search` override or `0` for index default) | `s3`: `0` or `F[s3]` filter mask (`.mask`)
+  - `flags:4`: `0x2` (`FLAG_SCALAR_RHS` optional compatibility; `s2` always addresses `R[s2]`), `0x1` (`FLAG_MASKED_S3`: pre-filters candidate nodes to `F[s3]`)
+  - `subop:4`: `0` (`.ids` — writes rank-ordered `U32`/`U64` dense node IDs into `V[dst]`; use `OP_SET_CONVERT.v2f_ids` when an unordered `F` frontier is needed)
+  - `dst`: `V[dst]`; `s1`: `V[s1]` (`F32[D]` query embedding); `s2`: `R[s2]` (`low 32b = k`, `high 32b = ef_search` override or `0` for index default); `s3`: `0` or `F[s3]` filter mask (`.mask`)
   - `imm16_lo`: `domain_id`, `imm16_hi`: `ann_index_id`
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
 * **ImpAsm Usage**:
@@ -1780,15 +2019,17 @@
 * **Summary**: Exact SIMD similarity/distance scoring of candidate nodes `V[s1]` against query embedding `V[s2]` using `.imps` embedding column `(domain_id = imm16_lo, attr_id = imm16_hi)`, writing `F32` scores into `V[dst]`.
 * **Encoding**:
   - `flags:4`: `0x1` (`FLAG_MASKED_S3`)
-  - `subop:4` (`0..3`):
-    | `subop` | Mnemonic | Formula (`q = V[s2]`, `v = emb[V[s1][i]]`) | Higher-is-Better? |
-    | :--- | :--- | :--- | :--- |
-    | `0` | `.dot` | $\sum_{d=0}^{D-1} q_d \cdot v_d$ | Yes (`TOP_K.desc_ids`) |
-    | `1` | `.cosine` | $\frac{q \cdot v}{\max(\epsilon, \|q\|_2 \cdot \|v\|_2)}$ ($\epsilon = 10^{-12}$) | Yes (`TOP_K.desc_ids`) |
-    | `2` | `.neg_l2_sq` | $-\sum_{d=0}^{D-1} (q_d - v_d)^2$ | Yes (`TOP_K.desc_ids`) |
-    | `3` | `.l2_sq` | $\sum_{d=0}^{D-1} (q_d - v_d)^2$ | Lower-is-Better (`TOP_K.asc_ids`) |
-  - `dst`: `V[dst]` (`F32`, `len = len(V[s1])`) | `s1`: `V[s1]` (candidate dense IDs) | `s2`: `V[s2]` (`F32[D]` query vector) | `s3`: `0` or `F[s3]`
+  - `dst`: `V[dst]` (`F32`, `len = len(V[s1])`); `s1`: `V[s1]` (candidate dense IDs); `s2`: `V[s2]` (`F32[D]` query vector); `s3`: `0` or `F[s3]`
   - `vm_flags` updated: `ZF = (len(V[dst]) == 0)`.
+* **Sub-Operations (`subop:4` (`0..3`))**:
+
+| `subop` | Mnemonic | Formula (`q = V[s2]`, `v = emb[V[s1][i]]`) | Higher-is-Better? |
+| :--- | :--- | :--- | :--- |
+| `0` | `.dot` | $\sum_{d=0}^{D-1} q_d \cdot v_d$ | Yes (`TOP_K.desc_ids`) |
+| `1` | `.cosine` | $\frac{q \cdot v}{\max(\epsilon, \lVert q \rVert_2 \cdot \lVert v \rVert_2)}$ ($\epsilon = 10^{-12}$) | Yes (`TOP_K.desc_ids`) |
+| `2` | `.neg_l2_sq` | $-\sum_{d=0}^{D-1} (q_d - v_d)^2$ | Yes (`TOP_K.desc_ids`) |
+| `3` | `.l2_sq` | $\sum_{d=0}^{D-1} (q_d - v_d)^2$ | Lower-is-Better (`TOP_K.asc_ids`) |
+
 * **ImpAsm Usage**:
   ```impas
   ; Exact cosine rerank of 200 HNSW candidates V1 -> top 10 exact node IDs V4:
@@ -1806,6 +2047,6 @@
 ### `0xFF` — `OP_EXTENSION_PAYLOAD`
 * **Summary**: Mandatory Word-2 guard marker for 128-bit (`FLAG_EXTENDED`) instructions.
 * **Encoding**:
-  - Byte `0`: `0xFF` | Bytes `1..3` (`ext_meta24`): `0x000000` (MBZ) | Bytes `4..7`: `imm32_hi` (`uint32_t`)
+  - Byte `0`: `0xFF`; Bytes `1..3` (`ext_meta24`): `0x000000` (MBZ); Bytes `4..7`: `imm32_hi` (`uint32_t`)
 * **Operational Semantics**: Never dispatched directly (`pc` advances across it by `+2` from the preceding `OP_LOAD_CONST.b64.ext` instruction). Any direct execution attempt returns `IMPULSE_VM_ERR_VALIDATION_FAILED` (`15`).
 * **Justification & Gotcha**: Pinning Byte `0` to `0xFF` while storing the 64-bit constant as `(w2.imm32 << 32) | w1.imm32` guarantees that **no valid data constant can ever masquerade as an executable opcode in Word 2**.

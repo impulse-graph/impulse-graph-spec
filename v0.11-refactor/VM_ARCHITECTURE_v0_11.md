@@ -86,7 +86,7 @@ Byte `1` bits `7..4` (`flags:4`) have **fixed, universal meanings across the ent
 | Flag Bit (`flags:4`) | Byte `1` Mask | ImpAsm Suffix | Name | Universal Semantics |
 | :--- | :--- | :--- | :--- | :--- |
 | `0x8` (Bit 3) | `0x80` | `.ext` | `FLAG_EXTENDED` | Instruction consumes `2` 64-bit words (`Word 2` Byte `0 == 0xFF`); `pc` advances by `+2`. Permitted only on `OP_LOAD_CONST` (`subop=4` `B64`). |
-| `0x4` (Bit 2) | `0x40` | `.accum` | `FLAG_ACCUM` | **Monoid / Set Accumulate into `dst`**: instead of overwriting `dst`, merges the instruction's output into the pre-existing `dst` value (`F[dst] |= out` for frontiers; `V[dst] = V[dst] \oplus out` using the instruction's monoid for `OP_SPMV`, `OP_VEC_MATH_ARITH`). Requires `dst` to be already initialized in the same domain/type. |
+| `0x4` (Bit 2) | `0x40` | `.accum` | `FLAG_ACCUM` | **Monoid / Set Accumulate into `dst`**: instead of overwriting `dst`, merges the instruction's output into the pre-existing `dst` value (`F[dst] \|= out` for frontiers; `V[dst] = V[dst] \oplus out` using the instruction's monoid for `OP_SPMV`, `OP_VEC_MATH_ARITH`). Requires `dst` to be already initialized in the same domain/type. |
 | `0x2` (Bit 1) | `0x20` | `.scalar` | `FLAG_SCALAR_RHS` | **Scalar RHS Broadcast**: switches source nibble `s2` (and `s3` on `BETWEEN` / scalar-range ops) from vector/frontier bank `V[s2]`/`F[s2]` to scalar register `R[s2]` (broadcasting both the 64-bit value `R[s2]` and its validity bit `(r_valid_mask >> s2) & 1`). |
 | `0x1` (Bit 0) | `0x10` | `.mask` | `FLAG_MASKED_S3` | **Frontier Mask / Exclude on `s3`**: activates nibble `s3` as a conditioning frontier `F[s3]` (or morsel mask `MF[s3 & 7]` inside a morsel block):<br>• On `OP_WALK`, `OP_WALK_FILTERED`, `OP_WALK_2HOP`, `OP_WALK_MORSEL`, `OP_LANE_WALK`: **Exclude mask** (`output \ F[s3]`), fused into Beamer Pull target skipping and Push bitset clearing.<br>• On `OP_SPMV`, `OP_GATHER_*`, `OP_VEC_*`, `OP_VEC_REDUCE`, `OP_TOP_K`, `OP_COLLECT`, `OP_VECTOR_ANN_SEARCH`, `OP_VECTOR_RERANK`: **Active selection mask** (restricts evaluation/reduction/output to active indices in `F[s3]`). |
 
@@ -201,13 +201,13 @@ Empirical analysis of all 505 `.impas` programs shows `p90 = 9` registers and `p
 
 Every frontier register `F0..F15` is bound to an explicit `domain_id` ($0 \dots D-1$, cardinality $N_d$) and a `lane_width` $W \in \{1, 8, 16, 32, 64\}$. Its physical storage dynamically inhabits one of three concrete tiers (plus two zero-allocation virtual states `EMPTY` and `ALL_SPAN`):
 
-| Tier ID | Name | Threshold ($N_d$, active nodes $|F|$) | Physical Layout | Memory Footprint ($N_d = 10^8$) |
+| Tier ID | Name | Threshold ($N_d$, active nodes $\lvert F \rvert$) | Physical Layout | Memory Footprint ($N_d = 10^8$) |
 | :--- | :--- | :--- | :--- | :--- |
-| `0` | **`EMPTY`** | $|F| = 0$ | Descriptor-only (`cached_card = 0`). | `0 B` |
-| `1` | **`TIER0_INLINE`** | $1 \le |F| \le 64$ (for $W=1$) or $\le 32$ `(node, lane_u64)` pairs | Sorted inline array in pre-allocated 512B descriptor block (`uint64_t ids[64]`). | `512 B` (fits in 8 L1 lines) |
-| `2` | **`TIER1_PAGED`** | $64 < |F| < \frac{N_d}{64}$ (1-bit) or active pages $< 25\%$ ($W \in \{8..64\}$) | Two-level **4096-node paged slab**: `uint32_t page_dir[ceil(N_d / 4096)]` (`0xFFFFFFFF` = empty page) + leased 4K-node pages (`512 B`/page for 1-bit; $4096 \times (W/8)$ bytes/page for multi-lane) + `uint32_t dirty_pages[]` list (`dirty_count`). | $|F| = 1000, W=64$: $\le 1000$ pages (typ. $10\text{–}200$ clustered pages = **`320 KB`–`6.4 MB` vs `800 MB`** in v0.10!). |
-| `3` | **`TIER2_DENSE`** | $|F| \ge \frac{N_d}{64}$ (or $N_d \le 4096$) | Contiguous 128B-aligned flat array (`uint64_t words[ceil(N_d / 64)]` for $W=1$, or `uintW_t lanes[N_d]`) + **`L1` hierarchical summary bitset** (1 bit per 512B cache-line block = `4096` nodes for $W=1$). | `12.5 MB` ($W=1$) + `3.1 KB` `L1` summary. |
-| `4` | **`ALL_SPAN`** | $|F| = N_d$ (`OP_INIT_DOMAIN_SPAN`) | Descriptor-only (`cached_card = N_d`). Materializes lazily only if mutated in-place. | `0 B` |
+| `0` | **`EMPTY`** | $\lvert F \rvert = 0$ | Descriptor-only (`cached_card = 0`). | `0 B` |
+| `1` | **`TIER0_INLINE`** | $1 \le \lvert F \rvert \le 64$ (for $W=1$) or $\le 32$ `(node, lane_u64)` pairs | Sorted inline array in pre-allocated 512B descriptor block (`uint64_t ids[64]`). | `512 B` (fits in 8 L1 lines) |
+| `2` | **`TIER1_PAGED`** | $64 < \lvert F \rvert < \frac{N_d}{64}$ (1-bit) or active pages $< 25\%$ ($W \in \{8..64\}$) | Two-level **4096-node paged slab**: `uint32_t page_dir[ceil(N_d / 4096)]` (`0xFFFFFFFF` = empty page) + leased 4K-node pages (`512 B`/page for 1-bit; $4096 \times (W/8)$ bytes/page for multi-lane) + `uint32_t dirty_pages[]` list (`dirty_count`). | $\lvert F \rvert = 1000, W=64$: $\le 1000$ pages (typ. $10\text{–}200$ clustered pages = **`320 KB`–`6.4 MB` vs `800 MB`** in v0.10!). |
+| `3` | **`TIER2_DENSE`** | $\lvert F \rvert \ge \frac{N_d}{64}$ (or $N_d \le 4096$) | Contiguous 128B-aligned flat array (`uint64_t words[ceil(N_d / 64)]` for $W=1$, or `uintW_t lanes[N_d]`) + **`L1` hierarchical summary bitset** (1 bit per 512B cache-line block = `4096` nodes for $W=1$). | `12.5 MB` ($W=1$) + `3.1 KB` `L1` summary. |
+| `4` | **`ALL_SPAN`** | $\lvert F \rvert = N_d$ (`OP_INIT_DOMAIN_SPAN`) | Descriptor-only (`cached_card = N_d`). Materializes lazily only if mutated in-place. | `0 B` |
 
 ### 5.2 Zero-Regression Guarantees on Dense Traversals
 
