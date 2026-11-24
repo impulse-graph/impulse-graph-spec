@@ -1,0 +1,6 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 0}}
+
+.code
+  LOAD_CONST_POOL.vec V0, pool=99
+  HALT

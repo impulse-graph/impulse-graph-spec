@@ -1,0 +1,9 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_GAS_EXHAUSTED}}
+; {{EXPECT: MAX_STEPS = 50}}
+
+.code
+  LOAD_CONST.i32 R0, 1000
+spin:
+  NOP
+  LOOP_DECR      R0, spin
+  HALT

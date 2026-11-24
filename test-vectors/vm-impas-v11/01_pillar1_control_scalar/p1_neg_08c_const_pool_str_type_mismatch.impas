@@ -1,0 +1,10 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 0}}
+
+.const_pool
+  .pool 0 type=i64_vec values=[1, 2, 3]
+
+.code
+  ; Pool 0 is i64_vec, not str
+  LOAD_CONST_POOL.str R0, pool=0
+  HALT

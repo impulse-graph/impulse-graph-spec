@@ -1,0 +1,31 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F0 = [] (dom=0)}}
+; {{EXPECT: F1 = [0, 1, 2, 65, 66] (dom=1)}}
+; {{EXPECT: R0 = 5}}
+; {{EXPECT: ZF = 0}}
+
+.data
+  .domain 0 name="EmptyDom" count=0 width=u16
+  .domain 1 name="Tail67" count=67 width=u32
+
+.code
+  ; Empty domain ALL_SPAN must yield EMPTY and ZF=1
+  INIT_DOMAIN_SPAN       F0, dom=0
+  ASSERT.empty_f         F0, 10
+  ASSERT.zf_set          11
+  FSEED.empty            F0, dom=0
+
+  ; Populate nodes spanning across 64-bit word boundary (0,1,2 and 65,66 in N_d=67)
+  FSEED.single_imm       F1, lo=0, hi=1
+  FSEED.single_imm.accum F1, lo=1, hi=1
+  LOAD_CONST.i32         R1, 2
+  FSEED.single_reg.accum F1, R1, dom=1
+  LOAD_CONST.i32         R2, 65
+  FSEED.insert_reg       F1, R2
+  LOAD_CONST.i32         R3, 66
+  FSEED.insert_reg       F1, R3
+  LOAD_CONST.i32         R4, 64
+  FSEED.insert_reg       F1, R4
+  FSEED.remove_reg       F1, R4
+  SET_CARDINALITY.card_1bit R0, F1
+  HALT

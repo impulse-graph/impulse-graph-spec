@@ -1,0 +1,57 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R2 = +0.0}}
+; {{EXPECT: R3 = -0.0}}
+; {{EXPECT: R4 = +0.0}}
+; {{EXPECT: R5 = -0.0}}
+; {{EXPECT: R6 = NULL}}
+; {{EXPECT: R7 = -0.0}}
+; {{EXPECT: R8 = +0.0}}
+; {{EXPECT: R9 = -3.0}}
+; {{EXPECT: R10 = -0.0}}
+; {{EXPECT: R11 = NULL}}
+; {{EXPECT: R12 = 9223372036854775807}}
+; {{EXPECT: R13 = -9223372036854775808}}
+; {{EXPECT: R14 = 99.0}}
+; {{EXPECT: R15 = NULL}}
+
+.code
+  LOAD_CONST.f64.ext       R0, 0x0000000000000000 ; +0.0
+  LOAD_CONST.f64.ext       R1, 0x8000000000000000 ; -0.0
+
+  ; Signed-zero arithmetic & IEEE-754 min/max/sqrt/abs/neg
+  SCALAR_FP_ALU.add        R2, R1, R0           ; -0.0 + +0.0 = +0.0
+  SCALAR_FP_ALU.neg        R3, R0               ; -(+0.0) = -0.0
+  SCALAR_FP_ALU.abs        R4, R1               ; abs(-0.0) = +0.0
+  SCALAR_FP_ALU.sqrt       R5, R1               ; sqrt(-0.0) = -0.0
+  LOAD_CONST.f64.ext       R6, -1.0
+  SCALAR_FP_ALU.sqrt       R6, R6               ; sqrt(-1.0) -> NULL
+
+  SCALAR_FP_ALU.min        R7, R0, R1           ; min(+0.0, -0.0) = -0.0!
+  SCALAR_FP_ALU.max        R8, R1, R0           ; max(-0.0, +0.0) = +0.0!
+
+  ; Half-away-from-zero round(-2.5) = -3.0 (NOT -2.0!) and round(-0.4) = -0.0
+  LOAD_CONST.f64.ext       R9, -2.5
+  SCALAR_FP_ALU.round      R9, R9               ; -3.0
+  LOAD_CONST.f64.ext       R10, -0.4
+  SCALAR_FP_ALU.round      R10, R10             ; -0.0
+  SCALAR_FP_ALU.floor      R11, R1              ; -0.0
+  SCALAR_FP_ALU.ceil       R11, R1              ; -0.0
+
+  ; Div by -0.0 -> NULL (Kleene), Inf - Inf -> NULL
+  LOAD_CONST.f64.ext       R14, 99.0
+  SCALAR_FP_ALU.div        R11, R14, R1         ; 99.0 / -0.0 -> NULL
+
+  ; Saturating f64_to_i64 on +Inf and -Inf
+  LOAD_CONST.f64.ext       R12, 0x7FF0000000000000 ; +Inf
+  LOAD_CONST.f64.ext       R13, 0xFFF0000000000000 ; -Inf
+  SCALAR_FP_ALU.sub        R15, R12, R12        ; Inf - Inf -> NULL
+  SCALAR_FP_ALU.mul        R0, R0, R12          ; 0.0 * Inf -> NULL
+  SCALAR_FP_ALU.fma        R0, R0, R14, R14     ; NULL propagates
+  SCALAR_FP_ALU.f64_to_i64 R12, R12             ; INT64_MAX
+  SCALAR_FP_ALU.f64_to_i64 R13, R13             ; INT64_MIN
+  SCALAR_FP_ALU.i64_to_f64 R0, R15              ; NULL -> NULL
+
+  ; safe_div returns fallback R14 (99.0) when divisor is -0.0 or NULL
+  SCALAR_FP_ALU.safe_div   R14, R9, R1, R14     ; divisor=-0.0 -> 99.0
+  SCALAR_FP_ALU.safe_div   R14, R9, R15, R14    ; divisor=NULL -> 99.0
+  HALT

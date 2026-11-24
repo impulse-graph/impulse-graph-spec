@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="Small" count=4 width=u16
+
+.code
+  ; Negative node ID (-1) MUST fail bounds check
+  LOAD_CONST.i32   R0, -1
+  FSEED.single_reg F0, R0, dom=0
+  HALT

@@ -1,0 +1,32 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 67}}
+; {{EXPECT: R1 = 0}}
+; {{EXPECT: R2 = 67}}
+; {{EXPECT: R3 = 63}}
+; {{EXPECT: ST = 1, ZF = 1}}
+
+.data
+  .domain 0 name="Tail67" count=67 width=u32
+
+.code
+  ; N_d = 67 (N_d % 64 = 3 != 0) guards trailing-bit masking on COMPLEMENT
+  INIT_DOMAIN_SPAN          F0, dom=0
+  SET_CARDINALITY.card_1bit R0, F0              ; 67
+
+  SET_COMPLEMENT            F1, F0              ; ALL_SPAN -> EMPTY
+  SET_CARDINALITY.card_1bit R1, F1              ; 0
+  ASSERT.empty_f            F1, 20
+
+  SET_COMPLEMENT            F2, F1              ; EMPTY -> ALL_SPAN (67, NOT 128!)
+  SET_CARDINALITY.card_1bit R2, F2              ; 67
+
+  ; Remove {0, 63, 64, 66} via COMPLEMENT and verify == DIFF(ALL_SPAN, F3)
+  FSEED.single_imm          F3, lo=0, hi=0
+  FSEED.single_imm.accum    F3, lo=63, hi=0
+  FSEED.single_imm.accum    F3, lo=64, hi=0
+  FSEED.single_imm.accum    F3, lo=66, hi=0
+  SET_COMPLEMENT            F4, F3              ; 67 - 4 = 63
+  SET_CARDINALITY.card_1bit R3, F4              ; 63
+  SET_OP.diff               F5, F0, F3
+  STABLE_CHECK.frontier_eq  F4, F5              ; ST=1, ZF=1
+  HALT

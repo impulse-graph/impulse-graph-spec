@@ -1,0 +1,6 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 0}}
+
+.code
+  SPILL.v V0, slot=0
+  HALT

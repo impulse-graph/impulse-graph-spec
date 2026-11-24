@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000001106}}
+; Static validator rejection: LOAD_CONST_POOL.frontier (0x06, subop=1) with disallowed flag 0x1

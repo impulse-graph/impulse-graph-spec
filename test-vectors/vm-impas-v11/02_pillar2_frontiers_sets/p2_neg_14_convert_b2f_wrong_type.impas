@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .param 0 type=f64_vec values=[1.0, 2.0]
+
+.code
+  LOAD_PARAM.vec  V0, param=0, type=f64
+  ; b2f requires BOOL_3VL vector, not f64
+  SET_CONVERT.b2f F0, V0, lo=0
+  HALT

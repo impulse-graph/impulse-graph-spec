@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .param 0 type=multilane dom=0 width=8 active_lanes=2 entries=["0:0x3"]
+
+.code
+  LOAD_PARAM.frontier         F0, param=0, dom=0
+  ; lane 8 is out of bounds for width=8 (valid 0..7)
+  SET_CARDINALITY.single_lane R0, F0, lo=8
+  HALT

@@ -1,0 +1,33 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 1}}
+; {{EXPECT: R1 = 0}}
+; {{EXPECT: R2 = NULL}}
+; {{EXPECT: ZF = 1, ST = 1, NF = 1}}
+
+.data
+  .domain 0 name="Node" count=8 width=u32
+  .param 0 type=frontier dom=0 values=[0, 3, 7]
+  .param 1 type=frontier dom=0 values=[]
+
+.code
+  NOP
+  LOAD_PARAM.frontier F0, param=0, dom=0
+  LOAD_PARAM.frontier F1, param=1, dom=0
+  ASSERT.nonempty_f   F0, 101
+  ASSERT.empty_f      F1, 102
+
+  STABLE_CHECK.frontier_eq F0, F0
+  ASSERT.st_set       109
+
+  LOAD_CONST.i32      R0, 1
+  ASSERT.zf_clear     103
+  ASSERT.true_r       R0, 104
+  ASSERT.not_null_r   R0, 105
+
+  LOAD_CONST.i32      R1, 0
+  ASSERT.zf_set       106
+
+  LOAD_CONST.null     R2
+  ASSERT.is_null_r    R2, 107
+  ASSERT.zf_set       108
+  HALT

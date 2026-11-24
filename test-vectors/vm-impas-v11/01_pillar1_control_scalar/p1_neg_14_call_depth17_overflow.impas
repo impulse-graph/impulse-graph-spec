@@ -1,0 +1,9 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_STACK_OVERFLOW}}
+
+.code
+  CALL.stride r_stride=1, f_stride=0, v_stride=0, inf_rec
+  HALT
+inf_rec:
+  NOP
+  CALL.stride r_stride=1, f_stride=0, v_stride=0, inf_rec
+  RET

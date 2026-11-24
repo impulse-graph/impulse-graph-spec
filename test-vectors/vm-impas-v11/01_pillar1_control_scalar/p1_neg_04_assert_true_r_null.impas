@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}}
+; {{EXPECT: PC = 1}}
+
+.code
+  LOAD_CONST.null R0
+  ASSERT.true_r   R0, 501
+  HALT

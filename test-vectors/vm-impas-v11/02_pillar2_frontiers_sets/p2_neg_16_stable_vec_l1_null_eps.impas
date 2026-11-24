@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 3}}
+
+.data
+  .param 0 type=f64_vec values=[1.0, 2.0]
+  .param 1 type=f64_vec values=[1.0, 2.0]
+
+.code
+  LOAD_CONST.null     R5
+  LOAD_PARAM.vec      V0, param=0, type=f64
+  LOAD_PARAM.vec      V1, param=1, type=f64
+  ; NULL tolerance R5 must fail with INVALID_OPERAND
+  STABLE_CHECK.vec_l1 R0, V0, V1, R5
+  HALT

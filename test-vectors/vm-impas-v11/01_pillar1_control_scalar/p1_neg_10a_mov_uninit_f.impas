@@ -1,0 +1,7 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 0}}
+
+.code
+  ; Reading uninitialized F1 via MOV.f must fail with TYPE_MISMATCH
+  MOV.f F0, F1
+  HALT

@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .param 0 type=i64_vec values=[1, 99]
+
+.code
+  LOAD_PARAM.vec      V0, param=0, type=i64
+  SET_CONVERT.v2f_ids F0, V0, lo=0
+  HALT

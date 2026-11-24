@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000120E}}
+; Static validator rejection: SCALAR_3VL.cmp_lt_i64 (0x0E, subop=2) with disallowed flag 0x1

@@ -1,0 +1,35 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = -42}}
+; {{EXPECT: R1 = -0.0}}
+; {{EXPECT: R2 = NULL}}
+; {{EXPECT: ZF = 1, NF = 0}}
+
+.data
+  .domain 0 name="EmptyDom" count=0 width=u16
+  .domain 1 name="SmallDom" count=4 width=u16
+  .param 0 type=frontier dom=1 values=[2]
+
+.code
+  NOP
+  NOP
+  ; Uninitialized F3 must satisfy ASSERT.empty_f without error
+  ASSERT.empty_f      F3, 201
+  LOAD_PARAM.frontier F0, param=0, dom=1
+  ASSERT.nonempty_f   F0, 202
+  STABLE_CHECK.frontier_eq F0, F0
+  ASSERT.st_set       209
+
+  ; Negative integer is non-zero -> true_r & zf_clear
+  LOAD_CONST.i32      R0, -42
+  ASSERT.true_r       R0, 203
+  ASSERT.zf_clear     204
+  ASSERT.not_null_r   R0, 205
+
+  ; Unwritten R2 starts as Kleene NULL
+  ASSERT.is_null_r    R2, 206
+
+  ; -0.0 is valid (not_null) AND sets ZF = 1, NF = 0
+  LOAD_CONST.f64.ext  R1, 0x8000000000000000
+  ASSERT.not_null_r   R1, 207
+  ASSERT.zf_set       208
+  HALT

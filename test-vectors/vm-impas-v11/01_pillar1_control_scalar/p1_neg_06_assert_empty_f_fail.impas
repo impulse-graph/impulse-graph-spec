@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .param 0 type=frontier dom=0 values=[2]
+
+.code
+  LOAD_PARAM.frontier F0, param=0, dom=0
+  ASSERT.empty_f      F0, 503
+  HALT

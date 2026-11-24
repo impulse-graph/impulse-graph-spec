@@ -1,0 +1,39 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = ""}}
+; {{EXPECT: R1 = NULL}}
+; {{EXPECT: R2 = NULL}}
+; {{EXPECT: R3 = "hello"}}
+; {{EXPECT: F0 = [] (dom=0)}}
+; {{EXPECT: F1 = [0, 9] (dom=1)}}
+; {{EXPECT: ZF = 1, NF = 1}}
+
+.data
+  .domain 0 name="Empty" count=0 width=u16
+  .domain 1 name="Items" count=10 width=u16
+  .param 0 type=str value=null
+  .param 1 type=f64 value="nan"
+  .param 2 type=str value="hello"
+  .param 3 type=frontier dom=1 values=[9]
+  .param 4 type=i64_vec values=[7, 8]
+
+.const_pool
+  .pool 0 type=str value=""
+  .pool 1 type=frontier values=[]
+  .pool 2 type=frontier values=[0]
+  .pool 3 type=u64_vec values=[1, 2, 3]
+
+.code
+  ; Empty string sets ZF = 1, NF = 0
+  LOAD_CONST_POOL.str            R0, pool=0
+  ASSERT.zf_set                  301
+  LOAD_CONST_POOL.frontier       F0, pool=1, dom=0
+  ASSERT.empty_f                 F0, 302
+  LOAD_CONST_POOL.frontier       F1, pool=2, dom=1
+  LOAD_CONST_POOL.vec            V0, pool=3
+
+  LOAD_PARAM.frontier.accum      F1, param=3, dom=1
+  LOAD_PARAM.vec                 V1, param=4, type=i64
+  LOAD_PARAM.scalar              R3, param=2, type=str
+  LOAD_PARAM.scalar              R2, param=1, type=f64
+  LOAD_PARAM.scalar              R1, param=0, type=str
+  HALT

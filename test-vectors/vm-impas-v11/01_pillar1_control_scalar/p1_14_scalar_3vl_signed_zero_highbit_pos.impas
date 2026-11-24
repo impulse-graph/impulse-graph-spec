@@ -1,0 +1,48 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R4 = 1}}
+; {{EXPECT: R5 = 0}}
+; {{EXPECT: R6 = 0}}
+; {{EXPECT: R7 = 1}}
+; {{EXPECT: R8 = 1}}
+; {{EXPECT: R9 = 1}}
+; {{EXPECT: R10 = NULL}}
+; {{EXPECT: R11 = NULL}}
+; {{EXPECT: R12 = 0}}
+; {{EXPECT: R13 = 1}}
+; {{EXPECT: R14 = -0.0}}
+; {{EXPECT: R14_TYPE = f64}}
+; {{EXPECT: R15 = NULL}}
+
+.code
+  LOAD_CONST.f64.ext     R0, 0x8000000000000000 ; -0.0
+  LOAD_CONST.f64.ext     R1, 0x0000000000000000 ; +0.0
+  LOAD_CONST.null        R2
+
+  ; IEEE-754 signed-zero comparisons: -0.0 == +0.0 is TRUE, -0.0 < +0.0 is FALSE
+  SCALAR_3VL.cmp_eq_f64  R4, R0, R1             ; 1
+  SCALAR_3VL.cmp_ne_f64  R5, R0, R1             ; 0
+  SCALAR_3VL.cmp_lt_f64  R6, R0, R1             ; 0
+  SCALAR_3VL.cmp_le_f64  R7, R0, R1             ; 1
+
+  ; High-bit u64 ordering: 0x7FFF... <u 0x8000... (opposite of signed i64!)
+  LOAD_CONST.u64.ext     R8, 0x7FFFFFFFFFFFFFFF
+  LOAD_CONST.u64.ext     R9, 0x8000000000000000
+  SCALAR_3VL.cmp_lt_u64  R8, R8, R9             ; 1
+  LOAD_CONST.u64.ext     R3, 0x8000000000000000
+  SCALAR_3VL.cmp_le_u64  R9, R3, R3             ; 1
+  SCALAR_3VL.cmp_eq_i64  R12, R3, R2            ; NULL -> NULL
+  SCALAR_3VL.cmp_ne_i64  R12, R3, R3            ; 0
+  SCALAR_3VL.cmp_lt_i64  R13, R3, R4            ; INT64_MIN < 1 -> 1
+  SCALAR_3VL.cmp_le_i64  R13, R3, R4            ; 1
+
+  ; Remaining Kleene NULL cells
+  SCALAR_3VL.and         R10, R4, R2            ; TRUE && NULL -> NULL
+  SCALAR_3VL.or          R11, R5, R2            ; FALSE || NULL -> NULL
+  SCALAR_3VL.not         R12, R4                ; NOT(TRUE) -> 0
+  SCALAR_3VL.is_null     R12, R4                ; 0
+  SCALAR_3VL.is_not_null R13, R4                ; 1
+
+  ; Coalesce preserves f64 type and -0.0 sign bit; NULL ?? NULL -> NULL
+  SCALAR_3VL.coalesce    R14, R2, R0            ; -0.0 (f64)
+  SCALAR_3VL.coalesce    R15, R2, R2            ; NULL
+  HALT
