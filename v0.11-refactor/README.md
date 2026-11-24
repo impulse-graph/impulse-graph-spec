@@ -11,10 +11,10 @@
 
 | Dimension | v0.10.0 Baseline | v0.11.0 Refactor | Architectural Impact |
 | :--- | :--- | :--- | :--- |
-| **Active Opcodes** | `166` (+ `0xFF` marker) | **`76`** (+ `0xFF` marker) | **54.2% opcode reduction**; eliminates physical-layout, direction, and type-combinatorial explosion. |
+| **Active Opcodes** | `166` (+ `0xFF` marker) | **`73`** (+ `0xFF` marker) | **56.0% opcode reduction**; eliminates physical-layout, direction, and type-combinatorial explosion. |
 | **Instruction Width** | Mixed 64-bit / 128-bit (`FLAG_EXTENDED` required for any 3-register op) | **Universal 64-bit** (`[op:8 \| flags:4 \| subop:4 \| dst:4 \| s1:4 \| s2:4 \| s3:4 \| imm32:32]`) | **>99% single-word instructions**; `FLAG_EXTENDED` (`0x80`) used solely for 64-bit scalar literal constants. |
-| **Register File** | `64` untyped union slots (`R0..R63`) + runtime `uint8_t register_types[64]` | **`3 × 16` Typed Banks**: `R0..R15` (Scalar), `F0..F15` (Frontier), `V0..V15` (Vector) | **Zero runtime type-tag array**; 4-bit nibbles cannot index out-of-bounds (`VALIDATE_REG` deleted from hot path). |
-| **VM State Frame** | `640` bytes (`10` cache lines) | **`256` bytes** (`4` cache lines, 64-byte aligned) | **60% smaller L1 footprint**; scalar registers + validity bitmask + descriptors fit in 4 cache lines. |
+| **Register File** | `64` untyped union slots (`R0..R63`) + runtime `uint8_t register_types[64]` | **`3 × 16` Typed Banks**: `R0..R15` (+ 8B `r_type_word` + `r_valid_mask`), `F0..F15`, `V0..V15` | **64B tag array $\to$ 8B packed `r_type_word`**; 4-bit nibbles cannot index out-of-bounds (`VALIDATE_REG` deleted from hot path). |
+| **VM State Frame & Memory** | `640` bytes (`10` cache lines) + internal heap pools | **`256` bytes** (`4` cache lines) + **Caller-Owned `(scratch_buf, result_buf)`** | **60% smaller L1 footprint**, `0` `malloc`/`free` in kernel, `64B`-masked `4KB` Tier 1 directory, and exact static `impulse_vm_plan_memory` sizing. |
 | **Sub-Operation Ceiling** | Up to 54 functions inside one `switch` (`OP_VEC_MATH_UNARY`) | **Strict `subop:4` (`0..15`)** across all opcodes | Every opcode handler is $\le 16$ cases, staying below C++ inline / JVM C2 `FreqInlineSize` bytecode cliffs. |
 | **Subroutine Register Windows** | Copy-only `R12..R15 -> R0..R3` (clobbered caller `R0..R3` without save) | **Variable-Stride Sliding Windows** (`r_stride`, `f_stride`, `v_stride`) + `OP_SPILL`/`OP_RELOAD` | True recursive subroutines with deterministic RAII arena/slab release on `OP_RET`. |
 | **Frontier Representation** | Flat $O(N)$ bitset or eager $O(N)$ `VmLaneFrontier` (`long[N]`) | **Unified 3-Tier Adaptive `VmFrontier`** (Tier 0 inline $\le 64$, Tier 1 4K paged slabs, Tier 2 dense + L1 summary) + lazy `cached_card = -1` | $O(\lvert F \rvert)$ point-seed latency at $N = 10^9$ without penalizing dense sweeps; unifies 1-bit and multi-lane (`Width8..64`) frontiers in `F0..F15`. |
@@ -30,7 +30,7 @@
 | :--- | :--- |
 | [README.md](README.md) | Executive summary, locked architectural decisions, and 100% v0.10.0 $\to$ v0.11.0 opcode migration crosswalk. |
 | [VM_ARCHITECTURE_v0_11.md](VM_ARCHITECTURE_v0_11.md) | Normative specification of the 64-bit nibble instruction word, global flags, `3 × 16` banks, morsel aliasing (`MF0..MF7` / `M0..M7`), C-ABI state frame, sliding register windows, 3-tier `VmFrontier`, lazy cardinality memoization, Kleene 3VL algebra, lexical morsel execution, and static bytecode validation (`impulse_vm_validate`). |
-| [OPCODE_CATALOG_v0_11.md](OPCODE_CATALOG_v0_11.md) | Exhaustive specification of all 76 v0.11.0 opcodes (+ `0xFF` extension word): exact bit encoding, allowed modifier flags, `subop:4` tables, operational semantics, `ImpAsm` usage examples, architectural justification, and edge-case gotchas. |
+| [OPCODE_CATALOG_v0_11.md](OPCODE_CATALOG_v0_11.md) | Exhaustive specification of all 73 v0.11.0 opcodes (+ `0xFF` extension word): exact bit encoding, allowed modifier flags, `subop:4` tables, operational semantics, `ImpAsm` usage examples, architectural justification, and edge-case gotchas. |
 | [IMPAS_SPECIFICATION_v0_11.md](IMPAS_SPECIFICATION_v0_11.md) | Assembly language grammar (`ImpAsm` v0.11), register/morsel mnemonics, modifier suffixes (`.accum`, `.scalar`, `.mask`, `.ext`), host-bound `.data` topology/attribute/threshold directives, and test expectation headers. |
 | [TESTING_AND_BENCHMARK_STRATEGY.md](TESTING_AND_BENCHMARK_STRATEGY.md) | Dual `ICTX v2` wire protocol, metamorphic geometry profile runner (`Forced-Tier0`, `Paged-Tier1`, `Dense-Tier2`, morsel/DOP sweeps), `(opcode × subop × flag × tier × 3VL)` coverage gates, and empirical JMH / Google Benchmark verification matrix. |
 | [isa_v0_11.yaml](isa_v0_11.yaml) | Machine-readable single source of truth for word layout, flags, error codes, register banks, and all opcode/subop contracts (drives codegen for C++, Java 25, Rust, OCaml, and Python tooling). |
@@ -90,7 +90,7 @@ Every opcode defined in v0.10.0 (`tools/contracts.json` and `impulse_vm.h`) is a
 
 | v0.10 Hex | v0.10 Mnemonic | Disposition | v0.11 Target / Replacement | Technical Rationale |
 | :--- | :--- | :--- | :--- | :--- |
-| `0x0E` | `OP_CSR_WALK_2HOP` | **Generalized** | `0x32 OP_WALK_2HOP` | Layout-agnostic 2-hop expansion supporting `FWD_FWD`, `FWD_REV`, `REV_FWD`, `REV_REV`, and `FWD_FWD_SIMPLE` in one 64-bit word (`imm16_lo=rel1`, `imm16_hi=rel2`). |
+| `0x0E` | `OP_CSR_WALK_2HOP` | **Retired (Composed)** | `2× 0x30 OP_WALK` (Tier 0 512B L1 inline intermediate + `.mask F0`) | Obsoleted by v0.11's 3-tier `VmFrontier` (`TIER0_INLINE` stays in L1; dense 2-hop needed an intermediate dedup frontier anyway); removes hidden intermediate `D_1` scratch from `impulse_vm_plan_memory`. |
 | `0x0F` | `OP_CSR_WALK_STATE` | **Consolidated** | `0x34 OP_SPMV` (`subop=10` `FWD_FIRST_TOUCH_SRC`) | Replaces race-prone parent-pointer walk with deterministic min-`src_id` tie-broken `OP_SPMV` semiring step. |
 | `0x10` | `OP_CSR_WALK` | **Consolidated** | `0x30 OP_WALK` (`subop=0` `FWD`) | Physical storage (CSR/CSC/COO/Dense) and push/pull direction switching are internal to `OP_WALK`; fixes $O(N/64)$ empty-output `ZF` scan bug. |
 | `0x11` | `OP_CSR_WALK_FILTERED` | **Generalized** | `0x31 OP_WALK_FILTERED` | Supports all 6 comparators (`EQ..GE`) + `IS_NULL`/`IS_NOT_NULL` in both `FWD` and `REV` directions inside a single 64-bit word. |
@@ -98,8 +98,8 @@ Every opcode defined in v0.10.0 (`tools/contracts.json` and `impulse_vm.h`) is a
 | `0x13` | `OP_CSR_WALK_PREDICATE` | **Retired** | `0x31 OP_WALK_FILTERED` or `0x35 OP_WALK_MORSEL` | Deletes the runtime recursive CEL AST pointer-chasing evaluator (`impulse_cel_eval_edge`) from the VM kernel. |
 | `0x14` | `OP_NODE_FILTER` | **Generalized & Fixed** | `0x44 OP_NODE_FILTER` | Fixes v0.10 float fallthrough bug; supports all numeric/dict column types, all 6 comparators, `BETWEEN`, and null predicates with strict Kleene 3VL. |
 | `0x15` | `OP_NODE_FILTER_STR_PREFIX` | **Replaced** | `0x40 OP_LOAD_COLUMN` + `0x47 OP_VEC_STR_PRED` + `0x26 OP_SET_CONVERT` (or `OP_FILTER_MORSEL`) | Replaces 8-byte prefix-only filter with exact `StringView` (`len` + `prefix4` + tail `memcmp`) predicates (`EQ`, `STARTS_WITH`, `ENDS_WITH`, `CONTAINS`). |
-| `0x16` | `OP_CSR_WALK_REDUCE_SUM` | **Consolidated** | `0x34 OP_SPMV` (`subop=7` `FWD_SUM_EDGE_ONLY`) | Strict special case of `OP_SPMV`. |
-| `0x17` | `OP_CSR_WALK_REDUCE` | **Consolidated** | `0x34 OP_SPMV` (`subop=7..9`) | Unified into `OP_SPMV` edge-only and semiring monoids. |
+| `0x16` | `OP_CSR_WALK_REDUCE_SUM` | **Consolidated** | `0x34 OP_SPMV` (`subop=0` `.fwd_plus_times.scalar` w/ `R=1.0`) | Strict special case of `OP_SPMV` with scalar identity RHS. |
+| `0x17` | `OP_CSR_WALK_REDUCE` | **Consolidated** | `0x34 OP_SPMV` (`subop=0,2,4` + `.scalar`) | Unified into `OP_SPMV` semiring monoids (`R=1.0` for sum, `R=0.0` for min/max). |
 | `0x18` | `OP_CSC_WALK` | **Consolidated** | `0x30 OP_WALK` (`subop=1` `REV`) | Reverse traversal is `subop=1` on `OP_WALK`; uses CSC or falls back to CSR/COO transparently. |
 | `0x19` | `OP_HAS_CSR` | **Consolidated** | `0x3A OP_HAS_TOPOLOGY` (`subop=0`) | Folded into unified snapshot introspection opcode. |
 | `0x1A` | `OP_HAS_CSC` | **Consolidated** | `0x3A OP_HAS_TOPOLOGY` (`subop=1`) | Folded into `OP_HAS_TOPOLOGY`. |
@@ -238,14 +238,14 @@ All **32** scalar `float32` edge-stream shader opcodes are **retired** and repla
 | :--- | :--- | :--- | :--- | :--- |
 | `0xC0` | `OP_LANE_INIT_SEEDS` | **Retained & Moved** | `0x60 OP_LANE_INIT_SEEDS` | Allocates in Tier 1 4K-node paged `VmFrontier` slabs instead of eager `800 MB` dense `long[N]` arrays. |
 | `0xC1` | `OP_LANE_INIT_GROUPS` | **Retained & Moved** | `0x61 OP_LANE_INIT_GROUPS` | Writes into unified `F[dst]` bank with Tier 1 paged multi-lane slabs. |
-| `0xC2` | `OP_LANE_SET_EDGE_MASK` | **Retained & Moved** | `0x62 OP_LANE_SET_EDGE_MASK` | Binds per-edge 64-lane visibility masks. |
+| `0xC2` | `OP_LANE_SET_EDGE_MASK` | **Retired (Redundant)** | `0x40 OP_LOAD_COLUMN.edge_attr` / `0x08 OP_MOV.v` / `0x50 OP_VEC_INIT` | Edge visibility masks are ordinary `U64[M_r]` vectors passed directly to `0x63 OP_LANE_WALK` (`subop 7, 9`). |
 | `0xC3` | `OP_LANE_CSR_WALK` | **Consolidated** | `0x63 OP_LANE_WALK` (`subop=0` `FWD`, `3..4` `FWD_FIXPOINT_*`) | Unifies forward, reverse, fixpoint, and edge-masked multi-lane walks; supports `FLAG_MASKED_S3` visited-lane pruning. |
 | `0xC4` | `OP_LANE_CSC_WALK` | **Consolidated** | `0x63 OP_LANE_WALK` (`subop=1` `REV`, `5..6` `REV_FIXPOINT_*`) | Unified into `OP_LANE_WALK`. |
 | `0xC5` | `OP_LANE_PRUNE_MASK` | **Generalized** | `0x64 OP_LANE_BITWISE` (`PRUNE_LANE_MASK`, `KEEP_LANE_MASK`, `CLEAR_VISITED_LANES`, `EXTRACT_SINGLE_LANE`) | Generalizes lane mask manipulation and single-lane extraction in `F0..F15`. |
 | `0xC6` | `OP_LANE_FILTER_QUORUM` | **Retained & Moved** | `0x65 OP_LANE_FILTER_QUORUM` | Collapses multi-lane `F[s1]` to 1-bit `F[dst]` (`>= k`, `== k`, `<= k`). |
 | `0xC7` | `OP_LANE_REDUCE_AND` | **Retained & Moved** | `0x66 OP_LANE_REDUCE_AND` | Intersects active lanes into 1-bit `F[dst]`. |
 | `0xC8` | `OP_LANE_REDUCE_ATTR` | **Retained & Moved** | `0x67 OP_LANE_REDUCE_ATTR` | Per-lane `SUM`/`MIN`/`MAX`/`COUNT` over node attribute vector `V[s2]` into `V[dst]`. |
-| `0xC9` | `OP_LANE_SET_COVER` | **Retained & Moved** | `0x68 OP_LANE_SET_COVER` | Deterministic lowest-ID tie-broken greedy set cover into `V[dst]`. |
+| `0xC9` | `OP_LANE_SET_COVER` | **Retired (Heuristic)** | `ImpK` loop (`LANE_BITWISE` + `VEC_INT_BITWISE.popcount` + `VEC_REDUCE.argmax`) | Narrow $O(k \cdot N)$ greedy heuristic retired alongside other composite showcase algorithms. |
 | `0xCA` | `OP_VECTOR_ANN_SEARCH` | **Fixed & Moved** | `0x69 OP_VECTOR_ANN_SEARCH` | Outputs rank-ordered `V[dst]` node IDs (preserving similarity order) and accepts `F[s3]` pre-filter mask (`FLAG_MASKED_S3`). |
 | `0xCB` | `OP_VECTOR_RERANK_DOT` | **Generalized** | `0x6A OP_VECTOR_RERANK` (`DOT`, `COSINE`, `NEG_L2_SQ`, `L1_DIST`) | Generalizes exact SIMD reranking across all four standard embedding metrics; composes with `0x53 OP_TOP_K`. |
 | `0xFF` | `OP_EXTENSION_PAYLOAD` | **Retained & Hardened** | `0xFF OP_EXTENSION_PAYLOAD` | Word 2 **always** carries `0xFF` in Byte 0 (`imm32_hi` in Bytes `4..7`), guaranteeing wild jumps into Word 2 deterministically fail validation and trap at runtime. |

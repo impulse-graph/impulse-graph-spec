@@ -88,13 +88,12 @@ To prevent transposition bugs on multi-immediate instructions (`rel_id` vs `attr
 | Immediate Tag | Target Field | Used By |
 | :--- | :--- | :--- |
 | `dom=<u16>` | `imm16_lo` (or `imm16_hi` on `FSEED`, `LOAD_PARAM.frontier`, `LOAD_CONST_POOL.frontier`) | Domain-anchored ops |
-| `rel=<u16>` / `rel1=<u16>` | `imm16_lo` | `WALK*`, `DEGREE`, `SPMV`, `WALK_MORSEL`, `GATHER_EDGE_ATTR`, `LANE_*`, `GRAPH_KERNEL` |
-| `rel2=<u16>` | `imm16_hi` | `WALK_2HOP` |
+| `rel=<u16>` | `imm16_lo` | `WALK*`, `DEGREE`, `SPMV`, `WALK_MORSEL`, `GATHER_EDGE_ATTR`, `LANE_*`, `GRAPH_KERNEL` |
 | `attr=<u16>` | `imm16_hi` | `WALK_FILTERED`, `SPMV` (`attr=none` $\to$ `0xFFFF`), `LOAD_COLUMN`, `GATHER_*`, `NODE_FILTER`, `INDEX_SCAN`, `VECTOR_RERANK` |
 | `param=<u16>` | `imm16_lo` (`imm16_hi` on `MAP_KEYS_TO_DENSE.param_to_f`) | `LOAD_PARAM`, `MAP_KEYS_TO_DENSE` |
 | `pool=<u32>` | `imm32` (`imm16_lo` on `.frontier`) | `LOAD_CONST_POOL` |
-| `k=<u16>` | `imm16_lo` (`imm16_hi` on `WALK.fwd_bounded`, `SAMPLE_NEIGHBORS`, `GRAPH_KERNEL.kcore_frontier`) | `TOP_K`, `LANE_FILTER_QUORUM`, `LANE_SET_COVER`, `SAMPLE_NEIGHBORS`, `WALK.fwd_bounded` |
-| `slot=<u16>` | `imm16_lo` | `SPILL`, `RELOAD` |
+| `k=<u16>` | `imm16_lo` (`imm16_hi` on `WALK.fwd_bounded`, `SAMPLE_NEIGHBORS`, `GRAPH_KERNEL.kcore_frontier`) | `TOP_K`, `LANE_FILTER_QUORUM`, `SAMPLE_NEIGHBORS`, `WALK.fwd_bounded` |
+| `slot=<0..15>` | `imm16_lo` | `SPILL`, `RELOAD` (`16` frame-local spill slots per call frame) |
 | `out=<u16>` / `batch=<u16>`, `col=<u16>` | `imm16_lo`, `imm16_hi` | `COLLECT` |
 | `idx=<u16>` | `imm16_hi` | `VECTOR_ANN_SEARCH` |
 
