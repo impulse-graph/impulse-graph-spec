@@ -281,7 +281,7 @@ Every `BOOL_3VL` vector stores `(valid, data)` bitmasks with canonical invariant
 
 - **Vector String Columns (`V` bank)**: 16-byte German-style `StringView` (`[uint32_t byte_len, uint32_t prefix4_be, uint64_t pool_offset]` referencing `.imps` Section 2 Shared String Table). `prefix4_be` (big-endian UTF-8, zero-padded right) resolves $>95\%$ of `EQ`/`NE`/`LT`..`GE`/`STARTS_WITH` in registers without dereferencing `pool_offset`.
 - **Scalar String Registers (`R0..R15`, `SCALAR_STR_HANDLE = 5`)**: Exact 64-bit `imp_str_handle_t` (`[source_tag:2 (bits 63..62) | payload:62 (bits 61..0)]`):
-  - `source_tag = 0b00`: 62-bit byte offset into `.imps` Section 2 Shared String Table (length-prefixed or null-terminated per `.imps` v0.9.0).
+  - `source_tag = 0b00`: `bits 61..52` = `10-bit snap_idx` (`0..1023` mounted `.imps` file in a `FederatedSnapshotView`; `0` for single-snapshot execution), `bits 51..0` = `52-bit byte_offset` (up to `4 PB` per `.imps`) into Section 2 Shared String Table.
   - `source_tag = 0b01`: 62-bit entry offset into `.impb` Constant Pool string table.
   - `source_tag = 0b10`: 62-bit index into host `VmQueryParams` string parameter array.
   - `source_tag = 0b11`: **Inline Short String** (`<= 7` UTF-8 bytes): bits `61..59` = `byte_len` (`0..7`), bits `58..56` = `0` (MBZ), bits `55..0` = `bytes[0..6]` zero-padded (zero memory dereference for short literals like `"ACTIVE"`, `"USD"`, `"US"`!).
@@ -291,7 +291,7 @@ Every `BOOL_3VL` vector stores `(valid, data)` bitmasks with canonical invariant
 ## 7. Multi-Threaded Determinism, Two-Tier FP Policy & Fuel Accounting
 
 1. **Two-Tier Floating-Point Determinism Policy**:
-   - **Exact `0-ULP` Bit-Identity (`70` of `73` active opcodes + all special values)**: Every integer, frontier, 3VL, `StringView`, `OP_SPMV`, `OP_GRAPH_KERNEL`, `OP_SAMPLE_NEIGHBORS`, `OP_TOP_K`, `OP_SCALAR_FP_ALU`, `0x48 OP_VEC_MATH_ARITH`, `0x4D OP_VEC_TERNARY`, `0x52 OP_VEC_REDUCE`, and `0x6A OP_VECTOR_RERANK` executes to **0-ULP exact IEEE-754 bit-identity** across all 4 engines (verified by `ICTX v2` `logical_hash`), using fixed 64-element pairwise tree-sums (`f64`), 2-phase deterministic radix scatter-reduction, lowest-ID tie-breaking, and universal `NaN -> NULL` canonicalization.
+   - **Exact `0-ULP` Bit-Identity (`75` of `78` active opcodes + all special values)**: Every integer, frontier, 3VL, `StringView`, `OP_SPMV`, `OP_GRAPH_KERNEL`, `OP_SAMPLE_NEIGHBORS`, `OP_TOP_K`, `OP_SCALAR_FP_ALU`, `0x48 OP_VEC_MATH_ARITH`, `0x4D OP_VEC_TERNARY`, `0x52 OP_VEC_REDUCE`, `0x6A OP_VECTOR_RERANK`, `0x6B`–`0x6E` `OP_LANE_STATE_*`, and `0x6F OP_VECTOR_POOL` executes to **0-ULP exact IEEE-754 bit-identity** across all 4 engines (verified by `ICTX v2` `logical_hash`), using fixed 64-element pairwise tree-sums (`f64`), 2-phase deterministic radix scatter-reduction, lowest-ID tie-breaking, and universal `NaN -> NULL` canonicalization.
    - **Full-Speed SIMD Transcendentals (`0x49`, `0x4A`, `0x4B` `sigmoid`/`gelu`/`silu`/`softplus`)**: Engines use native SIMD vector math (`SLEEF u10` / `SVML` / `vForce` / Java 25 `DoubleVector.lanewise`) subject to **`<= 1.0 ULP`** (`exp`/`log`/`sin`/`cos`/`tanh`/`cbrt`/`hypot`/`erf`/`erfc`) and **`<= 2.0 ULP`** (`pow`/`lgamma`/`gelu`/`silu`/`softplus`), plus **exact 0-ULP agreement on all special values** (`±0.0`, `±Inf`, `NaN -> NULL`, poles, clamping thresholds).
 2. **Deterministic Connected Components & PRNG**: `.cc_afforest` runs 2-pass in-place min-ID canonicalization; `OP_SAMPLE_NEIGHBORS` uses stateless SplitMix64 + Floyd's $O(k)$ selection.
 3. **Normative Fuel / Gas Accounting (`ws->gas_remaining`)**:
@@ -318,7 +318,7 @@ Runs in $O(\text{code\_words})$ before execution:
 
 ## 9. Engine Dispatch & JIT Implementation Guidance (C++20 & Java 25)
 
-The 73-opcode / `subop:4` layout optimizes wire density and cache locality, but high-frequency hot paths MUST NOT mirror 2-level `(opcode, subop)` switching literally:
+The 78-opcode / `subop:4` layout optimizes wire density and cache locality, but high-frequency hot paths MUST NOT mirror 2-level `(opcode, subop)` switching literally:
 
 1. **C++20 (Clang Threaded `goto` & MSVC `switch`)**:
    - During `impulse_vm_validate`, pre-decode hot `(opcode, subop)` pairs into a flat `uint16_t dense_op` (`~260` entries, `~2.1 KB` jump table in L1d) to collapse Clang threaded dispatch to **1 indirect jump** with per-subop BTB history.

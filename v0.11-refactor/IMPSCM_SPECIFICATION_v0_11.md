@@ -67,9 +67,10 @@ CollectKind ::= ":frontier-ids" | ":frontier-bitset" | ":vec" | ":scalar" | ":ta
 
 | Type Syntax | Category | Description |
 | :--- | :--- | :--- |
-| `i64`, `u64`, `i32`, `u32`, `f64`, `f32`, `bool`, `str` | **Scalar** | Nullable Kleene scalar value (maps to `R` bank). |
+| `i64`, `u64`, `i32`, `u32`, `f64`, `f32`, `bool`, `str`, `(decimal P S)` | **Scalar** | Nullable Kleene scalar value (maps to `R` bank). `(decimal P S)` ($1 \le P \le 18$, $0 \le S \le P$) is a fixed-point decimal lowered to scaled `i64` ($\times 10^S$). |
 | `(frontier "Dom")` | **1-Bit Frontier** | Unordered set of dense node IDs in domain `"Dom"` (maps to `F` bank, $W=1$). |
 | `(lane-frontier "Dom")` | **Multi-Lane Frontier** | Bit-sliced multi-lane frontier ($\le 64$ lanes) in domain `"Dom"` (maps to `F` bank, $W \in \{8..64\}$). |
+| `(lane-state "Dom" T W)` | **Multi-Lane State Slab** | Cache-line-capped 2D AoS numeric state slab (`T ∈ {f32, f64}`, $W \le 64\text{ B/node}$; maps to `V` bank). |
 | `(vec "Dom" T)` | **Domain-Aligned Vector** | Columnar vector of length $N_{\text{Dom}}$ and element type `T` (maps to `V` bank). |
 | `(list T)` | **Compact / Ordered Vector** | Variable-length ordered vector of type `T` (e.g., top-$k$ IDs, ANN results, query embeddings; maps to `V` bank). |
 | `(id "Dom")` | **Domain Node ID** | Scalar dense node ID bound to domain `"Dom"` (`u64` runtime representation). |
@@ -161,7 +162,7 @@ Instead of exposing VM morsel registers (`MF0..MF7`, `M0..M7`), `ImpScheme` prov
 
 All expression operators below work uniformly over scalars, domain-aligned vectors, lists, and stream-cursor expressions (scalar broadcasting is automatic when mixing a vector/cursor with a scalar):
 
-* **Arithmetic**: `+`, `-`, `*`, `/`, `%`, `min`, `max`, `copysign`, `neg`, `abs`, `sqrt`, `rsqrt`, `floor`, `ceil`, `trunc`, `round` (half away from zero), `fma`, `lerp`, `clamp`, `safe-div`
+* **Arithmetic**: `+`, `-`, `*`, `/`, `%`, `min`, `max`, `copysign`, `neg`, `abs`, `sqrt`, `rsqrt`, `floor`, `ceil`, `trunc`, `round` (half away from zero), `fma`, `lerp`, `clamp`, `safe-div`, `mul-div-i64` (exact 128-bit intermediate `(a * b) / c` for `(decimal P S)` scale alignment)
 * **Exponential / Log / Special**: `exp`, `exp2`, `exp10`, `expm1`, `log`, `log2`, `log10`, `log1p`, `pow`, `cbrt`, `hypot`, `erf`, `erfc`, `lgamma`
 * **Trig / Hyperbolic**: `sin`, `cos`, `tan`, `asin`, `acos`, `atan`, `atan2`, `sinc`, `sinh`, `cosh`, `tanh`, `asinh`, `acosh`, `atanh`
 * **Activations**: `relu`, `leaky-relu`, `sigmoid`, `gelu`, `silu`, `softplus`
@@ -180,7 +181,7 @@ All expression operators below work uniformly over scalars, domain-aligned vecto
 | **`vec-len`** | `(vec-len v)` | $O(1)$ total length (`u64`). |
 | **`gather`** | `(gather data-vec idx-vec)` | Indirect gather `out[i] = data-vec[idx-vec[i]]`. |
 | **`reduce`** | `(reduce op v [:mask f])` | Deterministic reduction (`:sum`, `:min`, `:max`, `:count-valid`, `:mean`, `:l1-norm`, `:l2-norm-sq`, `:argmin`, `:argmax`, `:any-true`, `:all-true`). Lowest index breaks ties on `:argmin`/`:argmax`. |
-| **`vec-l1`** | `(vec-l1 v1 v2)` | Deterministic $L_1$ distance $\sum |v_1[i] - v_2[i]|$ (`f64`). |
+| **`vec-l1`** | `(vec-l1 v1 v2)` | Deterministic $L_1$ distance $\sum \lvert v_1[i] - v_2[i] \rvert$ (`f64`). |
 | **`top-k`** | `(top-k :desc\|:asc k scores [:mask f] [:return :ids\|:scores])` | Deterministic bounded top-$k$ (`(list ...)`). Equal scores break ties by ascending index; `null` lanes excluded. |
 
 ### 5.7 Multi-Lane Bit-Sliced & Vector ANN
@@ -194,10 +195,14 @@ All expression operators below work uniformly over scalars, domain-aligned vecto
 | **`lane-quorum`** | `(lane-quorum :at-least\|:exact\|:at-most-nonzero k lanes)` | Collapses multi-lane frontier into 1-bit `(frontier "Dom")` by per-node lane popcount. |
 | **`lane-reduce-and`** | `(lane-reduce-and lanes [:mask mask-u64])` | 1-bit `(frontier "Dom")` of nodes active in all required lanes (`EMPTY` if 0 active lanes). |
 | **`lane-reduce-attr`** | `(lane-reduce-attr :sum\|:min\|:max\|:count lanes vec)` | Per-lane reduction returning a $K$-element `(list ...)`. |
-| **`lane-set-cover`** | `(lane-set-cover k lanes)` | Greedy maximum-coverage node selection (ties broken by minimum dense node ID) returning `(list (id "Dom"))`. |
 | **`lane-card`** | `(lane-card :pop-sum\|:any-nodes\|:all-nodes\|:single-lane lanes [lane-k])` | Multi-lane cardinality metric (`u64`). |
-| **`ann-search`** | `(ann-search "Dom" "idx" query-vec k [:ef ef] [:mask f])` | Queries HNSW/DiskANN index returning rank-ordered `(list (id "Dom"))`. Ties broken by ascending dense ID. |
-| **`vector-rerank`** | `(vector-rerank :dot\|:cosine\|:neg-l2-sq\|:l2-sq "Dom" "attr" cand-ids query-vec)` | Exact similarity/distance scoring of `cand-ids` returning `(list f32)`. |
+| **`lane-state-init`** | `(lane-state-init "Dom" T W :zero\|:inf [:seeds f val] [:witness #t])` | Allocates 2D AoS `(lane-state "Dom" T W)` ($\le 64\text{ B/node}$) with optional witness parent tracking. |
+| **`lane-state-walk`** | `(lane-state-walk :fwd\|:rev semiring "REL" state [:edge-attr "w"] [:fixpoint] [:delta d] [:mask f])` | Multi-lane semiring relaxation (`:min-plus`, `:max-plus`, `:max-mul`, `:sum-mul`, `:min-max`) with schedule-invariant witness tie-breaking. |
+| **`lane-state-op`** | `(lane-state-op :project-affine\|:prune-cutoff\|:prune-hub-quorum\|:to-lane-frontier\|:to-quorum-frontier state ...)` | In-domain multi-lane state damping, cutoff/hub-quorum pruning, and frontier bridging. |
+| **`lane-state-reduce`** | `(lane-state-reduce :min\|:max\|:sum\|:mean\|:argmin\|:argmax\|:trace-path state ...)` | Per-lane / cross-lane reduction (lowest index wins ties) or deterministic witness path reconstruction. |
+| **`ann-search`** | `(ann-search "Dom" "idx" query-vec k-or-radius [:radius] [:ef ef] [:mask f])` | Queries HNSW/DiskANN index (top-$k$ or `:radius` threshold) returning rank-ordered `(list (id "Dom"))`. Ties broken by ascending dense ID. |
+| **`vector-rerank`** | `(vector-rerank :dot\|:cosine\|:neg-l2-sq\|:l2-sq\|:pair-dot\|:pair-cosine\|:pair-neg-l2-sq\|:pair-l2-sq "Dom" "attr" ids rhs)` | Exact query-vs-candidate or pairwise node-to-node (also valid inside `edge-stream`) similarity scoring returning `(list f32)`. |
+| **`vector-pool`** | `(vector-pool :load-node\|:mean-pool\|:sum-pool\|:l2-norm "Dom" "attr" target)` | Loads a single node's `[D]` embedding, pools a frontier centroid/sum, or L2-normalizes a vector into `(list f32)`. |
 
 ### 5.8 Terminal Collection (`collect`)
 
