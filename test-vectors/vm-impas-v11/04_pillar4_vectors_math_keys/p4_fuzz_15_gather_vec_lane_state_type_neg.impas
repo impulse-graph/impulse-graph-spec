@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; Corpus sweep 225k (seed 8224305): GATHER_VEC on a TAG_LANE_STATE source vector
+; must return IMPULSE_VM_ERR_TYPE_MISMATCH (matching OCaml gather_from_vec).
+
+.data
+  .domain 0 name="User" count=3 width=u16
+  .param 0 type=u64_vec values=[0, 1]
+
+.code
+  LANE_STATE_INIT.inf_f64 V0, lo=0, hi=2
+  LOAD_PARAM.vec          V1, param=0, type=u64
+  GATHER_VEC              V2, V0, V1
+  HALT
