@@ -1,0 +1,6 @@
+; Negative Validation Test: Non-Endo Relation Passed to :transitive* (§7.1)
+; {{EXPECT: COMPILE_ERROR = DOMAIN_MISMATCH}}
+(query
+  (param $user (id "User"))
+  (let ([bad (walk :fwd "MEMBER_OF" (seed "User" $user) :transitive*)])
+    (collect :frontier-ids "out" bad)))

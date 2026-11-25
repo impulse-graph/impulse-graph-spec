@@ -1,0 +1,6 @@
+; Negative Validation Test: Domain Mismatch on walk (IMPSCM_SPECIFICATION_v0_11.md §7.1)
+; {{EXPECT: COMPILE_ERROR = DOMAIN_MISMATCH}}
+(query
+  (param $res (id "Resource"))
+  (let ([bad (walk :fwd "MEMBER_OF" (seed "Resource" $res))])
+    (collect :frontier-ids "out" bad)))

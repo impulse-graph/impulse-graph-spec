@@ -1,0 +1,12 @@
+; 2-Hop Walk with Exclude, Set Algebra, and Cardinality
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT "hop2_ids" = [2]}}
+; {{EXPECT: COLLECT "hop2_card" = 1}}
+(query
+  (param $seed (id "Node"))
+  (let ([s0   (seed "Node" $seed)]
+        [hop1 (walk :fwd "NEXT" s0)]
+        [hop2 (walk :fwd "NEXT" hop1 :exclude hop1)]
+        [cnt  (cardinality hop2)])
+    (collect :frontier-ids "hop2_ids" hop2)
+    (collect :scalar "hop2_card" cnt)))
