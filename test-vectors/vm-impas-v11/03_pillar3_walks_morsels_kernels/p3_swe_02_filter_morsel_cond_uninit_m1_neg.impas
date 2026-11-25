@@ -1,0 +1,15 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+; SWE-Sweep TDD: Inside FILTER_MORSEL, a forward JCC skipping an assignment to M1 must not mark M1 initialized after the join.
+
+.data
+  .domain 0 name="N" count=4 width=u16
+
+.code
+  INIT_DOMAIN_SPAN.all_span F0, dom=0
+  FILTER_MORSEL             F0
+    JCC.jempty_f            MF0, after_def
+    MOV.v                   M1, M0
+after_def:
+    MORSEL_COMMIT.yield_frontier F1, M1, dom=0
+  MORSEL_END
+  HALT

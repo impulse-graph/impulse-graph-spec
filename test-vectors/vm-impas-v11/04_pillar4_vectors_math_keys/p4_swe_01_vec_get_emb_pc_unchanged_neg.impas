@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 2}}
+; SWE-Sweep TDD: VEC_POINT.vec_get on Vec_emb must fail with ERR_TYPE_MISMATCH without incrementing PC past the faulting instruction.
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0], [0.0, 1.0]]
+
+.code
+  LOAD_COLUMN.node_attr V0, dom=0, attr=0     ; pc=0
+  LOAD_CONST.u32      R0, 0                 ; pc=1
+  VEC_POINT.vec_get   R1, V0, R0            ; pc=2 -> must trap at PC=2, NOT PC=3
+  HALT

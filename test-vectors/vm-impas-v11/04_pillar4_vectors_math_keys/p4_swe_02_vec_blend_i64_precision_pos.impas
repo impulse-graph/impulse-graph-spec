@@ -1,0 +1,17 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [9007199254740993, 9007199254740995, null]}}
+; SWE-Sweep TDD: VEC_BLEND.kleene_vv on i64 vectors must preserve exact 64-bit integer precision (not coerce to f64).
+
+.data
+  .domain 0 name="N" count=3 width=u16
+  .param 0 type=bool_3vl_vec values=[true, false, null]
+  .param 1 type=i64_vec values=[9007199254740993, 1, 2]
+  .param 2 type=i64_vec values=[3, 9007199254740995, 4]
+
+.code
+  LOAD_PARAM.vec       V0, param=0, type=bool
+  LOAD_PARAM.vec       V1, param=1, type=i64
+  LOAD_PARAM.vec       V2, param=2, type=i64
+  VEC_BLEND.kleene_vv  V3, V0, V1, V2
+  COLLECT.vec          V3, out=0
+  HALT

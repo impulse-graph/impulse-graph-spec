@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R2 = 0.0}}
+; {{EXPECT: R3 = 0x4330000000000001}}
+; SWE-Sweep TDD: SCALAR_FP_ALU.round must not double-round nextDown(0.5) -> 1.0 or (2^52 + 1) -> (2^52 + 2).
+
+.code
+  LOAD_CONST.f64.ext    R0, 0x3FDFFFFFFFFFFFFF   ; nextDown(0.5) = 0.49999999999999994
+  SCALAR_FP_ALU.round   R2, R0                   ; must be +0.0, NOT 1.0
+  LOAD_CONST.f64.ext    R1, 0x4330000000000001   ; 2^52 + 1 = 4503599627370497.0
+  SCALAR_FP_ALU.round   R3, R1                   ; must stay 2^52 + 1, NOT 2^52 + 2
+  HALT

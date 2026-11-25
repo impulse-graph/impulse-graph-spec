@@ -1,0 +1,8 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: ZF = 1, NF = 0}}
+; SWE-Sweep TDD: COLLECT.scalar on -0.0 must set ZF=1 (IEEE-754 negative zero equals zero).
+
+.code
+  LOAD_CONST.f64.ext  R0, 0x8000000000000000   ; -0.0
+  COLLECT.scalar      R0, out=0
+  HALT

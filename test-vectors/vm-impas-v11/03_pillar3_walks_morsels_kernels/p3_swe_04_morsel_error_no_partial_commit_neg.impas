@@ -1,0 +1,19 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: F2 = NULL}}
+; SWE-Sweep TDD: Mid-morsel runtime error on chunk 1 must not flush chunk 0's partial commit into F2.
+
+.data
+  .tier_thresholds morsel_max=2
+  .domain 0 name="N" count=5 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  ; 4 edges (2 chunks of 2), but edge_attr only has 2 entries -> chunk 0 succeeds, chunk 1 fails OOB!
+  .csr_inline rel=0 offsets=[0, 4, 4, 4, 4, 4] targets=[1, 2, 3, 4]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[1.0, 2.0]
+
+.code
+  FSEED.single_imm F0, lo=0, hi=0
+  WALK_MORSEL.fwd  F0, rel=0
+    GATHER_EDGE_ATTR             M4, M2, rel=0, attr=0
+    MORSEL_COMMIT.yield_frontier F2, M1, dom=0
+  MORSEL_END
+  HALT
