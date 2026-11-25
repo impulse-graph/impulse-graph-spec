@@ -1,0 +1,22 @@
+; COVERAGE: OP_VEC_MATH_EXP_LOG.log OP_VEC_MATH_EXP_LOG.log2 OP_VEC_MATH_EXP_LOG.log10 OP_VEC_MATH_EXP_LOG.log1p
+; Fuzzer Iter0 Bug 2: log/log2/log10(0.0) and log1p(-1.0) must produce Kleene NULL (not -Infinity)
+.data
+  .param 0 type=f64_vec values=[1.0, 0.0, -1.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  VEC_MATH_EXP_LOG.log V1, V0
+  VEC_MATH_EXP_LOG.log2 V2, V0
+  VEC_MATH_EXP_LOG.log10 V3, V0
+  VEC_MATH_EXP_LOG.log1p V4, V0
+  COLLECT.vec V1, out=0
+  COLLECT.vec V2, out=1
+  COLLECT.vec V3, out=2
+  COLLECT.vec V4, out=3
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: COLLECT_0 = [0.0, null, null]
+; EXPECT: COLLECT_1 = [0.0, null, null]
+; EXPECT: COLLECT_2 = [0.0, null, null]
+; EXPECT: COLLECT_3 = [0.6931471805599453, 0.0, null]

@@ -1,0 +1,15 @@
+; COVERAGE: OP_LANE_INIT_SEEDS.auto_width OP_LANE_INIT_SEEDS.force_w64
+; Fuzzer Iter0 Bug 1: LANE_INIT_SEEDS must populate canonical tier (non-empty -> Tier0_inline) for ICTX v2 parity
+.data
+  .domain 0 name="User" count=8 width=u32
+  .param 0 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LANE_INIT_SEEDS.auto_width F4, V0, dom=0
+  LANE_INIT_SEEDS.force_w64 F5, V0, dom=0
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: F4.lanes = {0: 0x1, 1: 0x2}
+; EXPECT: F5.lanes = {0: 0x1, 1: 0x2}
