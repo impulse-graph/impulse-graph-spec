@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000866a}}
+; Static validator rejection: VECTOR_RERANK.pair_neg_l2_sq (0x6A, subop=6) with disallowed flag 0x8

@@ -1,0 +1,56 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 3}}
+; {{EXPECT: R2 = 1}}
+; P5-08: MITra LANE_STATE (all 28 subops second coverage: unweighted attr=none edges, non-witness trace_path, quorum imm)
+
+.data
+  .domain 0 name="G" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 2] targets=[1, 2]
+  .param 0 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LANE_INIT_SEEDS.auto_width F0, V0, dom=0
+  INIT_DOMAIN_SPAN.all_span F1, dom=0
+
+  LANE_STATE_INIT.zero_f32 V1, dom=0, k=2
+  LANE_STATE_INIT.inf_f32 V2, dom=0, k=2
+  LANE_STATE_INIT.zero_f64 V3, dom=0, k=2
+  LANE_STATE_INIT.inf_f64 V4, dom=0, k=2
+  LANE_STATE_INIT.from_frontier_seeds V5, F0, dom=0, k=2
+  LANE_STATE_INIT.with_witness V6, F0, dom=0, k=2
+
+  LANE_STATE_WALK.fwd_min_plus V7, V5, rel=0, attr=none
+  LANE_STATE_WALK.fwd_max_plus V8, V5, rel=0, attr=none
+  LANE_STATE_WALK.fwd_max_mul V9, V5, rel=0, attr=none
+  LANE_STATE_WALK.fwd_sum_mul V10, V5, rel=0, attr=none
+  LANE_STATE_WALK.fwd_min_max V11, V5, rel=0, attr=none
+  LANE_STATE_WALK.rev_min_plus V12, V7, rel=0, attr=none
+  LANE_STATE_WALK.rev_max_plus V13, V8, rel=0, attr=none
+  LANE_STATE_WALK.rev_max_mul V14, V9, rel=0, attr=none
+  LANE_STATE_WALK.rev_sum_mul V15, V10, rel=0, attr=none
+  LANE_STATE_WALK.rev_min_max.mask V1, V11, F1, rel=0, attr=none
+
+  LOAD_CONST.f32 R10, 1.0
+  LOAD_CONST.f32 R11, 0.0
+  LOAD_CONST.f32 R12, 5.0
+  LOAD_CONST.u32 R13, 1
+  LANE_STATE_OP.project_affine V2, V7, R10, R11
+  LANE_STATE_OP.prune_cutoff V3, V2, R12
+  LANE_STATE_OP.prune_hub_quorum V4, V3, 1
+  LANE_STATE_OP.to_lane_frontier F2, V3
+  LANE_STATE_OP.to_quorum_frontier.scalar F3, V3, R13
+
+  LANE_STATE_REDUCE.min V8, V7
+  LANE_STATE_REDUCE.max V9, V7
+  LANE_STATE_REDUCE.sum V10, V7
+  LANE_STATE_REDUCE.mean V11, V7
+  LANE_STATE_REDUCE.argmin V12, V7
+  LANE_STATE_REDUCE.argmax V13, V7
+  LANE_STATE_REDUCE.trace_path V14, V5
+
+  VEC_POINT.vec_len R1, V8
+  SET_CARDINALITY.lane_any_nodes R2, F2
+  SCALAR_3VL.cmp_lt_i64 R2, R13, R2
+  HALT

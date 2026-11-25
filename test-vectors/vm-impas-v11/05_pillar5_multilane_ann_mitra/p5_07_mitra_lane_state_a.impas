@@ -1,0 +1,63 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 4}}
+; {{EXPECT: R2 = 3}}
+; {{EXPECT: R3 = 1}}
+; P5-07: MITra LANE_STATE_INIT (6), LANE_STATE_WALK (10 + .accum/.scalar/.mask), LANE_STATE_OP (5), LANE_STATE_REDUCE (7)
+
+.data
+  .domain 0 name="G" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 4] targets=[1, 2, 3, 3]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[2.0, 5.0, 1.0, 1.0]
+  .param 0 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LANE_INIT_SEEDS.auto_width F0, V0, dom=0
+  INIT_DOMAIN_SPAN.all_span F1, dom=0
+
+  LOAD_CONST.f32 R10, 1.0
+  LANE_STATE_INIT.zero_f32 V1, dom=0, k=2
+  LANE_STATE_INIT.inf_f32 V2, dom=0, k=2
+  LANE_STATE_INIT.zero_f64 V3, dom=0, k=2
+  LANE_STATE_INIT.inf_f64 V4, dom=0, k=2
+  LANE_STATE_INIT.from_frontier_seeds V5, F0, dom=0, k=2
+  LANE_STATE_INIT.with_witness.scalar V6, F0, R10, dom=0, k=2
+
+  LOAD_CONST.f32 R11, 2.0
+  LANE_STATE_WALK.fwd_min_plus V7, V6, rel=0, attr=0
+  LANE_STATE_WALK.fwd_min_plus.accum V7, V7, rel=0, attr=0
+  LANE_STATE_WALK.fwd_max_plus V8, V6, rel=0, attr=0
+  LANE_STATE_WALK.fwd_max_mul.scalar V9, V6, R11, rel=0, attr=none
+  LANE_STATE_WALK.fwd_sum_mul V10, V6, rel=0, attr=0
+  LANE_STATE_WALK.fwd_min_max.mask V11, V6, F1, rel=0, attr=0
+  LANE_STATE_WALK.rev_min_plus V12, V7, rel=0, attr=0
+  LANE_STATE_WALK.rev_max_plus V13, V8, rel=0, attr=0
+  LANE_STATE_WALK.rev_max_mul V14, V9, rel=0, attr=0
+  LANE_STATE_WALK.rev_sum_mul V15, V10, rel=0, attr=0
+  LANE_STATE_WALK.rev_min_max V1, V11, rel=0, attr=0
+
+  LOAD_CONST.f32 R12, 2.0
+  LOAD_CONST.f32 R13, 0.5
+  LOAD_CONST.f32 R14, 15.0
+  LOAD_CONST.u32 R15, 1
+  LANE_STATE_OP.project_affine V2, V7, R12, R13
+  LANE_STATE_OP.prune_cutoff V3, V2, R14
+  LANE_STATE_OP.prune_hub_quorum.scalar V4, V3, R15
+  LANE_STATE_OP.to_lane_frontier F2, V3
+  LANE_STATE_OP.to_quorum_frontier F3, V3, 1
+  SET_CARDINALITY.card_1bit R2, F3
+
+  LANE_STATE_REDUCE.min V8, V7
+  LANE_STATE_REDUCE.max V9, V7
+  LANE_STATE_REDUCE.sum V10, V7
+  LANE_STATE_REDUCE.mean V11, V7
+  LANE_STATE_REDUCE.argmin V12, V7
+  LANE_STATE_REDUCE.argmax V13, V7
+  LOAD_CONST.u32 R1, 0
+  LANE_STATE_REDUCE.trace_path.scalar V14, V7, R1
+  VEC_POINT.vec_len R1, V8
+
+  LOAD_CONST.u32 R4, 3
+  VEC_POINT.vec_get R3, V14, R4
+  HALT

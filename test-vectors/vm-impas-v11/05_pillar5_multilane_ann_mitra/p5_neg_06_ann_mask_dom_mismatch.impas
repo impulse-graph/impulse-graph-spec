@@ -1,0 +1,16 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_DOMAIN_MISMATCH}}
+; {{EXPECT: PC = 3}}
+; P5-NEG-06: VECTOR_ANN_SEARCH.ids.mask with wrong-domain mask -> ERR_DOMAIN_MISMATCH
+
+.data
+  .domain 0 name="A" count=3 width=u16
+  .domain 1 name="B" count=3 width=u16
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]
+  .param 0 type=f64_vec values=[1.0, 0.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_CONST.u32 R1, 2
+  FSEED.single_imm F0, node=0, dom=1
+  VECTOR_ANN_SEARCH.ids.mask V1, V0, R1, F0, dom=0, attr=0
+  HALT

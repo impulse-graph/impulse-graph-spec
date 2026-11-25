@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 1}}
+; P5-NEG-12: LANE_REDUCE_AND on 1-bit frontier instead of multi-lane frontier -> ERR_TYPE_MISMATCH
+
+.data
+  .domain 0 name="N" count=4 width=u16
+
+.code
+  FSEED.single_imm F0, node=0, dom=0
+  LANE_REDUCE_AND.reduce_and F1, F0
+  HALT

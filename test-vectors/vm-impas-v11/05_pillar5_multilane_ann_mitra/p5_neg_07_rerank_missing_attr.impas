@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 2}}
+; P5-NEG-07: VECTOR_RERANK with missing embedding attribute -> ERR_OUT_OF_BOUNDS
+
+.data
+  .domain 0 name="N" count=3 width=u16
+  .param 0 type=u64_vec values=[0, 1]
+  .param 1 type=f64_vec values=[1.0, 0.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=f64
+  VECTOR_RERANK.cosine V2, V0, V1, dom=0, attr=99
+  HALT

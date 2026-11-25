@@ -1,0 +1,60 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 2}}
+; {{EXPECT: R2 = 3}}
+; {{EXPECT: R3 = 1}}
+; {{EXPECT: R4 = 2}}
+; P5-03: LANE_BITWISE, LANE_FILTER_QUORUM, LANE_REDUCE_AND, LANE_REDUCE_ATTR (all subops + .accum + .scalar)
+
+.data
+  .domain 0 name="N" count=5 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 5, 5] targets=[2, 3, 2, 4, 4]
+  .node_attr dom=0 attr=0 name="score" type=f64 values=[10.0, 20.0, 30.0, null, 50.0]
+  .param 0 type=u64_vec values=[0, 1]
+  .param 1 type=u64_vec values=[2, 3]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=u64
+  LOAD_COLUMN.node_attr V2, dom=0, attr=0
+
+  LANE_INIT_SEEDS.auto_width F0, V0, dom=0
+  LANE_WALK.fwd_fixpoint_star F1, F0, rel=0
+  LANE_INIT_SEEDS.auto_width F2, V1, dom=0
+
+  LOAD_CONST.u32 R10, 1
+  LANE_BITWISE.prune_mask F3, F1, 1
+  LANE_BITWISE.prune_mask.scalar F4, F1, R10
+  LANE_BITWISE.keep_mask F5, F1, 2
+  LANE_BITWISE.keep_mask.scalar F6, F1, R10
+  LANE_BITWISE.and_not_lanes F7, F1, F2
+  LANE_BITWISE.extract_lane F8, F1, 0
+  LANE_BITWISE.extract_lane.scalar F9, F1, R10
+
+  LOAD_CONST.u32 R11, 2
+  LANE_FILTER_QUORUM.at_least F10, F1, 2
+  SET_CARDINALITY.card_1bit R1, F10
+  LANE_FILTER_QUORUM.at_least.scalar F11, F1, R11
+  LANE_FILTER_QUORUM.exact F12, F1, 1
+  LANE_FILTER_QUORUM.at_most_nonzero F13, F1, 1
+  FSEED.single_imm F14, node=0, dom=0
+  LANE_FILTER_QUORUM.at_least.accum F14, F1, 2
+
+  LOAD_CONST.u32 R12, 3
+  LANE_REDUCE_AND.reduce_and F15, F1
+  SET_CARDINALITY.card_1bit R4, F15
+  LANE_REDUCE_AND.reduce_and.scalar F10, F1, R12
+  FSEED.single_imm F11, node=1, dom=0
+  LANE_REDUCE_AND.reduce_and.accum F11, F1
+
+  LANE_REDUCE_ATTR.sum V3, F1, V2
+  LANE_REDUCE_ATTR.min V4, F1, V2
+  LANE_REDUCE_ATTR.max V5, F1, V2
+  LANE_REDUCE_ATTR.count V6, F1
+
+  SET_CARDINALITY.card_1bit R2, F9
+  LOAD_CONST.u32 R13, 0
+  VEC_POINT.vec_get R3, V6, R13
+  LOAD_CONST.u32 R14, 4
+  SCALAR_3VL.cmp_eq_i64 R3, R3, R14
+  HALT

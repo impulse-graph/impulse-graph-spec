@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_NULL_SNAPSHOT}}
+; {{EXPECT: PC = 2}}
+; P5-NEG-05: VECTOR_ANN_SEARCH without snapshot -> ERR_NULL_SNAPSHOT
+
+.data
+  .param 0 type=f64_vec values=[1.0, 0.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_CONST.u32 R1, 2
+  VECTOR_ANN_SEARCH.ids V1, V0, R1, dom=0, attr=0
+  HALT

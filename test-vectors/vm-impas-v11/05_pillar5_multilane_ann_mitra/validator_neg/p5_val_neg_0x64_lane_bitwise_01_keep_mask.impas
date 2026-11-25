@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000008164}}
+; Static validator rejection: LANE_BITWISE.keep_mask (0x64, subop=1) with disallowed flag 0x8

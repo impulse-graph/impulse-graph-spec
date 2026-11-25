@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_DOMAIN_MISMATCH}}
+; {{EXPECT: PC = 1}}
+; P5-NEG-08: LANE_STATE_WALK with wrong source domain -> ERR_DOMAIN_MISMATCH
+
+.data
+  .domain 0 name="A" count=3 width=u16
+  .domain 1 name="B" count=3 width=u16
+  .relation 0 name="R" src_dom=0 tgt_dom=1
+  .csr_inline rel=0 offsets=[0, 1, 1, 1] targets=[0]
+
+.code
+  LANE_STATE_INIT.zero_f64 V0, dom=1, k=2
+  LANE_STATE_WALK.fwd_min_plus V1, V0, rel=0, attr=none
+  HALT
