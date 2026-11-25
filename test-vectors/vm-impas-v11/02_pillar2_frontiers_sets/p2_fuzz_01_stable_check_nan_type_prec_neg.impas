@@ -1,0 +1,8 @@
+; COVERAGE: OP_STABLE_CHECK.vec_l1
+; Fuzzer Iter0 Bug 3: STABLE_CHECK.vec_l1 with unset vector + NaN eps must return ERR_TYPE_MISMATCH
+.code
+  LOAD_CONST.f64.ext R0, 0x7FF8000000000000
+  STABLE_CHECK.vec_l1 R1, V0, V1, R0
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH

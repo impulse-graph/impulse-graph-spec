@@ -1,0 +1,15 @@
+; COVERAGE: OP_VECTOR_RERANK.dot
+; Fuzzer Iter0 Bug 6b: OP_VECTOR_RERANK with out-of-bounds node ID must return ERR_OUT_OF_BOUNDS (no crash)
+.data
+  .domain 0 name="User" count=2 width=u32
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0], [0.0, 1.0]]
+  .param 0 type=u64_vec values=[0, 99]
+  .param 1 type=f64_vec values=[1.0, 0.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=f64
+  VECTOR_RERANK.dot V2, V0, V1, dom=0, attr=0
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS

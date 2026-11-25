@@ -1,0 +1,15 @@
+; COVERAGE: OP_SPMV.fwd_plus_times
+; Fuzzer Iter0 Bug 5: OP_SPMV with RHS vector shorter than src_dom cardinality must return ERR_OUT_OF_BOUNDS (no crash)
+.data
+  .domain 0 name="User" count=4 width=u32
+  .relation 0 name="FOLLOWS" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 3, 3] targets=[1, 2, 3]
+  .param 0 type=f64_vec values=[1.0, 2.0]
+
+.code
+  INIT_DOMAIN_SPAN.all_span F0, dom=0
+  LOAD_PARAM.vec V0, param=0, type=f64
+  SPMV.fwd_plus_times V1, F0, V0, rel=0, attr=0xFFFF
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS
