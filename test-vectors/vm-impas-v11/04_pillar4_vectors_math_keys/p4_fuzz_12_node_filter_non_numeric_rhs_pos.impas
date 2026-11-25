@@ -1,0 +1,15 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: ZF = 1}}
+; Corpus sweep 100k (seed 6017545): NODE_FILTER on f64 node_attr with non-numeric
+; (str) RHS vector must not crash with Java NPE on v.i64Data.
+
+.data
+  .domain 0 name="User" count=2 width=u16
+  .node_attr dom=0 attr=0 name="score" type=f64 values=[1.5, 2.5]
+  .node_attr dom=0 attr=1 name="name" type=str values=["a", "b"]
+
+.code
+  FSEED.single_imm        F0, lo=0, hi=0
+  LOAD_COLUMN.node_attr   V1, dom=0, attr=1
+  NODE_FILTER.eq          F1, F0, V1, dom=0, attr=0
+  HALT
