@@ -1,0 +1,48 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 0}}
+; {{EXPECT: R2 = 3}}
+; {{EXPECT: R3 = 0}}
+; P5-04: LANE_BITWISE, LANE_FILTER_QUORUM, LANE_REDUCE_AND, LANE_REDUCE_ATTR (empty/disjoint lanes & NULL attrs)
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .node_attr dom=0 attr=0 name="score" type=f64 values=[null, -5.0, 0.0, 7.5]
+  .param 0 type=u64_vec values=[0, 1, 2]
+  .param 1 type=u64_vec values=[0, 1, 2]
+  .param 2 type=u64_vec values=[0, 0, 1]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=u64
+  LOAD_PARAM.vec V2, param=2, type=u64
+  LOAD_COLUMN.node_attr V3, dom=0, attr=0
+
+  LANE_INIT_GROUPS.groups F0, V1, V2, dom=0, k=0
+  LANE_INIT_SEEDS.auto_width F1, V0, dom=0
+
+  LOAD_CONST.u32 R10, 3
+  LANE_BITWISE.prune_mask F2, F0, 2
+  LANE_BITWISE.keep_mask.scalar F3, F0, R10
+  LANE_BITWISE.and_not_lanes F4, F1, F0
+  LOAD_CONST.u32 R11, 1
+  LANE_BITWISE.extract_lane.scalar F5, F0, R11
+
+  LANE_FILTER_QUORUM.at_least F6, F0, 2
+  SET_CARDINALITY.card_1bit R1, F6
+  LANE_FILTER_QUORUM.exact F7, F0, 1
+  SET_CARDINALITY.card_1bit R2, F7
+  LOAD_CONST.u32 R12, 1
+  LANE_FILTER_QUORUM.at_most_nonzero.scalar F8, F0, R12
+  FSEED.empty F9, dom=0
+  LANE_FILTER_QUORUM.exact.accum F9, F0, 1
+
+  LANE_REDUCE_AND.reduce_and F10, F0
+  SET_CARDINALITY.card_1bit R3, F10
+  LOAD_CONST.u32 R13, 0
+  LANE_REDUCE_AND.reduce_and.scalar F11, F0, R13
+
+  LANE_REDUCE_ATTR.sum V4, F0, V3
+  LANE_REDUCE_ATTR.min V5, F0, V3
+  LANE_REDUCE_ATTR.max V6, F0, V3
+  LANE_REDUCE_ATTR.count V7, F0
+  HALT

@@ -359,6 +359,8 @@ def resolve_banks(op: dict[str, Any], subop: int, flags: int) -> dict[str, str]:
             res["s2"] = "F"
         else:  # extract_lane
             res["s2"] = "R" if has_scalar else "NONE"
+    elif code == 0x6C:  # LANE_STATE_WALK
+        res["s2"] = "R" if has_scalar else "NONE"
     elif code == 0x6D:  # LANE_STATE_OP
         if subop in (3, 4):  # to_lane_frontier, to_quorum_frontier
             res["dst"] = "F"

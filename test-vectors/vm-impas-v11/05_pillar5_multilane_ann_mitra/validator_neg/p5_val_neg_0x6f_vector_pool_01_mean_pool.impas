@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000816f}}
+; Static validator rejection: VECTOR_POOL.mean_pool (0x6F, subop=1) with disallowed flag 0x8
