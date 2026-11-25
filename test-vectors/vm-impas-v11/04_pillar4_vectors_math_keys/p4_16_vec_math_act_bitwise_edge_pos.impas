@@ -1,0 +1,39 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [-0.2, 5]}}
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .param 0 type=f64_vec values=[-2.0, 5.0]
+  .param 1 type=i64_vec values=[-1, 16]
+
+.code
+  LOAD_PARAM.vec                 V0, param=0, type=f64
+  LOAD_PARAM.vec                 V1, param=1, type=i64
+  LOAD_CONST.f64.ext             R0, 0.1
+  LOAD_CONST.i32                 R1, 4
+  FSEED.single_imm               F0, lo=0, hi=0
+
+  VEC_MATH_ACT.relu.mask         V2, V0, F0
+  VEC_MATH_ACT.leaky_relu.scalar V3, V0, R0         ; [-0.2, 5.0]
+  VEC_MATH_ACT.sigmoid           V2, V0
+  VEC_MATH_ACT.gelu              V2, V0
+  VEC_MATH_ACT.silu              V2, V0
+  VEC_MATH_ACT.softplus          V2, V0
+
+  VEC_INT_BITWISE.and.scalar.mask V4, V1, R1, F0
+  VEC_INT_BITWISE.or.scalar      V4, V1, R1
+  VEC_INT_BITWISE.xor.scalar     V4, V1, R1
+  VEC_INT_BITWISE.not            V4, V1
+  VEC_INT_BITWISE.and_not.scalar V4, V1, R1
+  VEC_INT_BITWISE.shl.scalar     V4, V1, R1
+  VEC_INT_BITWISE.shr_u.scalar   V4, V1, R1
+  VEC_INT_BITWISE.shr_s.scalar   V4, V1, R1
+  VEC_INT_BITWISE.rotl.scalar    V4, V1, R1
+  VEC_INT_BITWISE.rotr.scalar    V4, V1, R1
+  VEC_INT_BITWISE.popcount       V4, V1
+  VEC_INT_BITWISE.clz            V4, V1
+  VEC_INT_BITWISE.ctz            V4, V1
+  VEC_INT_BITWISE.bswap          V4, V1
+
+  COLLECT.vec V3, out=0
+  HALT

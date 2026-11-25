@@ -1,0 +1,10 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_ASSERTION_FAILED}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .param 0 type=f64_vec values=[1.0, "inf", 3.0]
+
+.code
+  LOAD_PARAM.vec           V0, param=0, type=f64
+  VEC_3VL_OP.assert_finite V0, imm=99
+  HALT

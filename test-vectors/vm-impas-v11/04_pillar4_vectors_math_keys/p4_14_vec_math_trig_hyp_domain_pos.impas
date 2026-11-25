@@ -1,0 +1,30 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [null, null]}}
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .param 0 type=f64_vec values=[2.0, -2.0]
+
+.code
+  LOAD_PARAM.vec                 V0, param=0, type=f64
+  LOAD_CONST.f64.ext             R0, 1.0
+  FSEED.single_imm               F0, lo=0, hi=0
+
+  VEC_MATH_TRIG_HYP.sin.mask     V1, V0, F0
+  VEC_MATH_TRIG_HYP.cos          V1, V0
+  VEC_MATH_TRIG_HYP.tan          V1, V0
+  ; asin(±2.0) -> [null, null] (domain error -> NaN -> NULL)
+  VEC_MATH_TRIG_HYP.asin         V2, V0
+  VEC_MATH_TRIG_HYP.acos         V1, V0
+  VEC_MATH_TRIG_HYP.atan         V1, V0
+  VEC_MATH_TRIG_HYP.atan2.scalar V1, V0, R0
+  VEC_MATH_TRIG_HYP.sinc         V1, V0
+  VEC_MATH_TRIG_HYP.sinh         V1, V0
+  VEC_MATH_TRIG_HYP.cosh         V1, V0
+  VEC_MATH_TRIG_HYP.tanh         V1, V0
+  VEC_MATH_TRIG_HYP.asinh        V1, V0
+  VEC_MATH_TRIG_HYP.acosh        V1, V0
+  VEC_MATH_TRIG_HYP.atanh        V1, V0
+
+  COLLECT.vec V2, out=0
+  HALT

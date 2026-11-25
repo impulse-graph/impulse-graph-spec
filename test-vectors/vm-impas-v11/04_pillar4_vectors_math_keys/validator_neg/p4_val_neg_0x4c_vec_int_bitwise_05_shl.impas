@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000454C}}
+; Static validator rejection: VEC_INT_BITWISE.shl (0x4C, subop=5) with disallowed flag 0x4

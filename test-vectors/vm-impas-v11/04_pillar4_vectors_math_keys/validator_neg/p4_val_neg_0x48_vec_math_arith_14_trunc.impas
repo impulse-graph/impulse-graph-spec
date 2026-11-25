@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000004E48}}
+; Static validator rejection: VEC_MATH_ARITH.trunc (0x48, subop=14) with disallowed flag 0x4

@@ -1,0 +1,32 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [1, 8, null]}}
+; {{EXPECT: COLLECT_1 = [5, 5, null]}}
+
+.data
+  .param 0 type=f64_vec values=[0.0, 3.0, null]
+  .param 1 type=f64_vec values=[5.0, 4.0, 1.0]
+  .param 2 type=f64_vec values=[1.0, 2.0, null]
+
+.code
+  LOAD_PARAM.vec          V0, param=0, type=f64
+  LOAD_PARAM.vec          V1, param=1, type=f64
+  LOAD_PARAM.vec          V2, param=2, type=f64
+
+  VEC_MATH_EXP_LOG.exp    V3, V2
+  VEC_MATH_EXP_LOG.exp2   V4, V0                   ; [1, 8, null]
+  VEC_MATH_EXP_LOG.exp10  V3, V0
+  VEC_MATH_EXP_LOG.expm1  V3, V0
+  VEC_MATH_EXP_LOG.log    V3, V2
+  VEC_MATH_EXP_LOG.log2   V3, V2
+  VEC_MATH_EXP_LOG.log10  V3, V2
+  VEC_MATH_EXP_LOG.log1p  V3, V0
+  VEC_MATH_EXP_LOG.pow    V3, V2, V0
+  VEC_MATH_EXP_LOG.cbrt   V3, V4
+  VEC_MATH_EXP_LOG.hypot  V5, V0, V1               ; [hypot(0,5)=5, hypot(3,4)=5, null]
+  VEC_MATH_EXP_LOG.erf    V3, V0
+  VEC_MATH_EXP_LOG.erfc   V3, V0
+  VEC_MATH_EXP_LOG.lgamma V3, V2
+
+  COLLECT.vec V4, out=0
+  COLLECT.vec V5, out=1
+  HALT

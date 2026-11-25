@@ -1,0 +1,31 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F1 = [1] (dom=0)}}
+; {{EXPECT: F2 = [0, 2] (dom=0)}}
+; {{EXPECT: F3 = [0] (dom=0)}}
+; {{EXPECT: F4 = [0, 1] (dom=0)}}
+; {{EXPECT: F5 = [2] (dom=0)}}
+; {{EXPECT: F6 = [1, 2] (dom=0)}}
+; {{EXPECT: F7 = [0, 1] (dom=0)}}
+; {{EXPECT: F8 = [3] (dom=0)}}
+; {{EXPECT: F9 = [0, 1, 2] (dom=0)}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .node_attr dom=0 attr=0 name="val" type=f64 values=[10.0, 20.0, 30.0, null]
+
+.code
+  INIT_DOMAIN_SPAN             F0, dom=0
+  LOAD_CONST.f64.ext           R0, 20.0
+  LOAD_CONST.f64.ext           R1, 10.0
+
+  NODE_FILTER.eq.scalar        F1, F0, R0, dom=0, attr=0       ; {1}
+  ; Kleene 3VL: node 3 (NULL) MUST NOT match .ne!
+  NODE_FILTER.ne.scalar        F2, F0, R0, dom=0, attr=0       ; {0, 2}
+  NODE_FILTER.lt.scalar        F3, F0, R0, dom=0, attr=0       ; {0}
+  NODE_FILTER.le.scalar        F4, F0, R0, dom=0, attr=0       ; {0, 1}
+  NODE_FILTER.gt.scalar        F5, F0, R0, dom=0, attr=0       ; {2}
+  NODE_FILTER.ge.scalar        F6, F0, R0, dom=0, attr=0       ; {1, 2}
+  NODE_FILTER.between.scalar   F7, F0, R1, R0, dom=0, attr=0   ; [10, 20] -> {0, 1}
+  NODE_FILTER.is_null          F8, F0, dom=0, attr=0           ; {3}
+  NODE_FILTER.is_not_null      F9, F0, dom=0, attr=0           ; {0, 1, 2}
+  HALT

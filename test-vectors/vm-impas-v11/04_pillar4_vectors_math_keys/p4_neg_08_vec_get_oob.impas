@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 2}}
+
+.data
+  .param 0 type=i64_vec values=[10, 20]
+
+.code
+  LOAD_PARAM.vec    V0, param=0, type=i64
+  LOAD_CONST.i32    R1, 5
+  VEC_POINT.vec_get R0, V0, R1
+  HALT

@@ -1,0 +1,42 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [12, 8, null]}}
+; {{EXPECT: COLLECT_1 = [5, null, null]}}
+; {{EXPECT: COLLECT_2 = [-3, 2, null]}}
+
+.data
+  .param 0 type=f64_vec values=[10.0, 4.0, null]
+  .param 1 type=f64_vec values=[2.0, 4.0, 1.0]
+  .param 2 type=f64_vec values=[-2.5, 2.4, null]
+
+.code
+  LOAD_PARAM.vec        V0, param=0, type=f64
+  LOAD_PARAM.vec        V1, param=1, type=f64
+  LOAD_PARAM.vec        V2, param=2, type=f64
+  LOAD_CONST.f64.ext    R0, 0.0
+
+  VEC_MATH_ARITH.add    V3, V0, V1                 ; [12, 8, null]
+  VEC_MATH_ARITH.sub    V4, V0, V1
+  VEC_MATH_ARITH.mul    V4, V0, V1
+  VEC_MATH_ARITH.div    V5, V0, V1                 ; [5, 1, null]
+  VEC_MATH_ARITH.rem    V4, V0, V1
+  VEC_MATH_ARITH.min    V4, V0, V1
+  VEC_MATH_ARITH.max    V4, V0, V1
+  VEC_MATH_ARITH.copysign V4, V0, V2
+  VEC_MATH_ARITH.neg    V4, V0
+  VEC_MATH_ARITH.abs    V4, V2
+  VEC_MATH_ARITH.sqrt   V4, V1
+  VEC_MATH_ARITH.rsqrt  V4, V1
+  VEC_MATH_ARITH.floor  V4, V2
+  VEC_MATH_ARITH.ceil   V4, V2
+  VEC_MATH_ARITH.trunc  V4, V2
+  VEC_MATH_ARITH.round  V6, V2                     ; [-3, 2, null]
+
+  ; Div by 0 -> NULL at lane 1
+  LOAD_CONST.i32        R1, 1
+  VEC_POINT.vec_set     V1, R1, R0                 ; V1=[2, 0, 1]
+  VEC_MATH_ARITH.div    V5, V0, V1                 ; [5, null, null]
+
+  COLLECT.vec V3, out=0
+  COLLECT.vec V5, out=1
+  COLLECT.vec V6, out=2
+  HALT

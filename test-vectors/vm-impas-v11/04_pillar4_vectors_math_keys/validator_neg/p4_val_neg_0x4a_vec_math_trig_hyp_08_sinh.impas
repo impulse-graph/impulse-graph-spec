@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000484A}}
+; Static validator rejection: VEC_MATH_TRIG_HYP.sinh (0x4A, subop=8) with disallowed flag 0x4

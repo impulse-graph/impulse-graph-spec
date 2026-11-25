@@ -1,0 +1,57 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F0 = [1] (dom=0)}}
+; {{EXPECT: F1 = [1, 2] (dom=0)}}
+; {{EXPECT: F2 = [1] (dom=0)}}
+; {{EXPECT: F3 = [0, 2] (dom=0)}}
+; {{EXPECT: R0 = 2}}
+; {{EXPECT: R1 = "carol"}}
+; {{EXPECT: COLLECT_0 = [true, false, true, false]}}
+; {{EXPECT: COLLECT_1 = [0, 2]}}
+; {{EXPECT: COLLECT_2 = ["alice", "carol"]}}
+; {{EXPECT: COLLECT_3 = [2]}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .domain 1 name="Alias" count=3 width=u16
+  .node_attr dom=0 attr=0 name="score" type=i64 values=[10, 20, 30, 40]
+  .index dom=0 attr=0 kind=sorted
+  .key_catalog dom=0 type=str keys=["alice", "bob", "carol", "dave"]
+  .key_catalog dom=1 type=str keys=["carol", "alice", "eve"]
+  .param 0 type=str_vec values=["alice", "carol", "missing"]
+
+.const_pool
+  .pool 0 type=str value="carol"
+
+.code
+  ; All 7 INDEX_SCAN subops
+  LOAD_CONST.i32              R2, 20
+  LOAD_CONST.i32              R3, 30
+  INDEX_SCAN.eq               F0, R2, dom=0, attr=0          ; {1}
+  INDEX_SCAN.between_cc       F1, R2, R3, dom=0, attr=0      ; [20, 30] -> {1, 2}
+  INDEX_SCAN.between_co       F2, R2, R3, dom=0, attr=0      ; [20, 30) -> {1}
+  INDEX_SCAN.lt               F4, R2, dom=0, attr=0
+  INDEX_SCAN.le               F4, R2, dom=0, attr=0
+  INDEX_SCAN.gt               F4, R2, dom=0, attr=0
+  INDEX_SCAN.ge               F4, R2, dom=0, attr=0
+
+  ; All 5 MAP_KEYS_TO_DENSE subops
+  MAP_KEYS_TO_DENSE.param_to_f F3, dom=0, param=0            ; {"alice","carol"} -> {0, 2}
+  LOAD_PARAM.vec              V0, param=0, type=str
+  MAP_KEYS_TO_DENSE.vec_to_v  V1, V0, dom=0                  ; [0, 2, null]
+  MAP_KEYS_TO_DENSE.v_to_v    V2, V0, dom=0
+  LOAD_CONST_POOL.str         R4, pool=0
+  MAP_KEYS_TO_DENSE.scalar_to_r R0, R4, dom=0                ; 2
+  MAP_KEYS_TO_DENSE.f_to_f    F5, F3, dom=1                  ; dom0 {0="alice",2="carol"} -> dom1 {0="carol",1="alice"}
+
+  ; All 3 MAP_DENSE_TO_KEYS subops
+  MAP_DENSE_TO_KEYS.vec            V3, V1, dom=0             ; ["alice", "carol", null]
+  MAP_DENSE_TO_KEYS.frontier_sorted V4, F3, dom=0            ; ["alice", "carol"]
+  MAP_DENSE_TO_KEYS.scalar         R1, R0, dom=0             ; "carol"
+
+  ; All 5 COLLECT subops
+  COLLECT.frontier_bitset     F3, out=0                      ; [true, false, true, false]
+  COLLECT.frontier_ids        F3, out=1                      ; [0, 2]
+  COLLECT.vec                 V4, out=2                      ; ["alice", "carol"]
+  COLLECT.scalar              R0, out=3                      ; [2]
+  COLLECT.table_col           V4, out=4
+  HALT

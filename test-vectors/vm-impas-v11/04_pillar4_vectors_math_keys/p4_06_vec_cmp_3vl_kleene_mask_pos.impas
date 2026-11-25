@@ -1,0 +1,46 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [true, null, null]}}
+; {{EXPECT: COLLECT_1 = [false, true, false]}}
+
+.data
+  .domain 0 name="Node" count=3 width=u16
+  .param 0 type=i64_vec values=[1, 2, 3]
+  .param 1 type=i64_vec values=[1, 5, 2]
+  .param 2 type=f64_vec values=[-0.0, +0.0, 1.0]
+  .param 3 type=bool_3vl_vec values=[false, true, null]
+
+.code
+  LOAD_PARAM.vec           V0, param=0, type=i64
+  LOAD_PARAM.vec           V1, param=1, type=i64
+  FSEED.single_imm         F0, lo=0, hi=0
+
+  ; Masked VEC_CMP (unmasked lanes become NULL!)
+  VEC_CMP.eq.mask          V2, V0, V1, F0          ; [true, null, null]
+  VEC_CMP.ne               V3, V0, V1
+  VEC_CMP.lt               V3, V0, V1
+  VEC_CMP.le               V3, V0, V1
+  VEC_CMP.gt               V3, V0, V1
+  VEC_CMP.ge               V3, V0, V1
+  VEC_CMP.between          V3, V0, V0, V1
+  VEC_CMP.in_set.mask      V3, V0, F0, F0
+
+  ; VEC_3VL_OP with .scalar and .mask + assert_finite
+  LOAD_PARAM.vec           V4, param=2, type=f64
+  LOAD_PARAM.vec           V5, param=3, type=bool
+  LOAD_CONST.null          R0
+  VEC_3VL_OP.and.scalar    V6, V5, R0              ; [false, null, null]
+  VEC_3VL_OP.or.scalar     V6, V5, R0              ; [null, true, null]
+  VEC_3VL_OP.not.mask      V7, V5, F0
+  VEC_3VL_OP.xor.scalar    V7, V5, R0
+  VEC_3VL_OP.is_null       V7, V5
+  VEC_3VL_OP.is_not_null   V7, V5
+  VEC_3VL_OP.is_true       V8, V6                  ; [false, true, false]
+  VEC_3VL_OP.is_false      V7, V6
+  VEC_3VL_OP.is_nan        V7, V4
+  VEC_3VL_OP.is_inf        V7, V4
+  VEC_3VL_OP.is_finite     V7, V4
+  VEC_3VL_OP.assert_finite.mask V4, F0, imm=2
+
+  COLLECT.vec V2, out=0
+  COLLECT.vec V8, out=1
+  HALT
