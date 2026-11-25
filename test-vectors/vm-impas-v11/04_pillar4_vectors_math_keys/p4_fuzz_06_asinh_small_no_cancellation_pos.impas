@@ -1,0 +1,15 @@
+; COVERAGE: OP_VEC_MATH_TRIG_HYP.asinh OP_VEC_CMP.ne
+; Fuzzer Iter3 Bug 1: asinh(1.22e-16) must not cancel to 0.0 (preserving != 0.0 comparison)
+.data
+  .param 0 type=f64_vec values=[5.0e-17, -5.0e-17, 0.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_CONST.f32 R0, 0.0
+  VEC_MATH_TRIG_HYP.asinh V1, V0
+  VEC_CMP.ne.scalar V2, V1, R0
+  COLLECT.vec V2, out=0
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: COLLECT_0 = [true, true, false]
