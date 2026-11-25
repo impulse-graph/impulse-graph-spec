@@ -1,0 +1,18 @@
+; COVERAGE: OP_VECTOR_POOL.l2_norm OP_VEC_REDUCE.l2_norm_sq
+; Fuzzer Iter2 Bug 1: l2_norm and l2_norm_sq must use strict IEEE 754 fmul+fadd (no ARM64 FMA contraction)
+.data
+  .param 0 type=f64_vec values=[0.5, 0.5, 0.3333333333333333]
+  .param 1 type=f64_vec values=[0.9486832980505138, 0.8944271909999159, 0.8944271909999159]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_PARAM.vec V1, param=1, type=f64
+  VECTOR_POOL.l2_norm V2, V0, dom=0, attr=0
+  VEC_REDUCE.l2_norm_sq R0, V1
+  COLLECT.vec V2, out=0
+  COLLECT.scalar R0, out=1
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: R0 = 0x4003ffffffffffff
+; EXPECT: COLLECT_0 = [0.6396021490668312, 0.6396021490668312, 0.42640143271122083]
