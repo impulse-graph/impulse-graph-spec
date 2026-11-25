@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: ZF = 1}}
+; Corpus fuzzer iter 4 (seed 4005177): LANE_STATE_OP.to_quorum_frontier.scalar
+; must compare quorum in full 64-bit precision so 0x80000000 (+2147483648) does not
+; truncate to signed 32-bit INT32_MIN (-2147483648) in Java.
+
+.data
+  .domain 0 name="User" count=3 width=u16
+
+.code
+  LANE_STATE_INIT.zero_f64          V0, lo=0, hi=2
+  LOAD_CONST.u32                    R1, 0x80000000
+  LANE_STATE_OP.to_quorum_frontier.scalar F1, V0, R1
+  HALT

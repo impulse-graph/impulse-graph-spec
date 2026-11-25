@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; Corpus fuzzer iter 4 (seed 4013663): LANE_STATE_REDUCE.trace_path.scalar
+; must range-check lane id in full 64-bit precision (0 <= lane < k) before converting
+; to int, so 0x0000000100000000 (4294967296) does not truncate to 0 in Java.
+
+.data
+  .domain 0 name="User" count=3 width=u16
+
+.code
+  LANE_STATE_INIT.inf_f64           V0, lo=0, hi=2
+  LOAD_CONST.u64.ext                R1, 4294967296
+  LANE_STATE_REDUCE.trace_path.scalar V1, V0, R1
+  HALT
