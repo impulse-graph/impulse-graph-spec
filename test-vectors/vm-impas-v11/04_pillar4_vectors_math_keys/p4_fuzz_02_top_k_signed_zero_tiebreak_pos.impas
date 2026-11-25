@@ -1,0 +1,16 @@
+; COVERAGE: OP_TOP_K.asc_scores OP_TOP_K.asc_ids
+; Fuzzer Iter1 Bug A: OP_TOP_K must treat -0.0 == +0.0 and tie-break by ascending index
+.data
+  .param 0 type=f64_vec values=[0.0, 1.0, -0.0, -1.5]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  TOP_K.asc_ids V1, V0, k=2
+  TOP_K.asc_scores V2, V0, k=2
+  COLLECT.vec V1, out=0
+  COLLECT.vec V2, out=1
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: COLLECT_0 = [3, 0]
+; EXPECT: COLLECT_1 = [-1.5, 0.0]

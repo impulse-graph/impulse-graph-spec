@@ -1,0 +1,13 @@
+; COVERAGE: OP_VEC_CMP.gt
+; Fuzzer Iter1 Bug C: VEC_CMP with U64 lhs and F64 rhs must return ERR_TYPE_MISMATCH (not ERR_OUT_OF_BOUNDS)
+.data
+  .param 0 type=u64_vec values=[1, 2, 3]
+  .param 1 type=f64_vec values=[1.0, 2.0, 3.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=f64
+  VEC_CMP.gt V2, V0, V1
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH
