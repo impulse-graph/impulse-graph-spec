@@ -1,0 +1,18 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+; SWE-Sweep TDD: OP_SAMPLE_NEIGHBORS.vec_wr inside a recursive OP_CALL cycle must be rejected statically.
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 4] targets=[1, 2, 3, 0]
+
+.code
+  LOAD_CONST.u32              R0, 1
+  VEC_INIT.u64                V0, len=1
+  CALL.stride                 r_stride=0, f_stride=0, v_stride=0, rec_sub
+  HALT
+
+rec_sub:
+  SAMPLE_NEIGHBORS.vec_wr     V1, V0, R0, rel=0, k=2
+  CALL.stride                 r_stride=0, f_stride=0, v_stride=0, rec_sub
+  RET

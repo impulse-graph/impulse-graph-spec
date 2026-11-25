@@ -1,0 +1,24 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, -10, -5, 0]}}
+; SWE-Sweep TDD: Validator-approved Morsel_body_ok ops (MOV.v, COALESCE.scalar, VEC_MATH_ARITH.neg) must execute inside WALK_MORSEL.
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 2, 2, 2] targets=[1, 2]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[10.0, null]
+  .param 0 type=f64_vec values=[0.0, 0.0, 0.0, 0.0]
+
+.code
+  FSEED.single_imm    F0, lo=0, hi=0
+  LOAD_PARAM.vec      V0, param=0, type=f64
+  LOAD_CONST.f64.ext  R0, 5.0
+  WALK_MORSEL.fwd     F0, rel=0
+    GATHER_EDGE_ATTR      M4, M2, rel=0, attr=0
+    COALESCE.scalar       M5, M4, R0
+    MOV.v                 M6, M5
+    VEC_MATH_ARITH.neg    M7, M6
+    MORSEL_COMMIT.scatter_add V0, M1, M7
+  MORSEL_END
+  COLLECT.vec         V0, out=0
+  HALT

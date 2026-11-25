@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; SWE-Sweep TDD: NODE_FILTER on a node attribute shorter than domain cardinality must return ERR_OUT_OF_BOUNDS (not uncaught array exception).
+
+.data
+  .domain 0 name="N" count=5 width=u16
+  .node_attr dom=0 attr=0 name="score" type=f64 values=[1.0, 2.0]
+
+.code
+  INIT_DOMAIN_SPAN.all_span F0, dom=0
+  LOAD_CONST.f64.ext        R0, 0.5
+  NODE_FILTER.gt.scalar     F1, F0, R0, dom=0, attr=0
+  HALT

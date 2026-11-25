@@ -1,0 +1,22 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 2}}
+; {{EXPECT: COLLECT_0 = [0, null, 0]}}
+; SWE-Sweep TDD: +Inf + -Inf inside WALK_MORSEL scatter_add must canonicalize NaN -> NULL (count_valid must be 2, not 3).
+
+.data
+  .domain 0 name="N" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 2, 2] targets=[1, 1]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=["inf", "-inf"]
+  .param 0 type=f64_vec values=[0.0, 0.0, 0.0]
+
+.code
+  FSEED.single_imm F0, lo=0, hi=0
+  LOAD_PARAM.vec   V0, param=0, type=f64
+  WALK_MORSEL.fwd  F0, rel=0
+    GATHER_EDGE_ATTR          M4, M2, rel=0, attr=0
+    MORSEL_COMMIT.scatter_add V0, M1, M4
+  MORSEL_END
+  VEC_REDUCE.count_valid R0, V0
+  COLLECT.vec      V0, out=0
+  HALT

@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, 10]}}
+; SWE-Sweep TDD: VEC_POINT.vec_cast f64 -> u64 (lo=1) must clamp negative floats to 0, not INT64_MIN.
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .param 0 type=f64_vec values=[-5.0, 10.0]
+
+.code
+  LOAD_PARAM.vec      V0, param=0, type=f64
+  VEC_POINT.vec_cast  V1, V0, lo=1
+  COLLECT.vec         V1, out=0
+  HALT

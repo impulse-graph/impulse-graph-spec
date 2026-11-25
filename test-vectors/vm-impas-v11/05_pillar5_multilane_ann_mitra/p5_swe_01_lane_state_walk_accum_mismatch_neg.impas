@@ -1,0 +1,17 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; SWE-Sweep TDD: LANE_STATE_WALK.accum on uninitialized V[dst] must return ERR_TYPE_MISMATCH (not silently allocate a fresh state).
+
+.data
+  .domain 0 name="G" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 2] targets=[1, 2]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[1.0, 1.0]
+  .param 0 type=u64_vec values=[0]
+
+.code
+  LOAD_PARAM.vec                   V0, param=0, type=u64
+  LANE_INIT_SEEDS.auto_width       F0, V0, dom=0
+  LANE_STATE_INIT.from_frontier_seeds V1, F0, dom=0, k=1
+  ; V2 is uninitialized -> .accum must fail with ERR_TYPE_MISMATCH!
+  LANE_STATE_WALK.fwd_min_plus.accum V2, V1, rel=0, attr=0
+  HALT

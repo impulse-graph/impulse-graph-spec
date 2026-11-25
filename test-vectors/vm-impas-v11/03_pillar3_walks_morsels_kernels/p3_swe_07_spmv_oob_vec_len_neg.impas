@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; SWE-Sweep TDD: OP_SPMV with input vector shorter than N_src must return ERR_OUT_OF_BOUNDS (not uncaught array exception).
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 3, 4] targets=[1, 2, 3, 0]
+  .param 0 type=f64_vec values=[1.0, 2.0]
+
+.code
+  INIT_DOMAIN_SPAN.all_span F0, dom=0
+  LOAD_PARAM.vec            V0, param=0, type=f64
+  SPMV.fwd_plus_times       V1, F0, V0, rel=0
+  HALT

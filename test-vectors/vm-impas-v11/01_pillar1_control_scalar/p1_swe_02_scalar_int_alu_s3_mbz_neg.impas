@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000200000C, 0x0000000000000000}}
+; SWE-Sweep TDD: OP_SCALAR_INT_ALU (0x0C) with s3=2 (only 0=reg or 1=imm32 allowed) must fail MBZ validation.

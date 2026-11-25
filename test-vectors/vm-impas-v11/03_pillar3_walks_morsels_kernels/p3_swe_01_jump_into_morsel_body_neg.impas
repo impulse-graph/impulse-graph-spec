@@ -1,0 +1,18 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_VALIDATION_FAILED}}
+; {{EXPECT: PC = 1}}
+; SWE-Sweep TDD: Top-level JMP targeting an instruction inside WALK_MORSEL .. MORSEL_END must fail static validation at PC=1.
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 2, 2] targets=[1, 2]
+
+.code
+  FSEED.single_imm F0, lo=0, hi=0
+  JMP              inside_morsel
+  WALK_MORSEL.fwd  F0, rel=0
+inside_morsel:
+    NOP
+    MORSEL_COMMIT.yield_frontier F1, M1, dom=0
+  MORSEL_END
+  HALT
