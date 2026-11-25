@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: ZF = 0}}
+; Corpus sweep 100k (seed 6076870): TOP_K with .scalar k = 0x4024000000000000 (bit 62 = 1)
+; must clamp k64 in 64-bit precision before Int64.to_int so OCaml does not wrap k negative.
+
+.data
+  .domain 0 name="User" count=2 width=u16
+  .param 0 type=f64_vec values=[1.0, 2.0]
+
+.code
+  LOAD_PARAM.vec          V0, param=0, type=f64
+  LOAD_CONST.f64.ext      R0, 10.0
+  TOP_K.asc_scores.scalar V2, V0, R0
+  HALT

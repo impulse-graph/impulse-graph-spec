@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 1}}
+; Corpus sweep 100k (seed 6032477): GATHER_NODE_ATTR.scalar on an embedding column
+; must fault with IMPULSE_VM_ERR_TYPE_MISMATCH at pc=1 without advancing pc.
+
+.data
+  .domain 0 name="User" count=2 width=u16
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0], [0.0, 1.0]]
+
+.code
+  LOAD_CONST.u32          R2, 0
+  GATHER_NODE_ATTR.scalar R0, R2, dom=0, attr=0
+  HALT
