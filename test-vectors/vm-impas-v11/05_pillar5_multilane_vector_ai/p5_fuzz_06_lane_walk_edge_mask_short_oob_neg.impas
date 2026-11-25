@@ -1,0 +1,17 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; Corpus fuzzer iter 3 (seed 3010709 / 3013088): LANE_WALK.masked_fwd must return
+; IMPULSE_VM_ERR_OUT_OF_BOUNDS (not crash) when edge_mask vector is shorter than rel edge count.
+
+.data
+  .domain 0 name="User" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 2, 2] targets=[1, 2]
+  .param 0 type=u64_vec values=[0]
+  .param 1 type=u64_vec values=[1]
+
+.code
+  LOAD_PARAM.vec          V0, param=0, type=u64
+  LOAD_PARAM.vec          V1, param=1, type=u64
+  LANE_INIT_SEEDS         F0, V0, dom=0
+  LANE_WALK.fwd_edge_masked F1, F0, V1, rel=0
+  HALT
