@@ -1,0 +1,16 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, 1]}}
+; Corpus sweep 150k (seed 7102334): VECTOR_ANN_SEARCH.knn must treat -0.0 == +0.0
+; as tied and break ties by ascending node ID (not Java Double.compare(+0.0, -0.0)).
+
+.data
+  .domain 0 name="User" count=2 width=u16
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[-1.0, 1e200], [1.0, 1e200]]
+  .param 0 type=f64_vec values=[1.0, 0.0]
+
+.code
+  LOAD_PARAM.vec              V0, param=0, type=f64
+  LOAD_CONST.u32              R2, 2
+  VECTOR_ANN_SEARCH.ids       V1, V0, R2, dom=0, attr=0
+  COLLECT.vec                 V1, out=0
+  HALT
