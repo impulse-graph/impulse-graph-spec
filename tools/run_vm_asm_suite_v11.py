@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 import re
+import shlex
 import struct
 import subprocess
 import sys
@@ -47,14 +48,13 @@ EXPECT_LINE_RE = re.compile(r"^\s*;\s*\{\{EXPECT:\s*(.+?)\s*\}\}\s*$")
 COV_TAG_RE = re.compile(r"^\s*;\s*\{\{COVERS_NEG:\s*(.+?)\s*\}\}\s*$")
 
 
-class OcamlBatchClient:
-    """Persistent stdin/stdout JSONL client for `impulse-ocaml --v11-fixture-batch`."""
+class BatchEngineClient:
+    """Persistent stdin/stdout JSONL client for a v0.11 VM engine (`impulse-ocaml` or Java)."""
 
-    def __init__(self, ocaml_bin: Path):
-        if not ocaml_bin.exists():
-            raise FileNotFoundError(f"OCaml oracle binary not found: {ocaml_bin}")
+    def __init__(self, cmd: list[str], label: str = "engine"):
+        self.label = label
         self.proc = subprocess.Popen(
-            [str(ocaml_bin), "--v11-fixture-batch"],
+            cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
@@ -73,13 +73,22 @@ class OcamlBatchClient:
         resp = self.proc.stdout.readline()
         if not resp:
             err = self.proc.stderr.read() if self.proc.stderr else ""
-            raise RuntimeError(f"OCaml batch process terminated unexpectedly: {err}")
+            raise RuntimeError(f"{self.label} batch process terminated unexpectedly: {err}")
         return json.loads(resp)
 
     def close(self) -> None:
         if self.proc.stdin:
             self.proc.stdin.close()
         self.proc.wait(timeout=5)
+
+
+class OcamlBatchClient(BatchEngineClient):
+    """Persistent stdin/stdout JSONL client for `impulse-ocaml --v11-fixture-batch`."""
+
+    def __init__(self, ocaml_bin: Path):
+        if not ocaml_bin.exists():
+            raise FileNotFoundError(f"OCaml oracle binary not found: {ocaml_bin}")
+        super().__init__([str(ocaml_bin), "--v11-fixture-batch"], label="OCaml")
 
 
 def _u64_to_i64(u: int) -> int:
@@ -276,6 +285,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="ImpulseVM v0.11.0 Compliance & Coverage Runner")
     parser.add_argument("--vectors-dir", type=Path, default=DEFAULT_VECTORS_DIR)
     parser.add_argument("--ocaml-bin", type=Path, default=DEFAULT_OCAML_BIN)
+    parser.add_argument("--java-cmd", type=str, default=None,
+                        help="Command line (shlex-split) to launch Java V11FixtureBatchMain for 2-way OCaml parity")
     parser.add_argument("--pillar", type=int, choices=[1, 2, 3, 4, 5], default=None)
     parser.add_argument("--profiles", type=str, default="P0,P1,P2,P3")
     parser.add_argument("--filter", type=str, default=None)
@@ -309,9 +320,15 @@ def main() -> int:
     flag_neg: dict[tuple[int, int], set[str]] = defaultdict(set)
 
     client = OcamlBatchClient(args.ocaml_bin)
+    java_client = (
+        BatchEngineClient(shlex.split(args.java_cmd), label="Java")
+        if args.java_cmd
+        else None
+    )
     passed = 0
     failed = 0
     metamorphic_checks = 0
+    java_parity_checks = 0
 
     try:
         for vec_file in files:
@@ -392,16 +409,45 @@ def main() -> int:
 
             vec_errs: list[str] = []
             logical_hashes: dict[str, str] = {}
+            java_logical_hashes: dict[str, str] = {}
+            has_transcendental = any(
+                (w & 0xFF) in (0x49, 0x4A, 0x4B) for w in words
+            )
             for prof in run_profiles:
                 res = client.run_fixture(fixture_payload, profile=prof, max_steps=max_steps)
                 vec_errs.extend(_check_expectations(expects, res, prof))
                 logical_hashes[prof] = res.get("logical_hash", "")
+
+                if java_client is not None:
+                    jres = java_client.run_fixture(fixture_payload, profile=prof, max_steps=max_steps)
+                    java_parity_checks += 1
+                    vec_errs.extend(
+                        f"Java {e}" for e in _check_expectations(expects, jres, prof)
+                    )
+                    java_logical_hashes[prof] = jres.get("logical_hash", "")
+                    if jres.get("status") != res.get("status"):
+                        vec_errs.append(
+                            f"[{prof}] Java vs OCaml STATUS mismatch: Java={jres.get('status')} OCaml={res.get('status')}"
+                        )
+                    elif jres.get("pc") != res.get("pc"):
+                        vec_errs.append(
+                            f"[{prof}] Java vs OCaml PC mismatch: Java={jres.get('pc')} OCaml={res.get('pc')}"
+                        )
+                    elif not has_transcendental and jres.get("logical_hash", "").lower() != res.get("logical_hash", "").lower():
+                        vec_errs.append(
+                            f"[{prof}] Java vs OCaml ICTX v2 logical_hash mismatch: "
+                            f"Java={jres.get('logical_hash')} OCaml={res.get('logical_hash')}"
+                        )
 
             if is_positive and len(logical_hashes) > 1:
                 metamorphic_checks += 1
                 uniq = set(logical_hashes.values())
                 if len(uniq) != 1:
                     vec_errs.append(f"Metamorphic logical_hash divergence across profiles: {logical_hashes}")
+                if java_client is not None and not has_transcendental:
+                    juniq = set(java_logical_hashes.values())
+                    if len(juniq) != 1:
+                        vec_errs.append(f"Java metamorphic logical_hash divergence across profiles: {java_logical_hashes}")
 
             if vec_errs:
                 failed += 1
@@ -435,10 +481,13 @@ def main() -> int:
                             flag_neg[(c, int(m_op.group(3), 16))].add(str(vec_file))
     finally:
         client.close()
+        if java_client is not None:
+            java_client.close()
 
+    java_suffix = f", {java_parity_checks} Java≡OCaml ICTX v2 checks" if java_client is not None else ""
     print(
         f"\nSummary: {passed}/{passed + failed} vectors passed "
-        f"({metamorphic_checks} metamorphic P0..P3 invariance checks)."
+        f"({metamorphic_checks} metamorphic P0..P3 invariance checks{java_suffix})."
     )
     if failed > 0:
         return 1
