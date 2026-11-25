@@ -1,0 +1,17 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; Corpus fuzzer iter 3 (seed 3008844 / 3010670): MORSEL_COMMIT.yield_lane_or
+; must return IMPULSE_VM_ERR_TYPE_MISMATCH when s2 is an f64 vector instead of u64/i64.
+
+.data
+  .domain 0 name="User" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 1, 1] targets=[1]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[1.5]
+
+.code
+  FSEED.single_imm                F0, lo=0, hi=0
+  WALK_MORSEL.fwd                 F0, rel=0
+    GATHER_EDGE_ATTR.vec          M4, M2, rel=0, attr=0
+    MORSEL_COMMIT.yield_lane_or   F2, M1, M4, dom=0
+  MORSEL_END
+  HALT
