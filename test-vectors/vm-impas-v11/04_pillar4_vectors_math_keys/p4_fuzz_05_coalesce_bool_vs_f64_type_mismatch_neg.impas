@@ -1,0 +1,13 @@
+; COVERAGE: OP_COALESCE.coalesce
+; Fuzzer Iter2 Bug 2: COALESCE with BOOL_3VL lhs and F64 rhs must return ERR_TYPE_MISMATCH (not ERR_OUT_OF_BOUNDS)
+.data
+  .param 0 type=bool_3vl_vec values=[true, false, null, true]
+  .param 1 type=f64_vec values=[1.0, 2.0, 3.0, 4.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=bool
+  LOAD_PARAM.vec V1, param=1, type=f64
+  COALESCE V2, V0, V1
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH
