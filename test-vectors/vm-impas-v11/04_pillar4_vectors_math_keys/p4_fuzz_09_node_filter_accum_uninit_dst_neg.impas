@@ -1,0 +1,14 @@
+; COVERAGE: OP_NODE_FILTER.between
+; Corpus Fuzz Bug 4: OP_NODE_FILTER.accum into uninitialized F[dst] must return ERR_TYPE_MISMATCH
+.data
+  .domain 0 name="User" count=4 width=u32
+  .node_attr dom=0 attr=0 name="age" type=i64 values=[10, 20, 30, 40]
+
+.code
+  INIT_DOMAIN_SPAN.all_span F0, dom=0
+  LOAD_CONST.i32 R0, 10
+  LOAD_CONST.i32 R1, 30
+  NODE_FILTER.between.scalar.accum F7, F0, R0, R1, dom=0, attr=0
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH
