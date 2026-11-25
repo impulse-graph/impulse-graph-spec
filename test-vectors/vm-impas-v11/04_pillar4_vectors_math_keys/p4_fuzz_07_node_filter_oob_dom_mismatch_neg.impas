@@ -1,0 +1,13 @@
+; COVERAGE: OP_NODE_FILTER.le
+; Corpus Fuzz Bug 2: OP_NODE_FILTER with OOB domId != fSrc.domainId must return ERR_DOMAIN_MISMATCH
+.data
+  .domain 0 name="User" count=4 width=u32
+  .node_attr dom=0 attr=0 name="age" type=i64 values=[10, 20, 30, 40]
+
+.code
+  INIT_DOMAIN_SPAN.all_span F0, dom=0
+  LOAD_CONST.i32 R0, 25
+  NODE_FILTER.le.scalar F1, F0, R0, dom=7, attr=0
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_ERR_DOMAIN_MISMATCH

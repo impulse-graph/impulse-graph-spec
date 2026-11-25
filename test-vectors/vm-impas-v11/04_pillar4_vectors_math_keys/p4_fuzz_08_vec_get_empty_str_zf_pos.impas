@@ -1,0 +1,13 @@
+; COVERAGE: OP_VEC_POINT.vec_get
+; Corpus Fuzz Bug 3: OP_VEC_POINT.vec_get on empty string "" must set ZF=1 (matching OCaml)
+.data
+  .param 0 type=str_vec values=["", "abc"]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=str
+  LOAD_CONST.i32 R1, 0
+  VEC_POINT.vec_get R0, V0, R1
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: ZF = 1
