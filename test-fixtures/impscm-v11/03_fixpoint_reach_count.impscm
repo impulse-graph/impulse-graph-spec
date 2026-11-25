@@ -1,0 +1,7 @@
+; Fixpoint Reachability + Domain Cardinality
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT "reach_count" = 4}}
+(query
+  (param $start (id "Node"))
+  (let ([reach (walk :fwd "NEXT" (seed "Node" $start) :transitive*)])
+    (collect :scalar "reach_count" (cardinality reach))))

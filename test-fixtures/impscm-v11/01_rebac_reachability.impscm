@@ -1,0 +1,10 @@
+; ReBAC Transitive Reachability (IMPSCM_SPECIFICATION_v0_11.md §6.1)
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT "allowed" = true}}
+(query
+  (param $user     (id "User"))
+  (param $resource (id "Resource"))
+  (let ([groups (walk :fwd "MEMBER_OF" (seed "User" $user))]
+        [all_g  (walk :fwd "GROUP_INCLUDES" groups :transitive*)]
+        [res    (walk :fwd "CAN_ACCESS" all_g)])
+    (collect :scalar "allowed" (contains? res $resource))))

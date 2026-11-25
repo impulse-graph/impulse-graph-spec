@@ -1,0 +1,5 @@
+; Negative Validation Test: Implicit Int/Float Mixing Without (cast ...) (§7.1)
+; {{EXPECT: COMPILE_ERROR = TYPE_MISMATCH}}
+(query
+  (let ([x (+ 1 2.5)])
+    (collect :scalar "x" x)))
