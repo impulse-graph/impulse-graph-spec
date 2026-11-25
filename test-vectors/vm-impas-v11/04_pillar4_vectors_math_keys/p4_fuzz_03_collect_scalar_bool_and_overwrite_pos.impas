@@ -1,0 +1,20 @@
+; COVERAGE: OP_COLLECT.scalar OP_COLLECT.vec
+; Fuzzer Iter1 Bug B: COLLECT.scalar on BOOL_3VL + duplicate output slot overwrites previous value
+.data
+  .param 0 type=i64_vec values=[10, 20]
+  .param 1 type=i64_vec values=[30, 40]
+
+.code
+  LOAD_CONST.i32 R0, 5
+  LOAD_CONST.i32 R1, 5
+  SCALAR_3VL.cmp_eq_i64 R2, R0, R1
+  LOAD_PARAM.vec V0, param=0, type=i64
+  LOAD_PARAM.vec V1, param=1, type=i64
+  COLLECT.vec V0, out=0
+  COLLECT.vec V1, out=0
+  COLLECT.scalar R2, out=1
+  HALT
+
+; EXPECT: STATUS = IMPULSE_VM_OK
+; EXPECT: COLLECT_0 = [30, 40]
+; EXPECT: COLLECT_1 = [1]
