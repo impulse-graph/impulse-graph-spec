@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .key_catalog dom=0 type=str keys=["a", "b"]
+
+.code
+  LOAD_CONST.i32           R0, 5
+  MAP_DENSE_TO_KEYS.scalar R1, R0, dom=0
+  HALT

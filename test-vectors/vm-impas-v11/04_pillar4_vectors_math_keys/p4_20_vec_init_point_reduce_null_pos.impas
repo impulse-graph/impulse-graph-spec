@@ -1,0 +1,68 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 0.0}}
+; {{EXPECT: R1 = NULL}}
+; {{EXPECT: R2 = NULL}}
+; {{EXPECT: R3 = 0}}
+; {{EXPECT: R4 = NULL}}
+; {{EXPECT: R5 = NULL}}
+; {{EXPECT: COLLECT_0 = [0, 2]}}
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .param 0 type=f64_vec values=[null, null, null, null]
+  .param 1 type=f64_vec values=[5.0, 5.0, 5.0, 1.0]
+  .param 2 type=bool_3vl_vec values=[null, null]
+
+.code
+  ; All 14 VEC_INIT subops (2nd positive file)
+  VEC_INIT.i64            V0, len=2
+  VEC_INIT.u64            V0, len=2
+  VEC_INIT.i32            V0, len=2
+  VEC_INIT.u32            V0, len=2
+  VEC_INIT.f64            V0, len=2
+  VEC_INIT.f32            V0, len=2
+  VEC_INIT.bool_3vl       V0, len=2
+  VEC_INIT.dom_i64        V0, dom=0
+  VEC_INIT.dom_u64        V0, dom=0
+  VEC_INIT.dom_i32        V0, dom=0
+  VEC_INIT.dom_u32        V0, dom=0
+  VEC_INIT.dom_f64        V0, dom=0
+  VEC_INIT.dom_f32        V0, dom=0
+  VEC_INIT.dom_bool_3vl   V0, dom=0
+
+  ; All 4 VEC_POINT subops
+  LOAD_CONST.i32          R10, 0
+  VEC_POINT.vec_len       R11, V0
+  VEC_POINT.vec_get       R12, V0, R10
+  VEC_POINT.vec_set       V0, R10, R10
+  LOAD_PARAM.vec          V1, param=0, type=f64
+  VEC_POINT.vec_cast      V2, V1, lo=4
+
+  ; All-NULL reductions: sum=0.0, min/max/mean/argmin/argmax=NULL, count_valid=0
+  VEC_REDUCE.sum          R0, V1                     ; 0.0
+  VEC_REDUCE.min          R1, V1                     ; NULL
+  VEC_REDUCE.max          R2, V1                     ; NULL
+  VEC_REDUCE.count_valid  R3, V1                     ; 0
+  VEC_REDUCE.mean         R4, V1                     ; NULL
+  VEC_REDUCE.l1_norm      R6, V1
+  VEC_REDUCE.l2_norm_sq   R7, V1
+  VEC_REDUCE.argmin       R5, V1                     ; NULL
+  VEC_REDUCE.argmax       R8, V1                     ; NULL
+  LOAD_PARAM.vec          V3, param=2, type=bool
+  VEC_REDUCE.any_true     R9, V3                     ; NULL
+  VEC_REDUCE.all_true     R9, V3                     ; NULL
+
+  ; TOP_K with .scalar and .mask + deterministic ascending-ID tie-break on equal scores [5,5,5,1]
+  LOAD_PARAM.vec          V4, param=1, type=f64
+  FSEED.single_imm        F0, lo=0, hi=0
+  FSEED.single_imm.accum  F0, lo=2, hi=0
+  FSEED.single_imm.accum  F0, lo=3, hi=0
+  VEC_REDUCE.sum.mask     R14, V4, F0
+  LOAD_CONST.i32          R13, 2
+  TOP_K.desc_ids.scalar.mask V5, V4, R13, F0         ; tie 5.0 at 0 & 2 -> [0, 2]
+  TOP_K.asc_ids.scalar    V6, V4, R13
+  TOP_K.desc_scores.scalar V6, V4, R13
+  TOP_K.asc_scores.scalar V6, V4, R13
+
+  COLLECT.vec V5, out=0
+  HALT

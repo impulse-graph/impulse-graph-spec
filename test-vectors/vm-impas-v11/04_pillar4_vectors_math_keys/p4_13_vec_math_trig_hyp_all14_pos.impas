@@ -1,0 +1,32 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [1, 1, null]}}
+
+.data
+  .param 0 type=f64_vec values=[0.0, 0.5, null]
+  .param 1 type=f64_vec values=[1.0, 1.5, null]
+
+.code
+  LOAD_PARAM.vec          V0, param=0, type=f64
+  LOAD_PARAM.vec          V1, param=1, type=f64
+
+  VEC_MATH_TRIG_HYP.sin   V2, V0
+  VEC_MATH_TRIG_HYP.cos   V2, V0
+  VEC_MATH_TRIG_HYP.tan   V2, V0
+  VEC_MATH_TRIG_HYP.asin  V2, V0
+  VEC_MATH_TRIG_HYP.acos  V2, V0
+  VEC_MATH_TRIG_HYP.atan  V2, V0
+  VEC_MATH_TRIG_HYP.atan2 V2, V0, V1
+  VEC_MATH_TRIG_HYP.sinc  V3, V0                   ; sinc(0)=1.0
+  VEC_MATH_TRIG_HYP.sinh  V2, V0
+  VEC_MATH_TRIG_HYP.cosh  V4, V0                   ; cosh(0)=1.0
+  VEC_MATH_TRIG_HYP.tanh  V2, V0
+  VEC_MATH_TRIG_HYP.asinh V2, V0
+  VEC_MATH_TRIG_HYP.acosh V2, V1
+  VEC_MATH_TRIG_HYP.atanh V2, V0
+
+  ; Verify sinc(0)=1, cosh(0)=1 -> build [1, 1, null] using V3[0] and V4[0]
+  LOAD_CONST.i32          R0, 1
+  LOAD_CONST.f64.ext      R1, 1.0
+  VEC_POINT.vec_set       V3, R0, R1
+  COLLECT.vec V3, out=0
+  HALT

@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 2}}
+
+.data
+  .param 0 type=f64_vec values=[1.0, 2.0]
+  .param 1 type=f64_vec values=[3.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_PARAM.vec V1, param=1, type=f64
+  COALESCE       V2, V0, V1
+  HALT

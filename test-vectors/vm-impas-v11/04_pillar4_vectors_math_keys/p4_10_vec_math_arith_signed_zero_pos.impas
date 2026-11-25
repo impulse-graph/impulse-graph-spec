@@ -1,0 +1,31 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [null, null]}}
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .param 0 type=f64_vec values=[-0.0, -1.0]
+
+.code
+  LOAD_PARAM.vec              V0, param=0, type=f64
+  LOAD_CONST.f64.ext          R0, 0.0
+  FSEED.single_imm            F0, lo=0, hi=0
+
+  VEC_MATH_ARITH.add.scalar.mask V1, V0, R0, F0
+  VEC_MATH_ARITH.sub.scalar   V1, V0, R0
+  VEC_MATH_ARITH.mul.scalar   V1, V0, R0
+  VEC_MATH_ARITH.div.scalar   V2, V0, R0           ; div by 0 -> [null, null]
+  VEC_MATH_ARITH.rem.scalar   V1, V0, R0
+  VEC_MATH_ARITH.min.scalar   V1, V0, R0
+  VEC_MATH_ARITH.max.scalar   V1, V0, R0
+  VEC_MATH_ARITH.copysign.scalar V1, V0, R0
+  VEC_MATH_ARITH.neg          V1, V0
+  VEC_MATH_ARITH.abs          V1, V0
+  VEC_MATH_ARITH.sqrt         V1, V0               ; [-0.0, null]
+  VEC_MATH_ARITH.rsqrt        V1, V0               ; [null, null]
+  VEC_MATH_ARITH.floor        V1, V0
+  VEC_MATH_ARITH.ceil         V1, V0
+  VEC_MATH_ARITH.trunc        V1, V0
+  VEC_MATH_ARITH.round        V1, V0
+
+  COLLECT.vec V2, out=0
+  HALT

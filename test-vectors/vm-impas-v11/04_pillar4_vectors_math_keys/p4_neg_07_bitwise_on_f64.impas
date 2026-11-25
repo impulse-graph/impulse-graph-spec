@@ -1,0 +1,11 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 1}}
+
+.data
+  .param 0 type=f64_vec values=[1.0, 2.0]
+
+.code
+  LOAD_PARAM.vec           V0, param=0, type=f64
+  ; Bitwise popcount requires integer vector, not f64
+  VEC_INT_BITWISE.popcount V1, V0
+  HALT

@@ -1,0 +1,29 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [true, null]}}
+
+.data
+  .domain 0 name="Node" count=2 width=u16
+  .param 0 type=str_vec values=["", "abc"]
+
+.const_pool
+  .pool 0 type=str value=""
+
+.code
+  LOAD_PARAM.vec               V0, param=0, type=str
+  LOAD_CONST_POOL.str          R0, pool=0
+  LOAD_CONST.i32               R1, 0
+  FSEED.single_imm             F0, lo=0, hi=0
+
+  VEC_STR_PRED.eq.scalar.mask  V1, V0, R0, F0      ; [true, null]
+  VEC_STR_PRED.ne.scalar       V2, V0, R0
+  VEC_STR_PRED.lt.scalar       V2, V0, R0
+  VEC_STR_PRED.le.scalar       V2, V0, R0
+  VEC_STR_PRED.gt.scalar       V2, V0, R0
+  VEC_STR_PRED.ge.scalar       V2, V0, R0
+  VEC_STR_PRED.starts_with.scalar V2, V0, R0
+  VEC_STR_PRED.ends_with.scalar   V2, V0, R0
+  VEC_STR_PRED.contains.scalar    V2, V0, R0
+  VEC_STR_PRED.len_eq.scalar   V2, V0, R1
+
+  COLLECT.vec V1, out=0
+  HALT
