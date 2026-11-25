@@ -1,0 +1,52 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [true, false, null, false]}}
+; {{EXPECT: COLLECT_1 = [false, true, null, true]}}
+; {{EXPECT: COLLECT_2 = [true, false, false, false]}}
+; {{EXPECT: COLLECT_3 = [false, false, true, false]}}
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .param 0 type=f64_vec values=[10.0, 20.0, null, 30.0]
+  .param 1 type=i64_vec values=[0, 2, null, 3]
+  .param 2 type=bool_3vl_vec values=[true, false, null, false]
+  .param 3 type=bool_3vl_vec values=[true, null, null, true]
+
+.code
+  LOAD_PARAM.vec           V0, param=0, type=f64
+  LOAD_CONST.f64.ext       R0, 10.0
+  LOAD_CONST.f64.ext       R1, 20.0
+
+  ; All 8 VEC_CMP subops
+  VEC_CMP.eq.scalar        V1, V0, R0              ; [true, false, null, false]
+  VEC_CMP.ne.scalar        V2, V0, R0              ; [false, true, null, true]
+  VEC_CMP.lt.scalar        V3, V0, R1
+  VEC_CMP.le.scalar        V3, V0, R1
+  VEC_CMP.gt.scalar        V3, V0, R1
+  VEC_CMP.ge.scalar        V3, V0, R1
+  VEC_CMP.between.scalar   V3, V0, R0, R1
+  FSEED.single_imm         F0, lo=0, hi=0
+  FSEED.single_imm.accum   F0, lo=3, hi=0
+  LOAD_PARAM.vec           V4, param=1, type=i64
+  VEC_CMP.in_set           V5, V4, F0              ; [true, false, null, true]
+
+  ; All 12 VEC_3VL_OP subops
+  LOAD_PARAM.vec           V6, param=2, type=bool
+  LOAD_PARAM.vec           V7, param=3, type=bool
+  VEC_3VL_OP.and           V8, V6, V7              ; [true, false, null, false]
+  VEC_3VL_OP.or            V9, V6, V7
+  VEC_3VL_OP.not           V9, V6
+  VEC_3VL_OP.xor           V9, V6, V7
+  VEC_3VL_OP.is_null       V10, V0                 ; [false, false, true, false]
+  VEC_3VL_OP.is_not_null   V9, V0
+  VEC_3VL_OP.is_true       V11, V8                 ; [true, false, false, false]
+  VEC_3VL_OP.is_false      V9, V8
+  VEC_3VL_OP.is_nan        V9, V0
+  VEC_3VL_OP.is_inf        V9, V0
+  VEC_3VL_OP.is_finite     V9, V0
+  VEC_3VL_OP.assert_finite V0, imm=1
+
+  COLLECT.vec V1, out=0
+  COLLECT.vec V2, out=1
+  COLLECT.vec V11, out=2
+  COLLECT.vec V10, out=3
+  HALT

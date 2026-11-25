@@ -1,0 +1,13 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 5}}
+
+.data
+  .param 0 type=f64_vec values=[5.0]
+
+.code
+  LOAD_PARAM.vec            V0, param=0, type=f64
+  LOAD_CONST.f64.ext        R0, 10.0
+  LOAD_CONST.f64.ext        R1, 2.0
+  ; clamp lo=10.0 > hi=2.0 MUST fail with INVALID_OPERAND
+  VEC_TERNARY.clamp_r.scalar V1, V0, R0, R1
+  HALT

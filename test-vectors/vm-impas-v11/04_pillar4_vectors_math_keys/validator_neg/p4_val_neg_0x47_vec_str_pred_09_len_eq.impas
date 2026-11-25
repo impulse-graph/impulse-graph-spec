@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000004947}}
+; Static validator rejection: VEC_STR_PRED.len_eq (0x47, subop=9) with disallowed flag 0x4

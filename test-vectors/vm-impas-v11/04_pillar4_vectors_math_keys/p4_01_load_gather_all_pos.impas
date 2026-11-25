@@ -1,0 +1,39 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = 30}}
+; {{EXPECT: R1 = 2.5}}
+; {{EXPECT: COLLECT_0 = [30, 10]}}
+; {{EXPECT: COLLECT_1 = [2.5, 1.5]}}
+; {{EXPECT: COLLECT_2 = [10, 30]}}
+
+.data
+  .domain 0 name="User" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 2, 2, 2] targets=[1, 2]
+  .node_attr dom=0 attr=0 name="age" type=i64 values=[10, 20, 30, null]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[1.5, 2.5]
+  .param 0 type=u64_vec values=[2, 0]
+  .param 1 type=u64_vec values=[1, 0]
+
+.code
+  LOAD_COLUMN.node_attr             V0, dom=0, attr=0
+  LOAD_COLUMN.edge_attr             V1, rel=0, attr=0
+  LOAD_PARAM.vec                    V2, param=0, type=u64
+  LOAD_PARAM.vec                    V3, param=1, type=u64
+
+  GATHER_NODE_ATTR.vec              V4, V2, dom=0, attr=0      ; [30, 10]
+  GATHER_EDGE_ATTR.vec              V5, V3, rel=0, attr=0      ; [2.5, 1.5]
+  GATHER_VEC                        V6, V0, V2                 ; [30, 10]
+
+  FSEED.single_imm                  F0, lo=0, hi=0
+  FSEED.single_imm.accum            F0, lo=2, hi=0
+  GATHER_NODE_ATTR.frontier_compact V7, F0, dom=0, attr=0      ; [10, 30]
+
+  LOAD_CONST.i32                    R2, 2
+  LOAD_CONST.i32                    R3, 1
+  GATHER_NODE_ATTR.scalar           R0, R2, dom=0, attr=0      ; 30
+  GATHER_EDGE_ATTR.scalar           R1, R3, rel=0, attr=0      ; 2.5
+
+  COLLECT.vec V4, out=0
+  COLLECT.vec V5, out=1
+  COLLECT.vec V7, out=2
+  HALT

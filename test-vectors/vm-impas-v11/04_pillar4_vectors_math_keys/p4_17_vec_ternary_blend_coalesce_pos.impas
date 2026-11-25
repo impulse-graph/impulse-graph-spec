@@ -1,0 +1,61 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [11, 22, null]}}
+; {{EXPECT: COLLECT_1 = [10, 20, null]}}
+; {{EXPECT: COLLECT_2 = [10, 20, 20]}}
+; {{EXPECT: COLLECT_3 = [10, 99, 30]}}
+
+.data
+  .domain 0 name="N" count=3 width=u16
+  .param 0 type=f64_vec values=[2.0, 4.0, null]
+  .param 1 type=f64_vec values=[5.0, 5.0, 5.0]
+  .param 2 type=f64_vec values=[1.0, 2.0, 3.0]
+  .param 3 type=bool_3vl_vec values=[true, false, null]
+  .param 4 type=f64_vec values=[10.0, 10.0, 10.0]
+  .param 5 type=f64_vec values=[20.0, 20.0, 20.0]
+  .param 6 type=f64_vec values=[10.0, null, 30.0]
+  .param 7 type=i64_vec values=[100, 200, 300]
+  .param 8 type=i64_vec values=[150, null, 250]
+
+.code
+  LOAD_PARAM.vec        V0, param=0, type=f64
+  LOAD_PARAM.vec        V1, param=1, type=f64
+  LOAD_PARAM.vec        V2, param=2, type=f64
+  LOAD_CONST.f64.ext    R0, 0.5
+  LOAD_CONST.f64.ext    R1, 10.0
+  LOAD_CONST.f64.ext    R2, 99.0
+
+  ; All 10 VEC_TERNARY subops
+  VEC_TERNARY.fma_v     V3, V0, V1, V2              ; [2*5+1=11, 4*5+2=22, null]
+  VEC_TERNARY.fma_r     V4, V0, V1, R0
+  VEC_TERNARY.lerp_v    V4, V0, V1, V2
+  VEC_TERNARY.lerp_r    V4, V0, V1, R0
+  VEC_TERNARY.clamp_v   V4, V0, V2, V1
+  VEC_TERNARY.clamp_r   V4, V0, V2, R1
+  VEC_TERNARY.safe_div_v V4, V0, V1, V2
+  VEC_TERNARY.safe_div_r V4, V0, V1, R2
+
+  LOAD_PARAM.vec        V7, param=7, type=i64
+  LOAD_PARAM.vec        V8, param=8, type=i64
+  LOAD_CONST.i32        R3, 220
+  VEC_TERNARY.time_valid_at_r V4, V7, V8, R3
+  LOAD_CONST.i32        R4, 10
+  VEC_TERNARY.mul_div_i64_r V4, V7, V8, R4
+
+  ; All 4 VEC_BLEND subops: kleene_vv preserves NULL on NULL cond, case_vv falls back to false branch!
+  LOAD_PARAM.vec        V5, param=3, type=bool
+  LOAD_PARAM.vec        V6, param=4, type=f64
+  LOAD_PARAM.vec        V9, param=5, type=f64
+  VEC_BLEND.kleene_vv   V10, V5, V6, V9             ; [10, 20, null]
+  VEC_BLEND.kleene_vr   V11, V5, V6, R2
+  VEC_BLEND.case_vv     V12, V5, V6, V9             ; [10, 20, 20]
+  VEC_BLEND.case_vr     V11, V5, V6, R2
+
+  ; COALESCE .scalar
+  LOAD_PARAM.vec        V13, param=6, type=f64
+  COALESCE.scalar       V14, V13, R2                ; [10, 99, 30]
+
+  COLLECT.vec V3, out=0
+  COLLECT.vec V10, out=1
+  COLLECT.vec V12, out=2
+  COLLECT.vec V14, out=3
+  HALT

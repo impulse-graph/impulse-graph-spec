@@ -1,0 +1,6 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; {{EXPECT: PC = 0}}
+
+.code
+  COLLECT.vec V0, out=0
+  HALT

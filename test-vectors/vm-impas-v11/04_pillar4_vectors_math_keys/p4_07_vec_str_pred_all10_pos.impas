@@ -1,0 +1,39 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [true, false, null]}}
+; {{EXPECT: COLLECT_1 = [true, true, null]}}
+; {{EXPECT: COLLECT_2 = [true, false, null]}}
+; {{EXPECT: COLLECT_3 = [true, false, null]}}
+
+.data
+  .domain 0 name="Node" count=3 width=u16
+  .param 0 type=str_vec values=["foobar", "foobaz", null]
+  .param 1 type=str_vec values=["foobar", "bar", "x"]
+  .param 2 type=i64_vec values=[6, 3, 1]
+
+.const_pool
+  .pool 0 type=str value="foo"
+  .pool 1 type=str value="bar"
+
+.code
+  LOAD_PARAM.vec              V0, param=0, type=str
+  LOAD_PARAM.vec              V1, param=1, type=str
+  LOAD_PARAM.vec              V2, param=2, type=i64
+  LOAD_CONST_POOL.str         R0, pool=0
+  LOAD_CONST_POOL.str         R1, pool=1
+
+  VEC_STR_PRED.eq             V3, V0, V1           ; [true, false, null]
+  VEC_STR_PRED.ne             V4, V0, V1
+  VEC_STR_PRED.lt             V4, V0, V1
+  VEC_STR_PRED.le             V4, V0, V1
+  VEC_STR_PRED.gt             V4, V0, V1
+  VEC_STR_PRED.ge             V4, V0, V1
+  VEC_STR_PRED.starts_with.scalar V5, V0, R0       ; [true, true, null]
+  VEC_STR_PRED.ends_with.scalar   V6, V0, R1       ; [true, false, null]
+  VEC_STR_PRED.contains.scalar    V7, V0, R1       ; [true, false, null]
+  VEC_STR_PRED.len_eq         V8, V0, V2           ; [true, false, null]
+
+  COLLECT.vec V3, out=0
+  COLLECT.vec V5, out=1
+  COLLECT.vec V6, out=2
+  COLLECT.vec V8, out=3
+  HALT

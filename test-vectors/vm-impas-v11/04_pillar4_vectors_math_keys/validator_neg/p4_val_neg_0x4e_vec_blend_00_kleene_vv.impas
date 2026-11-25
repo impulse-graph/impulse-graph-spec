@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000104E}}
+; Static validator rejection: VEC_BLEND.kleene_vv (0x4E, subop=0) with disallowed flag 0x1

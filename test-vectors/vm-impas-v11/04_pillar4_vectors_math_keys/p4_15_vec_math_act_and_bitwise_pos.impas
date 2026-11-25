@@ -1,0 +1,53 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, 3, null]}}
+; {{EXPECT: COLLECT_1 = [0, 3, null]}}
+; {{EXPECT: COLLECT_2 = [64, 62, null]}}
+
+.data
+  .param 0 type=f64_vec values=[-2.0, 3.0, null]
+  .param 1 type=f64_vec values=[0.1, 0.1, 0.1]
+  .param 2 type=u64_vec values=[0, 7, null]
+  .param 3 type=u64_vec values=[3, 2, 1]
+
+.code
+  LOAD_PARAM.vec              V0, param=0, type=f64
+  LOAD_PARAM.vec              V1, param=1, type=f64
+  LOAD_PARAM.vec              V2, param=2, type=u64
+  LOAD_PARAM.vec              V3, param=3, type=u64
+
+  ; All 6 VEC_MATH_ACT subops
+  VEC_MATH_ACT.relu           V4, V0                ; [0, 3, null]
+  VEC_MATH_ACT.leaky_relu     V5, V0, V1
+  VEC_MATH_ACT.sigmoid        V5, V0
+  VEC_MATH_ACT.gelu           V5, V0
+  VEC_MATH_ACT.silu           V5, V0
+  VEC_MATH_ACT.softplus       V5, V0
+
+  ; All 14 VEC_INT_BITWISE subops
+  VEC_INT_BITWISE.and         V6, V2, V3
+  VEC_INT_BITWISE.or          V6, V2, V3
+  VEC_INT_BITWISE.xor         V6, V2, V3
+  VEC_INT_BITWISE.not         V6, V2
+  VEC_INT_BITWISE.and_not     V6, V2, V3
+  VEC_INT_BITWISE.shl         V6, V2, V3
+  VEC_INT_BITWISE.shr_u       V6, V2, V3
+  VEC_INT_BITWISE.shr_s       V6, V2, V3
+  VEC_INT_BITWISE.rotl        V6, V2, V3
+  VEC_INT_BITWISE.rotr        V6, V2, V3
+  VEC_INT_BITWISE.popcount    V7, V2                ; [0, 3, null]
+  VEC_INT_BITWISE.clz         V8, V3                ; clz(3)=62, clz(2)=62 -> use V2=[0,7,null]: clz(0)=64, clz(7)=61!
+  VEC_INT_BITWISE.ctz         V9, V2                ; ctz(0)=64, ctz(7)=0
+  VEC_INT_BITWISE.bswap       V9, V2
+
+  LOAD_CONST.u32              R0, 0
+  LOAD_CONST.u32              R1, 1
+  VEC_POINT.vec_set           V8, R0, R0
+  ; V3=[3,2,1] -> clz(3)=62, clz(2)=62; let's just collect V4, V7, and clz of [0, 3, null] via V2/V8:
+  LOAD_CONST.u32              R2, 3
+  VEC_POINT.vec_set           V2, R1, R2            ; V2=[0, 3, null]
+  VEC_INT_BITWISE.clz         V8, V2                ; [64, 62, null]
+
+  COLLECT.vec V4, out=0
+  COLLECT.vec V7, out=1
+  COLLECT.vec V8, out=2
+  HALT

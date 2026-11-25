@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000001256}}
+; Static validator rejection: MAP_DENSE_TO_KEYS.scalar (0x56, subop=2) with disallowed flag 0x1

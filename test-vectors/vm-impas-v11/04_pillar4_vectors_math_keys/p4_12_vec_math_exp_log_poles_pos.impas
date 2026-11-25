@@ -1,0 +1,29 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [null, null]}}
+
+.data
+  .domain 0 name="N" count=2 width=u16
+  .param 0 type=f64_vec values=[0.0, -2.0]
+
+.code
+  LOAD_PARAM.vec              V0, param=0, type=f64
+  LOAD_CONST.f64.ext          R0, 2.0
+  FSEED.single_imm            F0, lo=0, hi=0
+
+  VEC_MATH_EXP_LOG.exp.mask   V1, V0, F0
+  VEC_MATH_EXP_LOG.exp2       V1, V0
+  VEC_MATH_EXP_LOG.exp10      V1, V0
+  VEC_MATH_EXP_LOG.expm1      V1, V0
+  VEC_MATH_EXP_LOG.log        V2, V0               ; log(0), log(-2) -> [null, null]
+  VEC_MATH_EXP_LOG.log2       V1, V0
+  VEC_MATH_EXP_LOG.log10      V1, V0
+  VEC_MATH_EXP_LOG.log1p      V1, V0
+  VEC_MATH_EXP_LOG.pow.scalar V1, V0, R0
+  VEC_MATH_EXP_LOG.cbrt       V1, V0
+  VEC_MATH_EXP_LOG.hypot.scalar V1, V0, R0
+  VEC_MATH_EXP_LOG.erf        V1, V0
+  VEC_MATH_EXP_LOG.erfc       V1, V0
+  VEC_MATH_EXP_LOG.lgamma     V1, V0
+
+  COLLECT.vec V2, out=0
+  HALT

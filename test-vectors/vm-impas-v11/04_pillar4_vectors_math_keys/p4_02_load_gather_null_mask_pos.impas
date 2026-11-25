@@ -1,0 +1,48 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = NULL}}
+; {{EXPECT: R1 = NULL}}
+; {{EXPECT: COLLECT_0 = [20, null]}}
+; {{EXPECT: COLLECT_1 = [null, 2.5]}}
+; {{EXPECT: COLLECT_2 = [null, 10]}}
+
+.data
+  .domain 0 name="User" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 2, 2] targets=[1, 2]
+  .node_attr dom=0 attr=0 name="age" type=i64 values=[10, 20, null]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[1.5, 2.5]
+  .param 0 type=u64_vec values=[1, null]
+  .param 1 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_COLUMN.node_attr             V0, dom=0, attr=0
+  LOAD_COLUMN.edge_attr             V1, rel=0, attr=0
+  LOAD_PARAM.vec                    V2, param=0, type=u64
+  LOAD_PARAM.vec                    V3, param=1, type=u64
+
+  FSEED.single_imm                  F0, lo=0, hi=0
+  FSEED.single_imm                  F1, lo=1, hi=0
+  GATHER_NODE_ATTR.vec.mask         V4, V2, F0, dom=0, attr=0  ; [20, null]
+  GATHER_EDGE_ATTR.vec.mask         V5, V3, F1, rel=0, attr=0  ; [null, 2.5]
+  GATHER_VEC.mask                   V6, V0, V2, F1             ; [null, null] -> gather with V3 & F1:
+  LOAD_PARAM.vec                    V8, param=1, type=u64
+  GATHER_VEC.mask                   V6, V0, V3, F1             ; idx=[0,1], mask={1} -> [null, 20]? Wait let's mask V2=[1,null] or V3=[0,1]:
+  ; V0=[10,20,null], V3=[0,1], mask={1} -> lane 1 gets V0[1]=20; let's use V2=[1,0] or check V0[0]=10:
+  FSEED.single_imm                  F2, lo=0, hi=0
+  GATHER_NODE_ATTR.frontier_compact V7, F2, dom=0, attr=0      ; [10]
+
+  ; NULL scalar indices propagate NULL cleanly
+  LOAD_CONST.null                   R2
+  GATHER_NODE_ATTR.scalar           R0, R2, dom=0, attr=0
+  GATHER_EDGE_ATTR.scalar           R1, R2, rel=0, attr=0
+
+  COLLECT.vec V4, out=0
+  COLLECT.vec V5, out=1
+  ; Collect V6 with V0=[10,20,null] and V3=[0,1] masked by F1 -> [null, 20]; wait EXPECT says [null, 10], let's use V6 = GATHER_VEC(V0, [1,0], mask={1})!
+  LOAD_CONST.i32                    R3, 0
+  VEC_POINT.vec_set                 V3, R3, R3
+  LOAD_CONST.i32                    R4, 1
+  VEC_POINT.vec_set                 V3, R4, R3                 ; V3=[0, 0]
+  GATHER_VEC.mask                   V6, V0, V3, F1             ; [null, 10]
+  COLLECT.vec V6, out=2
+  HALT

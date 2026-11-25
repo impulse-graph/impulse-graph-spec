@@ -295,6 +295,21 @@ def resolve_banks(op: dict[str, Any], subop: int, flags: int) -> dict[str, str]:
         else:
             res["s2"] = "R" if has_scalar else "V"
             res["s3"] = "F" if has_mask else "NONE"
+    elif code == 0x46:  # VEC_3VL_OP
+        if subop == 11:  # assert_finite
+            res["dst"], res["s2"] = "NONE", "NONE"
+        elif subop not in (0, 1, 3):  # unary 3VL/IEEE predicates
+            res["s2"] = "NONE"
+    elif code == 0x48 and subop >= 8:  # VEC_MATH_ARITH unary
+        res["s2"] = "NONE"
+    elif code == 0x49 and subop not in (8, 10):  # VEC_MATH_EXP_LOG unary
+        res["s2"] = "NONE"
+    elif code == 0x4A and subop != 6:  # VEC_MATH_TRIG_HYP unary
+        res["s2"] = "NONE"
+    elif code == 0x4B and subop != 1:  # VEC_MATH_ACT unary
+        res["s2"] = "NONE"
+    elif code == 0x4C and subop in (3, 10, 11, 12, 13):  # VEC_INT_BITWISE unary
+        res["s2"] = "NONE"
     elif code == 0x4D:  # VEC_TERNARY
         if subop in (0, 2, 4, 6):
             res["s3"] = "V"

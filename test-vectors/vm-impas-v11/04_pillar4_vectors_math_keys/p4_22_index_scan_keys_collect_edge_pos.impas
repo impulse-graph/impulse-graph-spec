@@ -1,0 +1,51 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R0 = NULL}}
+; {{EXPECT: R1 = NULL}}
+; {{EXPECT: F0 = [0, 2] (dom=0)}}
+; {{EXPECT: COLLECT_0 = [10, 30]}}
+
+.data
+  .domain 0 name="User" count=3 width=u16
+  .node_attr dom=0 attr=0 name="score" type=f64 values=[10.0, 20.0, 30.0]
+  .index dom=0 attr=0 kind=sorted
+  .key_catalog dom=0 type=str keys=["a", "b", "c"]
+  .param 0 type=str_vec values=["a"]
+  .param 1 type=str_vec values=["c"]
+
+.const_pool
+  .pool 0 type=str value="unknown"
+
+.code
+  LOAD_CONST.f64.ext          R2, 10.0
+  LOAD_CONST.f64.ext          R3, 30.0
+  INDEX_SCAN.eq               F0, R2, dom=0, attr=0          ; {0}
+  INDEX_SCAN.eq.accum         F0, R3, dom=0, attr=0          ; {0, 2}
+  INDEX_SCAN.between_cc       F1, R2, R3, dom=0, attr=0
+  INDEX_SCAN.between_co       F1, R2, R3, dom=0, attr=0
+  INDEX_SCAN.lt               F1, R2, dom=0, attr=0
+  INDEX_SCAN.le               F1, R2, dom=0, attr=0
+  INDEX_SCAN.gt               F1, R2, dom=0, attr=0
+  INDEX_SCAN.ge               F1, R2, dom=0, attr=0
+
+  ; Missing key -> NULL; .accum on param_to_f and f_to_f
+  MAP_KEYS_TO_DENSE.param_to_f       F2, dom=0, param=0
+  MAP_KEYS_TO_DENSE.param_to_f.accum F2, dom=0, param=1
+  LOAD_PARAM.vec              V0, param=0, type=str
+  MAP_KEYS_TO_DENSE.vec_to_v  V1, V0, dom=0
+  MAP_KEYS_TO_DENSE.v_to_v    V1, V0, dom=0
+  LOAD_CONST_POOL.str         R4, pool=0
+  MAP_KEYS_TO_DENSE.scalar_to_r R0, R4, dom=0                ; NULL (missing key)
+  MAP_KEYS_TO_DENSE.f_to_f.accum F2, F0, dom=0
+
+  MAP_DENSE_TO_KEYS.vec            V2, V1, dom=0
+  MAP_DENSE_TO_KEYS.frontier_sorted V3, F2, dom=0
+  MAP_DENSE_TO_KEYS.scalar         R1, R0, dom=0             ; NULL propagates
+
+  ; Masked COLLECT.vec compaction + remaining COLLECT subops
+  LOAD_COLUMN.node_attr       V4, dom=0, attr=0
+  COLLECT.vec.mask            V4, F0, out=0                  ; [10, 30]
+  COLLECT.frontier_bitset     F0, out=1
+  COLLECT.frontier_ids        F0, out=2
+  COLLECT.scalar              R0, out=3
+  COLLECT.table_col.mask      V4, F0, out=4
+  HALT
