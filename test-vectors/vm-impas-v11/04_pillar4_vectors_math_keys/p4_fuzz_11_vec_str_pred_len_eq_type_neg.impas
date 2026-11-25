@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_TYPE_MISMATCH}}
+; Corpus fuzzer iter 1 (seed 1007175): VEC_STR_PRED.len_eq with non-integer vector s2
+; must return IMPULSE_VM_ERR_TYPE_MISMATCH rather than IMPULSE_VM_ERR_OUT_OF_BOUNDS.
+
+.data
+  .domain 0 name="User" count=2 width=u16
+  .node_attr dom=0 attr=0 name="name" type=str values=["ab", "cde"]
+  .node_attr dom=0 attr=1 name="score" type=f64 values=[2.0, 3.0]
+
+.code
+  LOAD_COLUMN.node_attr   V0, dom=0, attr=0
+  LOAD_COLUMN.node_attr   V1, dom=0, attr=1
+  VEC_STR_PRED.len_eq     V2, V0, V1
+  HALT
