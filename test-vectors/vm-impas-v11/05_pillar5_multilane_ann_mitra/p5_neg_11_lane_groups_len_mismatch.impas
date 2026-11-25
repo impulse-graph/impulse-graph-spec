@@ -1,0 +1,14 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 2}}
+; P5-NEG-11: LANE_INIT_GROUPS with mismatched node/lane vector lengths -> ERR_OUT_OF_BOUNDS
+
+.data
+  .domain 0 name="N" count=4 width=u16
+  .param 0 type=u64_vec values=[0, 1, 2]
+  .param 1 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=u64
+  LANE_INIT_GROUPS.groups F0, V0, V1, dom=0, k=0
+  HALT

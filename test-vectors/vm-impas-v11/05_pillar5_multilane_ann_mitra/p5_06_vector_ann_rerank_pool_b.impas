@@ -1,0 +1,46 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 2}}
+; {{EXPECT: R2 = 0}}
+; P5-06: VECTOR_ANN_SEARCH, VECTOR_RERANK, VECTOR_POOL (zero-norm vector, empty frontier, NULL row, tie-breaking)
+
+.data
+  .domain 0 name="Doc" count=4 width=u16
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0], [1.0, 0.0], [0.0, 0.0], null]
+  .param 0 type=f64_vec values=[1.0, 0.0]
+  .param 1 type=u64_vec values=[0, 1, 2, 3]
+  .param 2 type=u64_vec values=[1, 0, 3, 2]
+  .param 3 type=f64_vec values=[0.0, 0.0]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_PARAM.vec V1, param=1, type=u64
+  LOAD_PARAM.vec V2, param=2, type=u64
+  LOAD_PARAM.vec V3, param=3, type=f64
+
+  FSEED.empty F0, dom=0
+  FSEED.single_imm F1, node=0, dom=0
+
+  LOAD_CONST.u32 R10, 4
+  LOAD_CONST.f32 R11, 0.99
+  VECTOR_ANN_SEARCH.ids V4, V0, R10, dom=0, attr=0
+  VECTOR_ANN_SEARCH.radius V5, V0, R11, dom=0, attr=0
+  VEC_POINT.vec_len R1, V4
+
+  VECTOR_ANN_SEARCH.ids.mask V6, V0, R10, F0, dom=0, attr=0
+  VEC_POINT.vec_len R2, V6
+
+  VECTOR_RERANK.dot V7, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.cosine V8, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.neg_l2_sq V9, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.l2_sq V10, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.pair_dot V11, V1, V2, dom=0, attr=0
+  VECTOR_RERANK.pair_cosine V12, V1, V2, dom=0, attr=0
+  VECTOR_RERANK.pair_neg_l2_sq V13, V1, V2, dom=0, attr=0
+  VECTOR_RERANK.pair_l2_sq V14, V1, V2, dom=0, attr=0
+
+  LOAD_CONST.u32 R12, 3
+  VECTOR_POOL.load_node V15, R12, dom=0, attr=0
+  VECTOR_POOL.mean_pool V7, F0, dom=0, attr=0
+  VECTOR_POOL.sum_pool V8, F0, dom=0, attr=0
+  VECTOR_POOL.l2_norm V9, V3, dom=0, attr=0
+  HALT

@@ -1,0 +1,15 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_DOMAIN_MISMATCH}}
+; {{EXPECT: PC = 3}}
+; P5-NEG-04: LANE_FILTER_QUORUM.at_least.accum with mismatched dst domain -> ERR_DOMAIN_MISMATCH
+
+.data
+  .domain 0 name="A" count=3 width=u16
+  .domain 1 name="B" count=3 width=u16
+  .param 0 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LANE_INIT_SEEDS.auto_width F0, V0, dom=0
+  FSEED.empty F1, dom=1
+  LANE_FILTER_QUORUM.at_least.accum F1, F0, 1
+  HALT

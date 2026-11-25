@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x000000000000856e}}
+; Static validator rejection: LANE_STATE_REDUCE.argmax (0x6E, subop=5) with disallowed flag 0x8

@@ -1,0 +1,51 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 2}}
+; {{EXPECT: R2 = 0}}
+; {{EXPECT: R3 = 1}}
+; P5-05: VECTOR_ANN_SEARCH (ids, radius + .mask), VECTOR_RERANK (all 8 subops + .mask), VECTOR_POOL (all 4 subops)
+
+.data
+  .domain 0 name="Doc" count=5 width=u16
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.70710678, 0.70710678, 0.0], null, [0.0, 0.0, 0.0]]
+  .param 0 type=f64_vec values=[1.0, 0.0, 0.0]
+  .param 1 type=u64_vec values=[0, 1, 2, 3, 4]
+  .param 2 type=u64_vec values=[0, 2, 0, 1, 4]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=f64
+  LOAD_PARAM.vec V1, param=1, type=u64
+  LOAD_PARAM.vec V2, param=2, type=u64
+
+  FSEED.single_imm F0, node=1, dom=0
+  FSEED.single_imm F1, node=2, dom=0
+  SET_OP.union F2, F0, F1
+
+  LOAD_CONST.u32 R10, 2
+  LOAD_CONST.f32 R11, 0.5
+  VECTOR_ANN_SEARCH.ids V3, V0, R10, dom=0, attr=0
+  VECTOR_ANN_SEARCH.ids.mask V4, V0, R10, F2, dom=0, attr=0
+  VECTOR_ANN_SEARCH.radius V5, V0, R11, dom=0, attr=0
+  VECTOR_ANN_SEARCH.radius.mask V6, V0, R11, F2, dom=0, attr=0
+
+  VEC_POINT.vec_len R1, V3
+  LOAD_CONST.u32 R12, 0
+  VEC_POINT.vec_get R2, V3, R12
+  VEC_POINT.vec_get R3, V4, R12
+  LOAD_CONST.u32 R13, 2
+  SCALAR_3VL.cmp_eq_i64 R3, R3, R13
+
+  VECTOR_RERANK.dot V7, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.cosine V8, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.neg_l2_sq V9, V1, V0, dom=0, attr=0
+  VECTOR_RERANK.l2_sq.mask V10, V1, V0, F2, dom=0, attr=0
+  VECTOR_RERANK.pair_dot V11, V1, V2, dom=0, attr=0
+  VECTOR_RERANK.pair_cosine V12, V1, V2, dom=0, attr=0
+  VECTOR_RERANK.pair_neg_l2_sq V13, V1, V2, dom=0, attr=0
+  VECTOR_RERANK.pair_l2_sq.mask V14, V1, V2, F2, dom=0, attr=0
+
+  LOAD_CONST.u32 R14, 0
+  VECTOR_POOL.load_node V15, R14, dom=0, attr=0
+  VECTOR_POOL.mean_pool V7, F2, dom=0, attr=0
+  VECTOR_POOL.sum_pool V8, F2, dom=0, attr=0
+  VECTOR_POOL.l2_norm V9, V8, dom=0, attr=0
+  HALT

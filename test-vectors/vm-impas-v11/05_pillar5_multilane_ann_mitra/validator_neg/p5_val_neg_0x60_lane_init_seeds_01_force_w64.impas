@@ -1,0 +1,4 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; {{EXPECT: PC = 0}}
+; {{RAW_WORDS: 0x0000000000008160}}
+; Static validator rejection: LANE_INIT_SEEDS.force_w64 (0x60, subop=1) with disallowed flag 0x8

@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}}
+; {{EXPECT: PC = 2}}
+; P5-NEG-09: LANE_STATE_REDUCE.trace_path with lane >= k -> ERR_OUT_OF_BOUNDS
+
+.data
+  .domain 0 name="N" count=3 width=u16
+
+.code
+  LANE_STATE_INIT.zero_f64 V0, dom=0, k=2
+  LOAD_CONST.u32 R1, 5
+  LANE_STATE_REDUCE.trace_path.scalar V1, V0, R1
+  HALT

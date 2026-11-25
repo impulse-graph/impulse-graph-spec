@@ -1,0 +1,60 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R1 = 4}}
+; {{EXPECT: R2 = 6}}
+; {{EXPECT: R3 = 3}}
+; {{EXPECT: R4 = 1}}
+; P5-01: LANE_INIT_SEEDS, LANE_INIT_GROUPS (+ .accum), LANE_WALK (all 10 subops + .accum + .mask)
+
+.data
+  .domain 0 name="User" count=6 width=u16
+  .domain 1 name="Item" count=4 width=u16
+  .relation 0 name="FOLLOWS" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 3, 4, 4, 4] targets=[1, 2, 3, 4]
+  .relation 1 name="LIKES" src_dom=0 tgt_dom=1
+  .csr_inline rel=1 offsets=[0, 1, 2, 2, 2, 2, 2] targets=[0, 1]
+  .param 0 type=u64_vec values=[0, 2, 5]
+  .param 1 type=u64_vec values=[1, 3]
+  .param 2 type=u64_vec values=[0, 1]
+  .param 3 type=u64_vec values=[1, 3, 3, 1]
+  .param 4 type=u64_vec values=[4]
+
+.code
+  LOAD_PARAM.vec V0, param=0, type=u64
+  LOAD_PARAM.vec V1, param=1, type=u64
+  LOAD_PARAM.vec V2, param=2, type=u64
+  LOAD_PARAM.vec V3, param=3, type=u64
+  LOAD_PARAM.vec V4, param=4, type=u64
+
+  ; LANE_INIT_SEEDS: auto_width & force_w64
+  LANE_INIT_SEEDS.auto_width F0, V0, dom=0
+  LANE_INIT_SEEDS.force_w64 F1, V0, dom=0
+
+  ; LANE_INIT_GROUPS + .accum
+  LANE_INIT_GROUPS.groups F2, V1, V2, dom=0, k=0
+  LANE_INIT_GROUPS.groups.accum F2, V1, V2, dom=0, k=0
+
+  ; Single-hop fwd, rev, both
+  LANE_WALK.fwd F3, F0, rel=0
+  LANE_WALK.rev F4, F3, rel=0
+  LANE_WALK.both F5, F0, rel=0
+
+  ; Fixpoint walks: fwd_plus, fwd_star, rev_plus, rev_star, both_star
+  LANE_WALK.fwd_fixpoint_plus F6, F0, rel=0
+  LANE_WALK.fwd_fixpoint_star F7, F0, rel=0
+  LANE_WALK.rev_fixpoint_plus F8, F6, rel=0
+  LANE_WALK.rev_fixpoint_star F9, F6, rel=0
+  LANE_WALK.both_fixpoint_star F10, F0, rel=0
+
+  ; Edge-masked fwd & both_fixpoint_star_masked + .accum + .mask
+  LANE_INIT_SEEDS.auto_width F11, V4, dom=0
+  LANE_WALK.fwd_edge_masked F12, F0, V3, rel=0
+  LANE_WALK.both_fixpoint_star_masked.mask F13, F0, V3, F11, rel=0
+  LANE_WALK.fwd.accum F3, F2, rel=0
+
+  ; Verify cardinalities of multi-lane frontiers
+  SET_CARDINALITY.lane_any_nodes R1, F6
+  SET_CARDINALITY.lane_any_nodes R2, F7
+  SET_CARDINALITY.lane_any_nodes R3, F0
+  LANE_WALK.fwd F14, F0, rel=1
+  SET_CARDINALITY.lane_any_nodes R4, F14
+  HALT
