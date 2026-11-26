@@ -4,10 +4,10 @@ Polyglot ISA Table Code Generator for ImpulseVM v0.11.0 (`impOps` v0.11).
 
 Reads `v0.11-refactor/isa_v0_11.yaml` as the single source of truth and emits
 compile-ready, zero-drift opcode/subop/flag/morsel tables for:
-  - OCaml   : v11_isa_tables.ml       (impulse-ocaml reference oracle)
-  - C++20   : impulse_vm_v11_isa.hpp  (impulse-cpp kernel, incl. X-macros & nibble macros)
-  - Java 25 : V11IsaTables.java       (impulse-graph-java VM & JIT)
-  - Rust    : v11_isa_tables.rs       (impulse-cli assemble/disassemble/inspect & ffi.rs)
+  - OCaml   : impulse_isa_tables.ml       (impulse-ocaml reference oracle)
+  - C++20   : impulse_vm_isa.hpp  (impulse-cpp kernel, incl. X-macros & nibble macros)
+  - Java 25 : ImpulseIsaTables.java       (impulse-graph-java VM & JIT)
+  - Rust    : impulse_isa_tables.rs       (impulse-cli assemble/disassemble/inspect & ffi.rs)
 
 Use `--check` in CI to fail on any drift between YAML and generated artifacts.
 """
@@ -24,7 +24,7 @@ TOOLS_DIR = Path(__file__).resolve().parent
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from v11_isa_loader import DEFAULT_ISA_PATH, SPEC_ROOT, load_isa, valid_subop_mask
+from isa_loader import DEFAULT_ISA_PATH, SPEC_ROOT, load_isa, valid_subop_mask
 
 DEFAULT_OUT_DIR = SPEC_ROOT / "v0.11-refactor" / "generated"
 
@@ -62,20 +62,20 @@ def _pascal_from_upper_snake(name: str) -> str:
 def _header_banner(comment_prefix: str, isa: dict[str, Any]) -> str:
     return (
         f"{comment_prefix} DO NOT EDIT — Auto-generated from v0.11-refactor/isa_v0_11.yaml\n"
-        f"{comment_prefix} by tools/gen_v11_tables.py (impOps v{isa['isa_version']}, "
+        f"{comment_prefix} by tools/gen_isa_tables.py (impOps v{isa['isa_version']}, "
         f"impb v{isa['impb_version_u16']}).\n"
     )
 
 
 # ---------------------------------------------------------------------------
-# 1. OCaml Generator (v11_isa_tables.ml)
+# 1. OCaml Generator (impulse_isa_tables.ml)
 # ---------------------------------------------------------------------------
 
 def gen_ocaml(isa: dict[str, Any]) -> str:
     opcodes: list[dict[str, Any]] = isa["opcodes"]
     lines: list[str] = [
         "(** DO NOT EDIT — Auto-generated from v0.11-refactor/isa_v0_11.yaml",
-        f"    by tools/gen_v11_tables.py (impOps v{isa['isa_version']}, impb v{isa['impb_version_u16']}). *)",
+        f"    by tools/gen_isa_tables.py (impOps v{isa['isa_version']}, impb v{isa['impb_version_u16']}). *)",
         "",
         f"let impb_magic : int32 = 0x{isa['impb_magic']:08X}l",
         f"let impb_version_u16 : int = {isa['impb_version_u16']}",
@@ -176,7 +176,7 @@ def gen_ocaml(isa: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 2. C++20 Generator (impulse_vm_v11_isa.hpp)
+# 2. C++20 Generator (impulse_vm_isa.hpp)
 # ---------------------------------------------------------------------------
 
 def gen_cpp(isa: dict[str, Any]) -> str:
@@ -229,7 +229,7 @@ def gen_cpp(isa: dict[str, Any]) -> str:
         "#define IMP_V11_IMM16_LO(w)  (static_cast<uint16_t>(IMP_V11_IMM32(w) & 0xFFFFu))",
         "#define IMP_V11_IMM16_HI(w)  (static_cast<uint16_t>((IMP_V11_IMM32(w) >> 16) & 0xFFFFu))",
         "",
-        "namespace impulse::vm::v11 {",
+        "namespace impulse::vm {",
         "",
         f"inline constexpr uint32_t kImpbMagic = 0x{isa['impb_magic']:08X}u;",
         f"inline constexpr uint16_t kImpbVersion = {isa['impb_version_u16']}u;",
@@ -319,14 +319,14 @@ def gen_cpp(isa: dict[str, Any]) -> str:
         "  return 0xFFULL | (static_cast<uint64_t>(imm32_hi) << 32);",
         "}",
         "",
-        "}  // namespace impulse::vm::v11",
+        "}  // namespace impulse::vm",
         "",
     ])
     return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
-# 3. Java 25 Generator (V11IsaTables.java)
+# 3. Java 25 Generator (ImpulseIsaTables.java)
 # ---------------------------------------------------------------------------
 
 def gen_java(isa: dict[str, Any]) -> str:
@@ -336,10 +336,10 @@ def gen_java(isa: dict[str, Any]) -> str:
 
     lines: list[str] = [
         _header_banner("//", isa).rstrip(),
-        "package org.impulsegraph.vm.v11;",
+        "package org.impulsegraph.vm;",
         "",
         "/** Generated normative ISA constants and metadata tables for ImpulseVM v0.11.0. */",
-        "public final class V11IsaTables {",
+        "public final class ImpulseIsaTables {",
         "",
         f"    public static final int IMPB_MAGIC = 0x{isa['impb_magic']:08X};",
         f"    public static final int IMPB_VERSION = {isa['impb_version_u16']};",
@@ -421,7 +421,7 @@ def gen_java(isa: dict[str, Any]) -> str:
         "        return 0xFFL | ((imm32Hi & 0xFFFFFFFFL) << 32);",
         "    }",
         "",
-        "    private V11IsaTables() {}",
+        "    private ImpulseIsaTables() {}",
         "}",
         "",
     ])
@@ -429,7 +429,7 @@ def gen_java(isa: dict[str, Any]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 4. Rust Generator (v11_isa_tables.rs — for impulse-cli & ffi.rs)
+# 4. Rust Generator (impulse_isa_tables.rs — for impulse-cli & ffi.rs)
 # ---------------------------------------------------------------------------
 
 def gen_rust(isa: dict[str, Any]) -> str:
@@ -551,10 +551,10 @@ def gen_rust(isa: dict[str, Any]) -> str:
 
 
 TARGETS = {
-    "ocaml": ("v11_isa_tables.ml", gen_ocaml),
-    "cpp": ("impulse_vm_v11_isa.hpp", gen_cpp),
-    "java": ("V11IsaTables.java", gen_java),
-    "rust": ("v11_isa_tables.rs", gen_rust),
+    "ocaml": ("impulse_isa_tables.ml", gen_ocaml),
+    "cpp": ("impulse_vm_isa.hpp", gen_cpp),
+    "java": ("ImpulseIsaTables.java", gen_java),
+    "rust": ("impulse_isa_tables.rs", gen_rust),
 }
 
 

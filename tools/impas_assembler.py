@@ -2,7 +2,7 @@
 """
 ImpAsm v0.11.0 Two-Pass Assembler, Disassembler, Fixture Parser & `.impb` v11 Codec.
 
-Driven directly from `v0.11-refactor/isa_v0_11.yaml` via `tools/v11_isa_loader.py`
+Driven directly from `v0.11-refactor/isa_v0_11.yaml` via `tools/isa_loader.py`
 (zero duplicated opcode tables). Implements `IMPAS_SPECIFICATION_v0_11.md`:
   - Header `; {{EXPECT: ...}}` compliance pragmas
   - Host-bound `.data` and `.const_pool` fixture directives
@@ -28,7 +28,7 @@ TOOLS_DIR = Path(__file__).resolve().parent
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from v11_isa_loader import DEFAULT_ISA_PATH, load_isa, valid_subop_mask
+from isa_loader import DEFAULT_ISA_PATH, load_isa, valid_subop_mask
 
 # Modifier flag nibble masks (high nibble of Byte 1)
 FLAG_MASK = 0x1

@@ -27,8 +27,8 @@ TOOLS_DIR = Path(__file__).resolve().parent
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from gen_v11_tables import generate_all
-from impas_v11_assembler import (
+from gen_isa_tables import generate_all
+from impas_assembler import (
     AsmError,
     FLAG_ACCUM,
     FLAG_EXT,
@@ -42,8 +42,8 @@ from impas_v11_assembler import (
     resolve_banks,
     unpack_impb,
 )
-from lint_v11_gfm import lint_directory
-from v11_isa_loader import load_isa, valid_subop_mask
+from lint_gfm import lint_directory
+from isa_loader import load_isa, valid_subop_mask
 
 
 def _is_valid_combo(op: dict[str, Any], subop: int, flags: int) -> bool:
