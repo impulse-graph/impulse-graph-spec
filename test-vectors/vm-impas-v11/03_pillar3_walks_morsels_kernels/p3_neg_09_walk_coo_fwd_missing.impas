@@ -1,0 +1,12 @@
+; {{EXPECT: STATUS = IMPULSE_VM_ERR_INVALID_OPERAND}}
+; P3-NEG-09: WALK.coo_fwd on a relation without COO topology fails fast
+
+.data
+  .domain 0 name="Node" count=3 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 2, 2] targets=[1, 2]
+
+.code
+  FSEED.single_imm F0, node=0, dom=0
+  WALK.coo_fwd     F1, F0, rel=0
+  HALT

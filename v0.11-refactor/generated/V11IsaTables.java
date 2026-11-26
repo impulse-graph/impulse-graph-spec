@@ -279,6 +279,8 @@ public final class V11IsaTables {
     public static final int SUBOP_WALK_REV_FIXPOINT_PLUS = 5;
     public static final int SUBOP_WALK_REV_FIXPOINT_STAR = 6;
     public static final int SUBOP_WALK_FWD_BOUNDED = 7;
+    public static final int SUBOP_WALK_COO_FWD = 8;
+    public static final int SUBOP_WALK_COO_REV = 9;
     public static final int SUBOP_WALK_FILTERED_EQ = 0;
     public static final int SUBOP_WALK_FILTERED_NE = 1;
     public static final int SUBOP_WALK_FILTERED_LT = 2;
@@ -312,6 +314,8 @@ public final class V11IsaTables {
     public static final int SUBOP_SPMV_FWD_ARGMIN_PLUS = 8;
     public static final int SUBOP_WALK_MORSEL_FWD = 0;
     public static final int SUBOP_WALK_MORSEL_REV = 1;
+    public static final int SUBOP_WALK_MORSEL_COO_FWD = 2;
+    public static final int SUBOP_WALK_MORSEL_COO_REV = 3;
     public static final int SUBOP_FILTER_MORSEL_NODE = 0;
     public static final int SUBOP_MORSEL_COMMIT_YIELD_FRONTIER = 0;
     public static final int SUBOP_MORSEL_COMMIT_YIELD_LANE_OR = 1;
@@ -628,11 +632,11 @@ public final class V11IsaTables {
         register(OP_SET_CONTAINS, 2, 0x0, 0x0003, MORSEL_FORBIDDEN, "OP_SET_CONTAINS", "SET_CONTAINS");
         register(OP_SET_CONVERT, 2, 0x4, 0x000F, MORSEL_BODY_OK, "OP_SET_CONVERT", "SET_CONVERT");
         register(OP_STABLE_CHECK, 2, 0x0, 0x0003, MORSEL_FORBIDDEN, "OP_STABLE_CHECK", "STABLE_CHECK");
-        register(OP_WALK, 3, 0x5, 0x00FF, MORSEL_FORBIDDEN, "OP_WALK", "WALK");
+        register(OP_WALK, 3, 0x5, 0x03FF, MORSEL_FORBIDDEN, "OP_WALK", "WALK");
         register(OP_WALK_FILTERED, 3, 0x5, 0xFFFF, MORSEL_FORBIDDEN, "OP_WALK_FILTERED", "WALK_FILTERED");
         register(OP_DEGREE, 3, 0x1, 0x003F, MORSEL_FORBIDDEN, "OP_DEGREE", "DEGREE");
         register(OP_SPMV, 3, 0x7, 0x01FF, MORSEL_FORBIDDEN, "OP_SPMV", "SPMV");
-        register(OP_WALK_MORSEL, 3, 0x1, 0x0003, MORSEL_HEADER, "OP_WALK_MORSEL", "WALK_MORSEL");
+        register(OP_WALK_MORSEL, 3, 0x1, 0x000F, MORSEL_HEADER, "OP_WALK_MORSEL", "WALK_MORSEL");
         register(OP_FILTER_MORSEL, 3, 0x0, 0x0001, MORSEL_HEADER, "OP_FILTER_MORSEL", "FILTER_MORSEL");
         register(OP_MORSEL_COMMIT, 3, 0x7, 0x01FF, MORSEL_COMMIT_ONLY, "OP_MORSEL_COMMIT", "MORSEL_COMMIT");
         register(OP_MORSEL_END, 3, 0x0, 0x0001, MORSEL_END_ONLY, "OP_MORSEL_END", "MORSEL_END");

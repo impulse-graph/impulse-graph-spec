@@ -1,0 +1,29 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F1 = [1, 2] (dom=0)}}
+; {{EXPECT: F2 = [1, 2] (dom=0)}}
+; {{EXPECT: F3 = [0] (dom=0)}}
+; {{EXPECT: F4 = [1, 2, 3] (dom=0)}}
+; {{EXPECT: F5 = [2] (dom=0)}}
+; P3-18: OP_WALK.coo_fwd and OP_WALK.coo_rev parity with CSR + .mask and .accum
+
+.data
+  .domain 0 name="Node" count=5 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 4, 4] targets=[1, 2, 3, 3]
+  .coo_inline rel=0 sources=[2, 0, 1, 0] targets=[3, 2, 3, 1] order="unsorted"
+
+.code
+  FSEED.single_imm       F0, node=0, dom=0
+  WALK.fwd               F1, F0, rel=0
+  WALK.coo_fwd           F2, F0, rel=0
+
+  FSEED.single_imm       F6, node=1, dom=0
+  WALK.coo_rev           F3, F6, rel=0
+
+  ; .accum on WALK.coo_fwd: F4 starts with {1, 2}, walk from {1} adds {3} -> {1, 2, 3}
+  MOV.f                  F4, F2
+  WALK.coo_fwd.accum     F4, F6, rel=0
+
+  ; .mask on WALK.coo_fwd: exclude {1} from {0}'s neighbors {1, 2} -> {2}
+  WALK.coo_fwd.mask      F5, F0, F6, rel=0
+  HALT

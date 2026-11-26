@@ -1,0 +1,29 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R10 = 1}}
+; {{EXPECT: F6 = [2] (dom=0)}}
+; ALGO05 (ported from v0.10): Hybrid Vector Semantic ANN & Multi-Lane Graph Rerank
+; Chains VECTOR_ANN_SEARCH, LANE_INIT_SEEDS, LANE_WALK, LANE_FILTER_QUORUM,
+; SET_CONVERT.f2v, VECTOR_RERANK.dot, and VEC_REDUCE.sum.
+
+.data
+  .domain 0 name="Doc" count=4 width=u16
+  .relation 0 name="CITES" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 1, 3, 4, 4] targets=[2, 2, 3, 3]
+  .node_attr dom=0 attr=0 name="emb" type=f32_emb values=[[1.0, 0.0], [0.75, 0.25], [0.0, 1.0], [0.0, 0.0]]
+  .param 0 type=f64_vec values=[0.8125, 0.1875]
+
+.code
+  LOAD_PARAM.vec           V2, param=0, type=f64
+  LOAD_CONST.u32           R1, 2
+  VECTOR_ANN_SEARCH.ids    V4, V2, R1, dom=0, attr=0
+  LANE_INIT_SEEDS.auto_width F4, V4, dom=0
+  LANE_WALK.fwd            F5, F4, rel=0
+  LANE_FILTER_QUORUM.at_least F6, F5, k=2
+  SET_CARDINALITY          R10, F6
+  SET_CONVERT.f2v_ids      V6, F6
+  VECTOR_RERANK.dot        V7, V6, V2, dom=0, attr=0
+  VEC_REDUCE.sum           R11, V7
+  LOAD_CONST.u32           R12, 1
+  SCALAR_3VL.cmp_eq_i64    R13, R10, R12
+  ASSERT.true_r            R13
+  HALT

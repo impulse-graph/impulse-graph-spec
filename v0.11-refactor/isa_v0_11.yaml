@@ -545,6 +545,8 @@ opcodes:
       5: rev_fixpoint_plus
       6: rev_fixpoint_star
       7: fwd_bounded
+      8: coo_fwd
+      9: coo_rev
 
   - code: 0x31
     name: OP_WALK_FILTERED
@@ -622,6 +624,8 @@ opcodes:
     subops:
       0: fwd
       1: rev
+      2: coo_fwd
+      3: coo_rev
 
   - code: 0x36
     name: OP_FILTER_MORSEL
