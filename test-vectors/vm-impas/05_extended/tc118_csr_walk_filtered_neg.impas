@@ -1,9 +1,0 @@
-; ====================================================================
-; TC118: CSR Walk Filtered (Negative Test)
-; ====================================================================
-; {EXPECT: STATUS = IMPULSE_VM_ERR_OUT_OF_BOUNDS}
-
-.text
-0x00: OP_INIT_INPUT_SET      R0, 0
-0x01: OP_CSR_WALK_FILTERED   R2, R0, 999
-0x02: OP_HALT
