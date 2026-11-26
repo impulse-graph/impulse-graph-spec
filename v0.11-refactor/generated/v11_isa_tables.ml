@@ -149,11 +149,11 @@ let all_opcode_meta : opcode_meta list = [
   { op = OP_SET_CONTAINS; code = 0x25; name = "OP_SET_CONTAINS"; mnemonic = "SET_CONTAINS"; pillar = 2; allowed_flags = 0x0; valid_subop_mask = 0x0003; morsel_role = Morsel_forbidden };
   { op = OP_SET_CONVERT; code = 0x26; name = "OP_SET_CONVERT"; mnemonic = "SET_CONVERT"; pillar = 2; allowed_flags = 0x4; valid_subop_mask = 0x000F; morsel_role = Morsel_body_ok };
   { op = OP_STABLE_CHECK; code = 0x27; name = "OP_STABLE_CHECK"; mnemonic = "STABLE_CHECK"; pillar = 2; allowed_flags = 0x0; valid_subop_mask = 0x0003; morsel_role = Morsel_forbidden };
-  { op = OP_WALK; code = 0x30; name = "OP_WALK"; mnemonic = "WALK"; pillar = 3; allowed_flags = 0x5; valid_subop_mask = 0x00FF; morsel_role = Morsel_forbidden };
+  { op = OP_WALK; code = 0x30; name = "OP_WALK"; mnemonic = "WALK"; pillar = 3; allowed_flags = 0x5; valid_subop_mask = 0x03FF; morsel_role = Morsel_forbidden };
   { op = OP_WALK_FILTERED; code = 0x31; name = "OP_WALK_FILTERED"; mnemonic = "WALK_FILTERED"; pillar = 3; allowed_flags = 0x5; valid_subop_mask = 0xFFFF; morsel_role = Morsel_forbidden };
   { op = OP_DEGREE; code = 0x33; name = "OP_DEGREE"; mnemonic = "DEGREE"; pillar = 3; allowed_flags = 0x1; valid_subop_mask = 0x003F; morsel_role = Morsel_forbidden };
   { op = OP_SPMV; code = 0x34; name = "OP_SPMV"; mnemonic = "SPMV"; pillar = 3; allowed_flags = 0x7; valid_subop_mask = 0x01FF; morsel_role = Morsel_forbidden };
-  { op = OP_WALK_MORSEL; code = 0x35; name = "OP_WALK_MORSEL"; mnemonic = "WALK_MORSEL"; pillar = 3; allowed_flags = 0x1; valid_subop_mask = 0x0003; morsel_role = Morsel_header };
+  { op = OP_WALK_MORSEL; code = 0x35; name = "OP_WALK_MORSEL"; mnemonic = "WALK_MORSEL"; pillar = 3; allowed_flags = 0x1; valid_subop_mask = 0x000F; morsel_role = Morsel_header };
   { op = OP_FILTER_MORSEL; code = 0x36; name = "OP_FILTER_MORSEL"; mnemonic = "FILTER_MORSEL"; pillar = 3; allowed_flags = 0x0; valid_subop_mask = 0x0001; morsel_role = Morsel_header };
   { op = OP_MORSEL_COMMIT; code = 0x37; name = "OP_MORSEL_COMMIT"; mnemonic = "MORSEL_COMMIT"; pillar = 3; allowed_flags = 0x7; valid_subop_mask = 0x01FF; morsel_role = Morsel_commit_only };
   { op = OP_MORSEL_END; code = 0x38; name = "OP_MORSEL_END"; mnemonic = "MORSEL_END"; pillar = 3; allowed_flags = 0x0; valid_subop_mask = 0x0001; morsel_role = Morsel_end_only };
@@ -958,6 +958,8 @@ module Subop = struct
       | RevFixpointPlus
       | RevFixpointStar
       | FwdBounded
+      | CooFwd
+      | CooRev
 
     let to_int : t -> int = function
       | Fwd -> 0
@@ -968,6 +970,8 @@ module Subop = struct
       | RevFixpointPlus -> 5
       | RevFixpointStar -> 6
       | FwdBounded -> 7
+      | CooFwd -> 8
+      | CooRev -> 9
 
     let of_int : int -> t option = function
       | 0 -> Some Fwd
@@ -978,6 +982,8 @@ module Subop = struct
       | 5 -> Some RevFixpointPlus
       | 6 -> Some RevFixpointStar
       | 7 -> Some FwdBounded
+      | 8 -> Some CooFwd
+      | 9 -> Some CooRev
       | _ -> None
   end
 
@@ -1105,14 +1111,20 @@ module Subop = struct
     type t =
       | Fwd
       | Rev
+      | CooFwd
+      | CooRev
 
     let to_int : t -> int = function
       | Fwd -> 0
       | Rev -> 1
+      | CooFwd -> 2
+      | CooRev -> 3
 
     let of_int : int -> t option = function
       | 0 -> Some Fwd
       | 1 -> Some Rev
+      | 2 -> Some CooFwd
+      | 3 -> Some CooRev
       | _ -> None
   end
 

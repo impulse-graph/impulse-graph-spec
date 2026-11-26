@@ -1,0 +1,28 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: R8 = 4}}
+; {{EXPECT: R7 = 0}}
+; {{EXPECT: F5 = [0, 1, 2, 3] (dom=0)}}
+; ALGO01 (ported from v0.10): Multi-Hop BFS Frontier Expansion & Reachability
+; Chains WALK.fwd, SET_OP.union, and SET_CARDINALITY over a diamond DAG.
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .relation 0 name="NEXT" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 4, 4] targets=[1, 2, 3, 3]
+
+.code
+  FSEED.single_imm       F1, node=0, dom=0
+  WALK.fwd               F2, F1, rel=0
+  SET_OP.union           F3, F1, F2
+  WALK.fwd               F4, F2, rel=0
+  SET_OP.union           F5, F3, F4
+  WALK.fwd               F6, F4, rel=0
+  SET_CARDINALITY        R7, F6
+  SET_CARDINALITY        R8, F5
+  LOAD_CONST.u32         R9, 4
+  SCALAR_3VL.cmp_eq_i64  R10, R8, R9
+  ASSERT.true_r          R10
+  LOAD_CONST.u32         R11, 0
+  SCALAR_3VL.cmp_eq_i64  R12, R7, R11
+  ASSERT.true_r          R12
+  HALT

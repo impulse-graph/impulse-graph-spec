@@ -158,7 +158,7 @@ class TestV11M0Exhaustive(unittest.TestCase):
         self.assertEqual(len(self.active_ops), 78)
         self.assertEqual(len(self.isa["opcodes"]), 79)
         total_subops = sum(len(op["subops"]) for op in self.isa["opcodes"])
-        self.assertEqual(total_subops, 449)
+        self.assertEqual(total_subops, 453)
 
     def test_02_codegen_zero_drift(self) -> None:
         drifts = generate_all(check=True)
@@ -268,7 +268,7 @@ class TestV11M0Exhaustive(unittest.TestCase):
                     with self.assertRaises(AsmError):
                         self.asm.disassemble([encode_word(op["code"], 0, s, 0, 0, 0, 0, 0)])
                     invalid_subop_checks += 1
-        self.assertEqual(invalid_subop_checks, 78 * 16 - 448)
+        self.assertEqual(invalid_subop_checks, 78 * 16 - 452)
 
     def test_08_exhaustive_morsel_scope_and_register_alias_matrix(self) -> None:
         """Exhaustively verify morsel role restrictions and F8..15/V8..15 vs MF0..7/M0..7 rules."""

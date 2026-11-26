@@ -1,0 +1,40 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: F2 = [2] (dom=0)}}
+; {{EXPECT: F3 = [0, 1] (dom=0)}}
+; {{EXPECT: R2 = 1}}
+; P3-20: WALK_MORSEL.coo_fwd/.coo_rev with multi-lane M3 input + VEC_3VL_OP inside morsel body
+
+.data
+  .domain 0 name="Node" count=4 width=u16
+  .relation 0 name="E" src_dom=0 tgt_dom=0
+  .coo_inline rel=0 sources=[0, 1, 1, 2] targets=[2, 2, 3, 3] order="src_tgt"
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[10.0, 20.0, 5.0, 15.0]
+  .node_attr dom=0 attr=0 name="tag" type=f64 values=[1.0, 2.0, 3.0, null]
+  .param 0 type=u64_vec values=[0, 1]
+
+.code
+  LOAD_PARAM.vec             V0, param=0, type=u64
+  LANE_INIT_SEEDS.auto_width F0, V0, dom=0
+  LOAD_CONST.f64.ext         R0, 8.0
+  LOAD_CONST.f64.ext         R1, 25.0
+
+  ; Multi-lane WALK_MORSEL.coo_fwd with compound Kleene 3VL (w >= 8.0 AND w <= 25.0)
+  WALK_MORSEL.coo_fwd F0, rel=0
+    GATHER_EDGE_ATTR                 M4, M2, rel=0, attr=0
+    VEC_CMP.ge.scalar                M5, M4, R0
+    VEC_CMP.le.scalar                M6, M4, R1
+    VEC_3VL_OP.and                   M5, M5, M6
+    SET_CONVERT.b2f                  MF1, M5
+    JCC.jempty_f                     MF1, skip_ml
+    MORSEL_COMMIT.yield_lane_or.mask F1, M1, M3, MF1, dom=0
+  skip_ml:
+  MORSEL_END
+
+  LANE_FILTER_QUORUM.at_least F2, F1, k=2
+  SET_CARDINALITY             R2, F2
+
+  ; Reverse COO morsel from {2} -> {0, 1}
+  WALK_MORSEL.coo_rev F2, rel=0
+    MORSEL_COMMIT.yield_frontier F3, M0, dom=0
+  MORSEL_END
+  HALT

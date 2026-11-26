@@ -1,0 +1,29 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0, 20, 30]}}
+; ALGO06 (ported from v0.10 stream shader to v0.11 lexical morsel):
+; Weighted message passing: out[v] += attr_src[u] * attr_edge[e]
+; From seed u=0 (attr_src[0]=10.0) along 0->1 (w=2.0) and 0->2 (w=3.0):
+; out = [0.0, 20.0, 30.0], sum = 50.0.
+
+.data
+  .domain 0 name="Node" count=3 width=u16
+  .relation 0 name="FLOW" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 3] targets=[1, 2, 2]
+  .node_attr dom=0 attr=0 name="src_val" type=f64 values=[10.0, 20.0, 30.0]
+  .edge_attr rel=0 attr=0 name="w" type=f64 values=[2.0, 3.0, 4.0]
+  .param 0 type=f64_vec values=[0.0, 0.0, 0.0]
+
+.code
+  FSEED.single_imm              F0, node=0, dom=0
+  LOAD_PARAM.vec                V4, param=0, type=f64
+
+  WALK_MORSEL.fwd               F0, rel=0
+    GATHER_NODE_ATTR.vec        M4, M0, dom=0, attr=0
+    GATHER_EDGE_ATTR            M5, M2, rel=0, attr=0
+    VEC_MATH_ARITH.mul          M6, M4, M5
+    MORSEL_COMMIT.scatter_add   V4, M1, M6
+  MORSEL_END
+
+  VEC_REDUCE.sum                R5, V4
+  COLLECT.vec                   V4, out=0
+  HALT
