@@ -165,6 +165,8 @@ The `SectionFeatures` field defines C-ABI flags and structural contracts for top
 #define IMP_REL_FEATURE_CSC          (1ULL << 0) // Bit 0: CSC Transpose Index Present
 #define IMP_REL_FEATURE_WEIGHTED     (1ULL << 1) // Bit 1: Edge Weights Present
 #define IMP_REL_FEATURE_VIRTUAL      (1ULL << 2) // Bit 2: Virtual Super-Relation (No physical arrays on disk)
+#define IMP_REL_FEATURE_HAS_COO      (1ULL << 8) // Bit 8: COO Edge-List Present (Spec v0.11.0+)
+#define IMP_REL_FEATURE_COO_EDGE_IDS (1ULL << 9) // Bit 9: Explicit COO Canonical Edge ID Array Present (Spec v0.11.0+)
 
 // Multiplicity Bitmask (Bits 3..4)
 #define IMP_REL_CARDINALITY_MASK     (3ULL << 3) // Bitmask for relation multiplicity (Bits 3..4)
@@ -173,6 +175,33 @@ The `SectionFeatures` field defines C-ABI flags and structural contracts for top
 #define IMP_REL_CARDINALITY_1_M      (2ULL << 3) // One-to-Many  (Forward CSR, reverse flat CSC array)
 #define IMP_REL_CARDINALITY_1_1      (3ULL << 3) // One-to-One   (Flat bi-directional direct arrays)
 ```
+
+---
+
+#### 3.3.4 Format v0.11 (`0x000B`) Extensions: Domain `DenseIdWidth` & 192-Byte Relation Directory Entry (COO)
+
+In `.imps` **v0.11 (`header.version == 0x000B`)**:
+
+1. **Per-Domain Dense ID Width (`DomainCatalogEntry` byte `0x03`, 32B unchanged)**:
+   - Byte `0x03` (`Reserved1` in v0.10) is `uint8_t DenseIdWidth` $\in \{2, 4, 8\}$ (`0` falls back to `RelationDirectoryEntry.NodeIdWidth` for v0.10 compatibility).
+   - Every topology array inherits its element width strictly from its domain: `csr_col_idx` and `coo_tgt` use `tgt_domain.DenseIdWidth`; `csc_col_idx` and `coo_src` use `src_domain.DenseIdWidth`.
+2. **192-Byte `RelationDirectoryEntry` (`impulse_relation_directory_entry_v0_11_t`)**:
+   - Bytes `0x00..0x7F` (128 bytes) are bitwise identical to v0.10.
+   - Bytes `0x80..0xBF` (64 bytes) append the COO descriptor block:
+
+| Byte Offset | Field Name | C-ABI Type | Size | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `0x0080` – `0x0087` | `CooSrcOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to COO source node ID array (`0` if COO absent). |
+| `0x0088` – `0x008F` | `CooSrcBytes` | `uint64_t` | 8 Bytes | Byte size (`EdgeCount * src_domain.DenseIdWidth`). |
+| `0x0090` – `0x0097` | `CooTgtOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to COO target node ID array (`0` if COO absent). |
+| `0x0098` – `0x009F` | `CooTgtBytes` | `uint64_t` | 8 Bytes | Byte size (`EdgeCount * tgt_domain.DenseIdWidth`). |
+| `0x00A0` – `0x00A7` | `CooEdgeIdOffset` | `uint64_t` | 8 Bytes | Optional 128B-aligned offset to COO canonical edge IDs (`0` $\Rightarrow$ identity $e = i$). |
+| `0x00A8` – `0x00AF` | `CooEdgeIdBytes` | `uint64_t` | 8 Bytes | Byte size (`0` when identity, else `EdgeCount * EdgeIndexWidth`). |
+| `0x00B0` | `CooOrder` | `uint8_t` | 1 Byte | `0=UNSORTED`, `1=SRC`, `2=SRC_TGT`, `3=TGT`, `4=TGT_SRC`. |
+| `0x00B1` – `0x00BF` | `Reserved3` | `uint8_t[15]` | 15 Bytes | Zero-filled (`0x00`). |
+
+3. **Relaxed Topology Presence Rule**: A non-virtual v0.11 relation with `EdgeCount > 0` MUST include at least one physical layout (`has_csr || has_csc || has_coo`). CSR is no longer mandatory when COO or CSC is present.
+4. **Backward Compatibility**: v0.11 writers emit `header.version = 0x000B` (192B relation entries). Readers MUST dispatch on `header.version` to read v0.9 (`0x0009`, 128B), v0.10 (`0x000A`, 128B), and v0.11 (`0x000B`, 192B) seamlessly.
 
 ---
 
