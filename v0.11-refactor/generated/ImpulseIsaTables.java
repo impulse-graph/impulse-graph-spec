@@ -1,9 +1,9 @@
 // DO NOT EDIT — Auto-generated from v0.11-refactor/isa_v0_11.yaml
-// by tools/gen_v11_tables.py (impOps v0.11.0, impb v11).
-package org.impulsegraph.vm.v11;
+// by tools/gen_isa_tables.py (impOps v0.11.0, impb v11).
+package org.impulsegraph.vm;
 
 /** Generated normative ISA constants and metadata tables for ImpulseVM v0.11.0. */
-public final class V11IsaTables {
+public final class ImpulseIsaTables {
 
     public static final int IMPB_MAGIC = 0x494D5042;
     public static final int IMPB_VERSION = 11;
@@ -707,5 +707,5 @@ public final class V11IsaTables {
         return 0xFFL | ((imm32Hi & 0xFFFFFFFFL) << 32);
     }
 
-    private V11IsaTables() {}
+    private ImpulseIsaTables() {}
 }

@@ -40,8 +40,8 @@ jobs:
 
       - name: Validate ImpulseVM v0.11.0 Freeze, Codegen Drift, GFM Lint & Exhaustive M0 Suite
         run: |
-          python tools/v11_isa_loader.py
-          python tools/gen_v11_tables.py --check
-          python tools/lint_v11_gfm.py
-          python -m unittest -v tools/test_v11_m0.py
+          python tools/isa_loader.py
+          python tools/gen_isa_tables.py --check
+          python tools/lint_gfm.py
+          python -m unittest -v tools/test_isa_m0.py
 

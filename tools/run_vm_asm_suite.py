@@ -2,8 +2,8 @@
 """
 ImpulseVM v0.11.0 Metamorphic Compliance & Multi-Dimensional Coverage Suite Runner.
 
-Executes `.impas` v0.11 test vectors under `test-vectors/vm-impas-v11/` against the
-OCaml Reference Oracle (`impulse-ocaml --v11-fixture-batch`) across metamorphic
+Executes `.impas` v0.11 test vectors under `test-vectors/vm-impas/` against the
+OCaml Reference Oracle (`impulse-ocaml --vm-fixture-batch`) across metamorphic
 geometry profiles (P0, P1, P2, P3), verifies all `; {{EXPECT: ...}}` assertions,
 checks lossless assembler roundtrip, enforces `ICTX v2` `logical_hash` invariance,
 and gates 100% `(opcode x subop x flag)` coverage from `v0.11-refactor/isa_v0_11.yaml`.
@@ -25,13 +25,13 @@ from typing import Any
 
 TOOLS_DIR = Path(__file__).resolve().parent
 SPEC_ROOT = TOOLS_DIR.parent
-DEFAULT_VECTORS_DIR = SPEC_ROOT / "test-vectors" / "vm-impas-v11"
+DEFAULT_VECTORS_DIR = SPEC_ROOT / "test-vectors" / "vm-impas"
 DEFAULT_OCAML_BIN = SPEC_ROOT.parent / "impulse-ocaml" / "_build" / "default" / "bin" / "main.exe"
 
 if str(TOOLS_DIR) not in sys.path:
     sys.path.insert(0, str(TOOLS_DIR))
 
-from impas_v11_assembler import (
+from impas_assembler import (
     AsmError,
     FLAG_ACCUM,
     FLAG_EXT,
@@ -41,7 +41,7 @@ from impas_v11_assembler import (
     SCALAR_TYPE_NAMES,
     decode_word_fields,
 )
-from v11_isa_loader import load_isa
+from isa_loader import load_isa
 
 RAW_WORDS_RE = re.compile(r"^\s*;\s*\{\{RAW_WORDS:\s*(.+?)\s*\}\}\s*$")
 EXPECT_LINE_RE = re.compile(r"^\s*;\s*\{\{EXPECT:\s*(.+?)\s*\}\}\s*$")
@@ -83,12 +83,12 @@ class BatchEngineClient:
 
 
 class OcamlBatchClient(BatchEngineClient):
-    """Persistent stdin/stdout JSONL client for `impulse-ocaml --v11-fixture-batch`."""
+    """Persistent stdin/stdout JSONL client for `impulse-ocaml --vm-fixture-batch`."""
 
     def __init__(self, ocaml_bin: Path):
         if not ocaml_bin.exists():
             raise FileNotFoundError(f"OCaml oracle binary not found: {ocaml_bin}")
-        super().__init__([str(ocaml_bin), "--v11-fixture-batch"], label="OCaml")
+        super().__init__([str(ocaml_bin), "--vm-fixture-batch"], label="OCaml")
 
 
 def _u64_to_i64(u: int) -> int:
@@ -286,7 +286,7 @@ def main() -> int:
     parser.add_argument("--vectors-dir", type=Path, default=DEFAULT_VECTORS_DIR)
     parser.add_argument("--ocaml-bin", type=Path, default=DEFAULT_OCAML_BIN)
     parser.add_argument("--java-cmd", type=str, default=None,
-                        help="Command line (shlex-split) to launch Java V11FixtureBatchMain for 2-way OCaml parity")
+                        help="Command line (shlex-split) to launch Java VmFixtureBatchMain for 2-way OCaml parity")
     parser.add_argument("--pillar", type=int, choices=[1, 2, 3, 4, 5], default=None)
     parser.add_argument("--profiles", type=str, default="P0,P1,P2,P3")
     parser.add_argument("--filter", type=str, default=None)

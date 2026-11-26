@@ -1,5 +1,5 @@
 (** DO NOT EDIT — Auto-generated from v0.11-refactor/isa_v0_11.yaml
-    by tools/gen_v11_tables.py (impOps v0.11.0, impb v11). *)
+    by tools/gen_isa_tables.py (impOps v0.11.0, impb v11). *)
 
 let impb_magic : int32 = 0x494D5042l
 let impb_version_u16 : int = 11
