@@ -61,6 +61,11 @@ def _is_valid_combo(op: dict[str, Any], subop: int, flags: int) -> bool:
         return False
     if code == 0x4D and subop == 8 and (flags & FLAG_SCALAR):
         return False
+    if code == 0x58:  # VEC_DECIMAL_ALU
+        if subop in (3, 4, 15) and (flags & FLAG_MASK):
+            return False
+        if 7 <= subop <= 14 and (flags & FLAG_SCALAR):
+            return False
     if code == 0x6C and subop in (3, 8) and (flags & FLAG_SCALAR):
         return False
     return True
@@ -130,7 +135,7 @@ def _synth_instruction_source(op: dict[str, Any], subop: int, flags: int) -> str
     elif imm_layout == "U16_HI":
         if code != 0x36:
             operands.append("hi=2")
-    elif imm_layout == "U16_PAIR":
+    elif imm_layout in ("U16_PAIR", "OPT_U16_PAIR"):
         if code == 0x35:
             operands.append("rel=1")
         else:
@@ -155,10 +160,10 @@ class TestV11M0Exhaustive(unittest.TestCase):
         cls.active_ops = [op for op in cls.isa["opcodes"] if op["code"] != 0xFF]
 
     def test_01_yaml_freeze_invariants(self) -> None:
-        self.assertEqual(len(self.active_ops), 78)
-        self.assertEqual(len(self.isa["opcodes"]), 79)
+        self.assertEqual(len(self.active_ops), 80)
+        self.assertEqual(len(self.isa["opcodes"]), 81)
         total_subops = sum(len(op["subops"]) for op in self.isa["opcodes"])
-        self.assertEqual(total_subops, 453)
+        self.assertEqual(total_subops, 487)
 
     def test_02_codegen_zero_drift(self) -> None:
         drifts = generate_all(check=True)
@@ -239,7 +244,7 @@ class TestV11M0Exhaustive(unittest.TestCase):
         """Sweep all 256 Byte-0 codes and all 16 subop slots for every active opcode."""
         defined_codes = {op["code"] for op in self.isa["opcodes"]}
         unassigned = [c for c in range(256) if c not in defined_codes]
-        self.assertEqual(len(unassigned), 177)
+        self.assertEqual(len(unassigned), 175)
 
         # All 177 unassigned opcodes rejected
         for c in unassigned:
@@ -268,7 +273,7 @@ class TestV11M0Exhaustive(unittest.TestCase):
                     with self.assertRaises(AsmError):
                         self.asm.disassemble([encode_word(op["code"], 0, s, 0, 0, 0, 0, 0)])
                     invalid_subop_checks += 1
-        self.assertEqual(invalid_subop_checks, 78 * 16 - 452)
+        self.assertEqual(invalid_subop_checks, 80 * 16 - 486)
 
     def test_08_exhaustive_morsel_scope_and_register_alias_matrix(self) -> None:
         """Exhaustively verify morsel role restrictions and F8..15/V8..15 vs MF0..7/M0..7 rules."""

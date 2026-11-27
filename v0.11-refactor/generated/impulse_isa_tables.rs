@@ -5,7 +5,7 @@
 
 pub const IMPB_MAGIC: u32 = 0x494D5042;
 pub const IMPB_VERSION: u16 = 11;
-pub const ACTIVE_OPCODE_COUNT: usize = 78;
+pub const ACTIVE_OPCODE_COUNT: usize = 80;
 
 pub const FLAG_MASKED_S3: u8 = 0x1;
 pub const FLAG_SCALAR_RHS: u8 = 0x2;
@@ -35,6 +35,8 @@ pub enum Status {
     ImpulseVmErrGasExhausted = 13,
     ImpulseVmErrTypeMismatch = 14,
     ImpulseVmErrValidationFailed = 15,
+    ImpulseVmErrArithmeticOverflow = 16,
+    ImpulseVmErrDivByZero = 17,
 }
 
 #[repr(u8)]
@@ -87,6 +89,7 @@ pub enum Opcode {
     OpCall = 0x12,
     OpRet = 0x13,
     OpSetMaxDop = 0x14,
+    OpScalarDecimalAlu = 0x15,
     OpFseed = 0x20,
     OpInitDomainSpan = 0x21,
     OpSetOp = 0x22,
@@ -130,6 +133,7 @@ pub enum Opcode {
     OpMapKeysToDense = 0x55,
     OpMapDenseToKeys = 0x56,
     OpCollect = 0x57,
+    OpVecDecimalAlu = 0x58,
     OpLaneInitSeeds = 0x60,
     OpLaneInitGroups = 0x61,
     OpLaneWalk = 0x63,
@@ -255,6 +259,22 @@ pub mod subop {
     pub const RET_RET: u8 = 0;
     pub const SET_MAX_DOP_IMM: u8 = 0;
     pub const SET_MAX_DOP_REG: u8 = 1;
+    pub const SCALAR_DECIMAL_ALU_ADD_CHK: u8 = 0;
+    pub const SCALAR_DECIMAL_ALU_SUB_CHK: u8 = 1;
+    pub const SCALAR_DECIMAL_ALU_MUL_CHK: u8 = 2;
+    pub const SCALAR_DECIMAL_ALU_MUL_DIV_ROUND: u8 = 3;
+    pub const SCALAR_DECIMAL_ALU_DIV_ROUND: u8 = 4;
+    pub const SCALAR_DECIMAL_ALU_RESCALE: u8 = 5;
+    pub const SCALAR_DECIMAL_ALU_BOUND_CHK: u8 = 6;
+    pub const SCALAR_DECIMAL_ALU_ABS_CHK: u8 = 7;
+    pub const SCALAR_DECIMAL_ALU_NEG_CHK: u8 = 8;
+    pub const SCALAR_DECIMAL_ALU_F64_TO_DEC: u8 = 9;
+    pub const SCALAR_DECIMAL_ALU_DEC_TO_F64: u8 = 10;
+    pub const SCALAR_DECIMAL_ALU_ROUND_SCALE: u8 = 11;
+    pub const SCALAR_DECIMAL_ALU_TRUNC_SCALE: u8 = 12;
+    pub const SCALAR_DECIMAL_ALU_FLOOR_SCALE: u8 = 13;
+    pub const SCALAR_DECIMAL_ALU_CEIL_SCALE: u8 = 14;
+    pub const SCALAR_DECIMAL_ALU_DIV_SAFE: u8 = 15;
     pub const FSEED_EMPTY: u8 = 0;
     pub const FSEED_SINGLE_IMM: u8 = 1;
     pub const FSEED_SINGLE_REG: u8 = 2;
@@ -334,6 +354,7 @@ pub mod subop {
     pub const MORSEL_COMMIT_SCATTER_ARGMIN: u8 = 6;
     pub const MORSEL_COMMIT_SCATTER_ARGMAX: u8 = 7;
     pub const MORSEL_COMMIT_COUNT_ADD_R: u8 = 8;
+    pub const MORSEL_COMMIT_SCATTER_ADD_CHK: u8 = 9;
     pub const MORSEL_END_END: u8 = 0;
     pub const SAMPLE_NEIGHBORS_FRONTIER_WOR: u8 = 0;
     pub const SAMPLE_NEIGHBORS_VEC_WR: u8 = 1;
@@ -509,6 +530,7 @@ pub mod subop {
     pub const VEC_REDUCE_ARGMAX: u8 = 8;
     pub const VEC_REDUCE_ANY_TRUE: u8 = 9;
     pub const VEC_REDUCE_ALL_TRUE: u8 = 10;
+    pub const VEC_REDUCE_SUM_I64_CHK: u8 = 11;
     pub const TOP_K_DESC_IDS: u8 = 0;
     pub const TOP_K_ASC_IDS: u8 = 1;
     pub const TOP_K_DESC_SCORES: u8 = 2;
@@ -533,6 +555,22 @@ pub mod subop {
     pub const COLLECT_VEC: u8 = 2;
     pub const COLLECT_SCALAR: u8 = 3;
     pub const COLLECT_TABLE_COL: u8 = 4;
+    pub const VEC_DECIMAL_ALU_ADD_CHK: u8 = 0;
+    pub const VEC_DECIMAL_ALU_SUB_CHK: u8 = 1;
+    pub const VEC_DECIMAL_ALU_MUL_CHK: u8 = 2;
+    pub const VEC_DECIMAL_ALU_MUL_DIV_R: u8 = 3;
+    pub const VEC_DECIMAL_ALU_MUL_DIV_V: u8 = 4;
+    pub const VEC_DECIMAL_ALU_DIV_ROUND: u8 = 5;
+    pub const VEC_DECIMAL_ALU_DIV_SAFE: u8 = 6;
+    pub const VEC_DECIMAL_ALU_RESCALE: u8 = 7;
+    pub const VEC_DECIMAL_ALU_BOUND_CHK: u8 = 8;
+    pub const VEC_DECIMAL_ALU_ABS_CHK: u8 = 9;
+    pub const VEC_DECIMAL_ALU_NEG_CHK: u8 = 10;
+    pub const VEC_DECIMAL_ALU_F64_TO_DEC: u8 = 11;
+    pub const VEC_DECIMAL_ALU_DEC_TO_F64: u8 = 12;
+    pub const VEC_DECIMAL_ALU_ROUND_SCALE: u8 = 13;
+    pub const VEC_DECIMAL_ALU_TRUNC_SCALE: u8 = 14;
+    pub const VEC_DECIMAL_ALU_MUL_DIV_SAFE_R: u8 = 15;
     pub const LANE_INIT_SEEDS_AUTO_WIDTH: u8 = 0;
     pub const LANE_INIT_SEEDS_FORCE_W64: u8 = 1;
     pub const LANE_INIT_GROUPS_GROUPS: u8 = 0;
@@ -638,6 +676,7 @@ pub const OPCODE_META: [Option<OpcodeMeta>; 256] = {
     tbl[0x12] = Some(OpcodeMeta { op: Opcode::OpCall, code: 0x12, pillar: 1, allowed_flags: 0x0, valid_subop_mask: 0x0003, morsel_role: MorselRole::Forbidden, name: "OP_CALL", mnemonic: "CALL" });
     tbl[0x13] = Some(OpcodeMeta { op: Opcode::OpRet, code: 0x13, pillar: 1, allowed_flags: 0x0, valid_subop_mask: 0x0001, morsel_role: MorselRole::Forbidden, name: "OP_RET", mnemonic: "RET" });
     tbl[0x14] = Some(OpcodeMeta { op: Opcode::OpSetMaxDop, code: 0x14, pillar: 1, allowed_flags: 0x0, valid_subop_mask: 0x0003, morsel_role: MorselRole::Forbidden, name: "OP_SET_MAX_DOP", mnemonic: "SET_MAX_DOP" });
+    tbl[0x15] = Some(OpcodeMeta { op: Opcode::OpScalarDecimalAlu, code: 0x15, pillar: 1, allowed_flags: 0x0, valid_subop_mask: 0xFFFF, morsel_role: MorselRole::Forbidden, name: "OP_SCALAR_DECIMAL_ALU", mnemonic: "SCALAR_DECIMAL_ALU" });
     tbl[0x20] = Some(OpcodeMeta { op: Opcode::OpFseed, code: 0x20, pillar: 2, allowed_flags: 0x4, valid_subop_mask: 0x001F, morsel_role: MorselRole::Forbidden, name: "OP_FSEED", mnemonic: "FSEED" });
     tbl[0x21] = Some(OpcodeMeta { op: Opcode::OpInitDomainSpan, code: 0x21, pillar: 2, allowed_flags: 0x0, valid_subop_mask: 0x0001, morsel_role: MorselRole::Forbidden, name: "OP_INIT_DOMAIN_SPAN", mnemonic: "INIT_DOMAIN_SPAN" });
     tbl[0x22] = Some(OpcodeMeta { op: Opcode::OpSetOp, code: 0x22, pillar: 2, allowed_flags: 0x0, valid_subop_mask: 0x000F, morsel_role: MorselRole::BodyOk, name: "OP_SET_OP", mnemonic: "SET_OP" });
@@ -652,7 +691,7 @@ pub const OPCODE_META: [Option<OpcodeMeta>; 256] = {
     tbl[0x34] = Some(OpcodeMeta { op: Opcode::OpSpmv, code: 0x34, pillar: 3, allowed_flags: 0x7, valid_subop_mask: 0x01FF, morsel_role: MorselRole::Forbidden, name: "OP_SPMV", mnemonic: "SPMV" });
     tbl[0x35] = Some(OpcodeMeta { op: Opcode::OpWalkMorsel, code: 0x35, pillar: 3, allowed_flags: 0x1, valid_subop_mask: 0x000F, morsel_role: MorselRole::Header, name: "OP_WALK_MORSEL", mnemonic: "WALK_MORSEL" });
     tbl[0x36] = Some(OpcodeMeta { op: Opcode::OpFilterMorsel, code: 0x36, pillar: 3, allowed_flags: 0x0, valid_subop_mask: 0x0001, morsel_role: MorselRole::Header, name: "OP_FILTER_MORSEL", mnemonic: "FILTER_MORSEL" });
-    tbl[0x37] = Some(OpcodeMeta { op: Opcode::OpMorselCommit, code: 0x37, pillar: 3, allowed_flags: 0x7, valid_subop_mask: 0x01FF, morsel_role: MorselRole::CommitOnly, name: "OP_MORSEL_COMMIT", mnemonic: "MORSEL_COMMIT" });
+    tbl[0x37] = Some(OpcodeMeta { op: Opcode::OpMorselCommit, code: 0x37, pillar: 3, allowed_flags: 0x7, valid_subop_mask: 0x03FF, morsel_role: MorselRole::CommitOnly, name: "OP_MORSEL_COMMIT", mnemonic: "MORSEL_COMMIT" });
     tbl[0x38] = Some(OpcodeMeta { op: Opcode::OpMorselEnd, code: 0x38, pillar: 3, allowed_flags: 0x0, valid_subop_mask: 0x0001, morsel_role: MorselRole::EndOnly, name: "OP_MORSEL_END", mnemonic: "MORSEL_END" });
     tbl[0x39] = Some(OpcodeMeta { op: Opcode::OpSampleNeighbors, code: 0x39, pillar: 3, allowed_flags: 0x0, valid_subop_mask: 0x000F, morsel_role: MorselRole::Forbidden, name: "OP_SAMPLE_NEIGHBORS", mnemonic: "SAMPLE_NEIGHBORS" });
     tbl[0x3A] = Some(OpcodeMeta { op: Opcode::OpHasTopology, code: 0x3A, pillar: 3, allowed_flags: 0x0, valid_subop_mask: 0x03FF, morsel_role: MorselRole::Forbidden, name: "OP_HAS_TOPOLOGY", mnemonic: "HAS_TOPOLOGY" });
@@ -675,12 +714,13 @@ pub const OPCODE_META: [Option<OpcodeMeta>; 256] = {
     tbl[0x4F] = Some(OpcodeMeta { op: Opcode::OpCoalesce, code: 0x4F, pillar: 4, allowed_flags: 0x3, valid_subop_mask: 0x0001, morsel_role: MorselRole::BodyOk, name: "OP_COALESCE", mnemonic: "COALESCE" });
     tbl[0x50] = Some(OpcodeMeta { op: Opcode::OpVecInit, code: 0x50, pillar: 4, allowed_flags: 0x2, valid_subop_mask: 0x7F7F, morsel_role: MorselRole::Forbidden, name: "OP_VEC_INIT", mnemonic: "VEC_INIT" });
     tbl[0x51] = Some(OpcodeMeta { op: Opcode::OpVecPoint, code: 0x51, pillar: 4, allowed_flags: 0x0, valid_subop_mask: 0x000F, morsel_role: MorselRole::BodyCastOnly, name: "OP_VEC_POINT", mnemonic: "VEC_POINT" });
-    tbl[0x52] = Some(OpcodeMeta { op: Opcode::OpVecReduce, code: 0x52, pillar: 4, allowed_flags: 0x1, valid_subop_mask: 0x07FF, morsel_role: MorselRole::Forbidden, name: "OP_VEC_REDUCE", mnemonic: "VEC_REDUCE" });
+    tbl[0x52] = Some(OpcodeMeta { op: Opcode::OpVecReduce, code: 0x52, pillar: 4, allowed_flags: 0x1, valid_subop_mask: 0x0FFF, morsel_role: MorselRole::Forbidden, name: "OP_VEC_REDUCE", mnemonic: "VEC_REDUCE" });
     tbl[0x53] = Some(OpcodeMeta { op: Opcode::OpTopK, code: 0x53, pillar: 4, allowed_flags: 0x3, valid_subop_mask: 0x000F, morsel_role: MorselRole::Forbidden, name: "OP_TOP_K", mnemonic: "TOP_K" });
     tbl[0x54] = Some(OpcodeMeta { op: Opcode::OpIndexScan, code: 0x54, pillar: 4, allowed_flags: 0x4, valid_subop_mask: 0x007F, morsel_role: MorselRole::Forbidden, name: "OP_INDEX_SCAN", mnemonic: "INDEX_SCAN" });
     tbl[0x55] = Some(OpcodeMeta { op: Opcode::OpMapKeysToDense, code: 0x55, pillar: 4, allowed_flags: 0x4, valid_subop_mask: 0x001F, morsel_role: MorselRole::Forbidden, name: "OP_MAP_KEYS_TO_DENSE", mnemonic: "MAP_KEYS_TO_DENSE" });
     tbl[0x56] = Some(OpcodeMeta { op: Opcode::OpMapDenseToKeys, code: 0x56, pillar: 4, allowed_flags: 0x0, valid_subop_mask: 0x0007, morsel_role: MorselRole::Forbidden, name: "OP_MAP_DENSE_TO_KEYS", mnemonic: "MAP_DENSE_TO_KEYS" });
     tbl[0x57] = Some(OpcodeMeta { op: Opcode::OpCollect, code: 0x57, pillar: 4, allowed_flags: 0x1, valid_subop_mask: 0x001F, morsel_role: MorselRole::Forbidden, name: "OP_COLLECT", mnemonic: "COLLECT" });
+    tbl[0x58] = Some(OpcodeMeta { op: Opcode::OpVecDecimalAlu, code: 0x58, pillar: 4, allowed_flags: 0x3, valid_subop_mask: 0xFFFF, morsel_role: MorselRole::BodyOk, name: "OP_VEC_DECIMAL_ALU", mnemonic: "VEC_DECIMAL_ALU" });
     tbl[0x60] = Some(OpcodeMeta { op: Opcode::OpLaneInitSeeds, code: 0x60, pillar: 5, allowed_flags: 0x0, valid_subop_mask: 0x0003, morsel_role: MorselRole::Forbidden, name: "OP_LANE_INIT_SEEDS", mnemonic: "LANE_INIT_SEEDS" });
     tbl[0x61] = Some(OpcodeMeta { op: Opcode::OpLaneInitGroups, code: 0x61, pillar: 5, allowed_flags: 0x4, valid_subop_mask: 0x0001, morsel_role: MorselRole::Forbidden, name: "OP_LANE_INIT_GROUPS", mnemonic: "LANE_INIT_GROUPS" });
     tbl[0x63] = Some(OpcodeMeta { op: Opcode::OpLaneWalk, code: 0x63, pillar: 5, allowed_flags: 0x5, valid_subop_mask: 0x03FF, morsel_role: MorselRole::Forbidden, name: "OP_LANE_WALK", mnemonic: "LANE_WALK" });

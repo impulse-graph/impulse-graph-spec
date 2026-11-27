@@ -33,12 +33,13 @@ Resolves signed/unsigned ambiguity for v0.11 `I64`/`U64` vector semantics and ad
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `0x01`–`0x04` | `INT8` .. `INT64` | `0x01`..`0x04` | `0x81`..`0x84` | `0` | **Signed** `int8_t` .. `int64_t` (two's complement) |
 | `0x08`–`0x09` | `TIMESTAMP_MS` / `NS` | `0x08`..`0x09` | `0x88`..`0x89` | `0` | **Signed** `int64_t` UTC epoch ms / ns (supports pre-1970 dates) |
-| `0x0F` | `UINT8` | `0x0F` | `0x8F` | `0` | Unsigned `uint8_t` |
-| `0x10` | `UINT16` | `0x10` | `0x90` | `0` | Unsigned `uint16_t` |
-| `0x11` | `UINT32` | `0x11` | `0x91` | `0` | Unsigned `uint32_t` |
-| `0x12` | `UINT64` | `0x12` | `0x92` | `0` | Unsigned `uint64_t` |
-| `0x13` | `DECIMAL64` | `0x13` | `0x93` | `Reserved1 = scale` (`0..18`), `Reserved2 = precision` (`1..18`) | Scaled signed `int64_t` ($\times 10^{\text{scale}}$, Parquet `DECIMAL64` layout) |
-| `0x14` | `BOOL` | `0x14` | `0x94` | `0` | 1-bit packed `uint64_t[(K + 63) / 64]` (128B-padded) |
+| `0x0F` | `BOOL` | `0x0F` | `0x8F` | `0` | 1-bit packed `uint64_t[(K + 63) / 64]` (128B-padded) |
+| `0x11` | `UINT8` | `0x11` | `0x91` | `0` | Unsigned `uint8_t` (`0x10` reserved for `INT* \| 0x10` symmetry) |
+| `0x12` | `UINT16` | `0x12` | `0x92` | `0` | Unsigned `uint16_t` |
+| `0x13` | `UINT32` | `0x13` | `0x93` | `0` | Unsigned `uint32_t` |
+| `0x14` | `UINT64` | `0x14` | `0x94` | `0` | Unsigned `uint64_t` |
+| `0x15` | `DECIMAL64` | `0x15` | `0x95` | `Reserved1 = scale` (`0..18`), `Reserved2 = precision` (`1..18`) | Scaled signed `int64_t` ($\times 10^{\text{scale}}$, Parquet `DECIMAL64` layout) |
+| `0x16` | `DECIMAL128` *(Reserved)* | `0x16` | `0x96` | Reserved | Reserved for future 16-byte signed `int128_t` ($19 \le P \le 38$) |
 
 - **64-Bit String/Bytes Offsets (`VAR_STRING` `0x0B` / `VAR_BYTES` `0x0C`)**:
   - Set `Reserved1` Bit `0` (`0x01`) on `AttributeDescriptor` when `offsets[]` uses `uint64_t` (lifting the 4 GB per-column blob cap to >4 GB while keeping `uint32_t` default when `Reserved1 == 0`).
