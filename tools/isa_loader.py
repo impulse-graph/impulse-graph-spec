@@ -39,6 +39,7 @@ VALID_IMM_LAYOUTS = frozenset({
     "U16_HI",
     "OPT_U16_LO",
     "U16_PAIR",
+    "OPT_U16_PAIR",
     "OPT_DOMAIN_U16",
     "LEN_OR_DOM",
     "CONST_PAYLOAD",
@@ -376,9 +377,9 @@ def validate_isa(data: dict[str, Any]) -> None:
                 raise ValueError(f"{name}: duplicate subop name {sname!r}")
             seen_subop_names.add(sname)
 
-    if active_count != 78 or ext_count != 1:
+    if active_count != 80 or ext_count != 1:
         raise ValueError(
-            f"Expected 78 active opcodes + 1 extension (0xFF), got {active_count} + {ext_count}"
+            f"Expected 80 active opcodes + 1 extension (0xFF), got {active_count} + {ext_count}"
         )
 
 

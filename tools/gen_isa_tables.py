@@ -91,7 +91,7 @@ def gen_ocaml(isa: dict[str, Any]) -> str:
         "let vm_flag_st : int = 0x0002",
         "let vm_flag_nf : int = 0x0004",
         "",
-        "(** All 78 active opcodes (across 5 pillars) plus 0xFF OP_EXTENSION_PAYLOAD. *)",
+        "(** All 80 active opcodes (across 5 pillars) plus 0xFF OP_EXTENSION_PAYLOAD. *)",
         "type opcode =",
     ]
     for op in opcodes:
@@ -366,7 +366,7 @@ def gen_java(isa: dict[str, Any]) -> str:
     lines.extend(["", "    // Morsel Roles"])
     for idx, role in enumerate(MORSEL_ROLE_ORDER):
         lines.append(f"    public static final int MORSEL_{role.upper()} = {idx};")
-    lines.extend(["", "    // Opcodes (78 active + 0xFF extension guard)"])
+    lines.extend(["", "    // Opcodes (80 active + 0xFF extension guard)"])
     for op in opcodes:
         lines.append(f"    public static final int {op['name']} = 0x{op['code']:02X};")
     lines.extend(["", "    // Subop Constants"])

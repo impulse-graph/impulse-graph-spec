@@ -82,6 +82,8 @@ status_codes:
   13: IMPULSE_VM_ERR_GAS_EXHAUSTED
   14: IMPULSE_VM_ERR_TYPE_MISMATCH
   15: IMPULSE_VM_ERR_VALIDATION_FAILED
+  16: IMPULSE_VM_ERR_ARITHMETIC_OVERFLOW
+  17: IMPULSE_VM_ERR_DIV_BY_ZERO
 
 opcodes:
   # --- Pillar 1: System, Constants, Scalar ALU & Windowed Control (0x00 - 0x14) ---
@@ -415,6 +417,33 @@ opcodes:
       0: imm
       1: reg
 
+  - code: 0x15
+    name: OP_SCALAR_DECIMAL_ALU
+    mnemonic: SCALAR_DECIMAL_ALU
+    pillar: 1
+    allowed_flags: 0x0
+    morsel_role: forbidden
+    banks: { dst: R, s1: R, s2: OPT_R, s3: OPT_R }
+    imm_layout: OPT_U16_PAIR
+    sets_vm_flags: [ZF, NF]
+    subops:
+      0: add_chk
+      1: sub_chk
+      2: mul_chk
+      3: mul_div_round
+      4: div_round
+      5: rescale
+      6: bound_chk
+      7: abs_chk
+      8: neg_chk
+      9: f64_to_dec
+      10: dec_to_f64
+      11: round_scale
+      12: trunc_scale
+      13: floor_scale
+      14: ceil_scale
+      15: div_safe
+
   # --- Pillar 2: Polymorphic Frontier & Set Algebra (0x20 - 0x27) ---
   - code: 0x20
     name: OP_FSEED
@@ -657,6 +686,7 @@ opcodes:
       6: scatter_argmin
       7: scatter_argmax
       8: count_add_r
+      9: scatter_add_chk
 
   - code: 0x38
     name: OP_MORSEL_END
@@ -1083,6 +1113,7 @@ opcodes:
       8: argmax
       9: any_true
       10: all_true
+      11: sum_i64_chk
 
   - code: 0x53
     name: OP_TOP_K
@@ -1162,6 +1193,33 @@ opcodes:
       2: vec
       3: scalar
       4: table_col
+
+  - code: 0x58
+    name: OP_VEC_DECIMAL_ALU
+    mnemonic: VEC_DECIMAL_ALU
+    pillar: 4
+    allowed_flags: 0x3
+    morsel_role: body_ok
+    banks: { dst: V, s1: V, s2: OPT_V_OR_R, s3: SUBOP_DEP }
+    imm_layout: OPT_U16_PAIR
+    sets_vm_flags: []
+    subops:
+      0: add_chk
+      1: sub_chk
+      2: mul_chk
+      3: mul_div_r
+      4: mul_div_v
+      5: div_round
+      6: div_safe
+      7: rescale
+      8: bound_chk
+      9: abs_chk
+      10: neg_chk
+      11: f64_to_dec
+      12: dec_to_f64
+      13: round_scale
+      14: trunc_scale
+      15: mul_div_safe_r
 
   # --- Pillar 5: Multi-Lane Bit-Sliced Execution & Vector ANN (0x60 - 0x6A) ---
   - code: 0x60

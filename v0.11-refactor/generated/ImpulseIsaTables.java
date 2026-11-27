@@ -7,7 +7,7 @@ public final class ImpulseIsaTables {
 
     public static final int IMPB_MAGIC = 0x494D5042;
     public static final int IMPB_VERSION = 11;
-    public static final int ACTIVE_OPCODE_COUNT = 78;
+    public static final int ACTIVE_OPCODE_COUNT = 80;
 
     // Global Modifier Flags (high nibble of Byte 1)
     public static final int FLAG_MASKED_S3  = 0x1;
@@ -37,6 +37,8 @@ public final class ImpulseIsaTables {
     public static final int IMPULSE_VM_ERR_GAS_EXHAUSTED = 13;
     public static final int IMPULSE_VM_ERR_TYPE_MISMATCH = 14;
     public static final int IMPULSE_VM_ERR_VALIDATION_FAILED = 15;
+    public static final int IMPULSE_VM_ERR_ARITHMETIC_OVERFLOW = 16;
+    public static final int IMPULSE_VM_ERR_DIV_BY_ZERO = 17;
 
     // Scalar Type Tags
     public static final int SCALAR_NULL_UNSET = 0;
@@ -58,7 +60,7 @@ public final class ImpulseIsaTables {
     public static final int MORSEL_COMMIT_ONLY = 7;
     public static final int MORSEL_END_ONLY = 8;
 
-    // Opcodes (78 active + 0xFF extension guard)
+    // Opcodes (80 active + 0xFF extension guard)
     public static final int OP_HALT = 0x00;
     public static final int OP_NOP = 0x01;
     public static final int OP_TRAP = 0x02;
@@ -80,6 +82,7 @@ public final class ImpulseIsaTables {
     public static final int OP_CALL = 0x12;
     public static final int OP_RET = 0x13;
     public static final int OP_SET_MAX_DOP = 0x14;
+    public static final int OP_SCALAR_DECIMAL_ALU = 0x15;
     public static final int OP_FSEED = 0x20;
     public static final int OP_INIT_DOMAIN_SPAN = 0x21;
     public static final int OP_SET_OP = 0x22;
@@ -123,6 +126,7 @@ public final class ImpulseIsaTables {
     public static final int OP_MAP_KEYS_TO_DENSE = 0x55;
     public static final int OP_MAP_DENSE_TO_KEYS = 0x56;
     public static final int OP_COLLECT = 0x57;
+    public static final int OP_VEC_DECIMAL_ALU = 0x58;
     public static final int OP_LANE_INIT_SEEDS = 0x60;
     public static final int OP_LANE_INIT_GROUPS = 0x61;
     public static final int OP_LANE_WALK = 0x63;
@@ -247,6 +251,22 @@ public final class ImpulseIsaTables {
     public static final int SUBOP_RET_RET = 0;
     public static final int SUBOP_SET_MAX_DOP_IMM = 0;
     public static final int SUBOP_SET_MAX_DOP_REG = 1;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_ADD_CHK = 0;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_SUB_CHK = 1;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_MUL_CHK = 2;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_MUL_DIV_ROUND = 3;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_DIV_ROUND = 4;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_RESCALE = 5;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_BOUND_CHK = 6;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_ABS_CHK = 7;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_NEG_CHK = 8;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_F64_TO_DEC = 9;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_DEC_TO_F64 = 10;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_ROUND_SCALE = 11;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_TRUNC_SCALE = 12;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_FLOOR_SCALE = 13;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_CEIL_SCALE = 14;
+    public static final int SUBOP_SCALAR_DECIMAL_ALU_DIV_SAFE = 15;
     public static final int SUBOP_FSEED_EMPTY = 0;
     public static final int SUBOP_FSEED_SINGLE_IMM = 1;
     public static final int SUBOP_FSEED_SINGLE_REG = 2;
@@ -326,6 +346,7 @@ public final class ImpulseIsaTables {
     public static final int SUBOP_MORSEL_COMMIT_SCATTER_ARGMIN = 6;
     public static final int SUBOP_MORSEL_COMMIT_SCATTER_ARGMAX = 7;
     public static final int SUBOP_MORSEL_COMMIT_COUNT_ADD_R = 8;
+    public static final int SUBOP_MORSEL_COMMIT_SCATTER_ADD_CHK = 9;
     public static final int SUBOP_MORSEL_END_END = 0;
     public static final int SUBOP_SAMPLE_NEIGHBORS_FRONTIER_WOR = 0;
     public static final int SUBOP_SAMPLE_NEIGHBORS_VEC_WR = 1;
@@ -501,6 +522,7 @@ public final class ImpulseIsaTables {
     public static final int SUBOP_VEC_REDUCE_ARGMAX = 8;
     public static final int SUBOP_VEC_REDUCE_ANY_TRUE = 9;
     public static final int SUBOP_VEC_REDUCE_ALL_TRUE = 10;
+    public static final int SUBOP_VEC_REDUCE_SUM_I64_CHK = 11;
     public static final int SUBOP_TOP_K_DESC_IDS = 0;
     public static final int SUBOP_TOP_K_ASC_IDS = 1;
     public static final int SUBOP_TOP_K_DESC_SCORES = 2;
@@ -525,6 +547,22 @@ public final class ImpulseIsaTables {
     public static final int SUBOP_COLLECT_VEC = 2;
     public static final int SUBOP_COLLECT_SCALAR = 3;
     public static final int SUBOP_COLLECT_TABLE_COL = 4;
+    public static final int SUBOP_VEC_DECIMAL_ALU_ADD_CHK = 0;
+    public static final int SUBOP_VEC_DECIMAL_ALU_SUB_CHK = 1;
+    public static final int SUBOP_VEC_DECIMAL_ALU_MUL_CHK = 2;
+    public static final int SUBOP_VEC_DECIMAL_ALU_MUL_DIV_R = 3;
+    public static final int SUBOP_VEC_DECIMAL_ALU_MUL_DIV_V = 4;
+    public static final int SUBOP_VEC_DECIMAL_ALU_DIV_ROUND = 5;
+    public static final int SUBOP_VEC_DECIMAL_ALU_DIV_SAFE = 6;
+    public static final int SUBOP_VEC_DECIMAL_ALU_RESCALE = 7;
+    public static final int SUBOP_VEC_DECIMAL_ALU_BOUND_CHK = 8;
+    public static final int SUBOP_VEC_DECIMAL_ALU_ABS_CHK = 9;
+    public static final int SUBOP_VEC_DECIMAL_ALU_NEG_CHK = 10;
+    public static final int SUBOP_VEC_DECIMAL_ALU_F64_TO_DEC = 11;
+    public static final int SUBOP_VEC_DECIMAL_ALU_DEC_TO_F64 = 12;
+    public static final int SUBOP_VEC_DECIMAL_ALU_ROUND_SCALE = 13;
+    public static final int SUBOP_VEC_DECIMAL_ALU_TRUNC_SCALE = 14;
+    public static final int SUBOP_VEC_DECIMAL_ALU_MUL_DIV_SAFE_R = 15;
     public static final int SUBOP_LANE_INIT_SEEDS_AUTO_WIDTH = 0;
     public static final int SUBOP_LANE_INIT_SEEDS_FORCE_W64 = 1;
     public static final int SUBOP_LANE_INIT_GROUPS_GROUPS = 0;
@@ -624,6 +662,7 @@ public final class ImpulseIsaTables {
         register(OP_CALL, 1, 0x0, 0x0003, MORSEL_FORBIDDEN, "OP_CALL", "CALL");
         register(OP_RET, 1, 0x0, 0x0001, MORSEL_FORBIDDEN, "OP_RET", "RET");
         register(OP_SET_MAX_DOP, 1, 0x0, 0x0003, MORSEL_FORBIDDEN, "OP_SET_MAX_DOP", "SET_MAX_DOP");
+        register(OP_SCALAR_DECIMAL_ALU, 1, 0x0, 0xFFFF, MORSEL_FORBIDDEN, "OP_SCALAR_DECIMAL_ALU", "SCALAR_DECIMAL_ALU");
         register(OP_FSEED, 2, 0x4, 0x001F, MORSEL_FORBIDDEN, "OP_FSEED", "FSEED");
         register(OP_INIT_DOMAIN_SPAN, 2, 0x0, 0x0001, MORSEL_FORBIDDEN, "OP_INIT_DOMAIN_SPAN", "INIT_DOMAIN_SPAN");
         register(OP_SET_OP, 2, 0x0, 0x000F, MORSEL_BODY_OK, "OP_SET_OP", "SET_OP");
@@ -638,7 +677,7 @@ public final class ImpulseIsaTables {
         register(OP_SPMV, 3, 0x7, 0x01FF, MORSEL_FORBIDDEN, "OP_SPMV", "SPMV");
         register(OP_WALK_MORSEL, 3, 0x1, 0x000F, MORSEL_HEADER, "OP_WALK_MORSEL", "WALK_MORSEL");
         register(OP_FILTER_MORSEL, 3, 0x0, 0x0001, MORSEL_HEADER, "OP_FILTER_MORSEL", "FILTER_MORSEL");
-        register(OP_MORSEL_COMMIT, 3, 0x7, 0x01FF, MORSEL_COMMIT_ONLY, "OP_MORSEL_COMMIT", "MORSEL_COMMIT");
+        register(OP_MORSEL_COMMIT, 3, 0x7, 0x03FF, MORSEL_COMMIT_ONLY, "OP_MORSEL_COMMIT", "MORSEL_COMMIT");
         register(OP_MORSEL_END, 3, 0x0, 0x0001, MORSEL_END_ONLY, "OP_MORSEL_END", "MORSEL_END");
         register(OP_SAMPLE_NEIGHBORS, 3, 0x0, 0x000F, MORSEL_FORBIDDEN, "OP_SAMPLE_NEIGHBORS", "SAMPLE_NEIGHBORS");
         register(OP_HAS_TOPOLOGY, 3, 0x0, 0x03FF, MORSEL_FORBIDDEN, "OP_HAS_TOPOLOGY", "HAS_TOPOLOGY");
@@ -661,12 +700,13 @@ public final class ImpulseIsaTables {
         register(OP_COALESCE, 4, 0x3, 0x0001, MORSEL_BODY_OK, "OP_COALESCE", "COALESCE");
         register(OP_VEC_INIT, 4, 0x2, 0x7F7F, MORSEL_FORBIDDEN, "OP_VEC_INIT", "VEC_INIT");
         register(OP_VEC_POINT, 4, 0x0, 0x000F, MORSEL_BODY_CAST_ONLY, "OP_VEC_POINT", "VEC_POINT");
-        register(OP_VEC_REDUCE, 4, 0x1, 0x07FF, MORSEL_FORBIDDEN, "OP_VEC_REDUCE", "VEC_REDUCE");
+        register(OP_VEC_REDUCE, 4, 0x1, 0x0FFF, MORSEL_FORBIDDEN, "OP_VEC_REDUCE", "VEC_REDUCE");
         register(OP_TOP_K, 4, 0x3, 0x000F, MORSEL_FORBIDDEN, "OP_TOP_K", "TOP_K");
         register(OP_INDEX_SCAN, 4, 0x4, 0x007F, MORSEL_FORBIDDEN, "OP_INDEX_SCAN", "INDEX_SCAN");
         register(OP_MAP_KEYS_TO_DENSE, 4, 0x4, 0x001F, MORSEL_FORBIDDEN, "OP_MAP_KEYS_TO_DENSE", "MAP_KEYS_TO_DENSE");
         register(OP_MAP_DENSE_TO_KEYS, 4, 0x0, 0x0007, MORSEL_FORBIDDEN, "OP_MAP_DENSE_TO_KEYS", "MAP_DENSE_TO_KEYS");
         register(OP_COLLECT, 4, 0x1, 0x001F, MORSEL_FORBIDDEN, "OP_COLLECT", "COLLECT");
+        register(OP_VEC_DECIMAL_ALU, 4, 0x3, 0xFFFF, MORSEL_BODY_OK, "OP_VEC_DECIMAL_ALU", "VEC_DECIMAL_ALU");
         register(OP_LANE_INIT_SEEDS, 5, 0x0, 0x0003, MORSEL_FORBIDDEN, "OP_LANE_INIT_SEEDS", "LANE_INIT_SEEDS");
         register(OP_LANE_INIT_GROUPS, 5, 0x4, 0x0001, MORSEL_FORBIDDEN, "OP_LANE_INIT_GROUPS", "LANE_INIT_GROUPS");
         register(OP_LANE_WALK, 5, 0x5, 0x03FF, MORSEL_FORBIDDEN, "OP_LANE_WALK", "LANE_WALK");

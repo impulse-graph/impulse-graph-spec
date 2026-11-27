@@ -226,6 +226,13 @@ def resolve_banks(op: dict[str, Any], subop: int, flags: int) -> dict[str, str]:
             res["s1"] = res["s2"] = res["s3"] = "NONE"
     elif code == 0x14:  # SET_MAX_DOP
         res["s1"] = "R" if subop == 1 else "NONE"
+    elif code == 0x15:  # SCALAR_DECIMAL_ALU
+        if subop == 3:  # mul_div_round (ternary)
+            res["s2"], res["s3"] = "R", "R"
+        elif subop in (0, 1, 2, 4, 15):  # binary checked/safe decimal ops
+            res["s2"], res["s3"] = "R", "NONE"
+        else:  # unary decimal ops (rescale, bound_chk, abs/neg, casts, scale rounding)
+            res["s2"], res["s3"] = "NONE", "NONE"
     elif code == 0x20:  # FSEED
         res["s1"] = "R" if subop in (2, 3, 4) else "NONE"
     elif code == 0x26:  # SET_CONVERT
@@ -349,6 +356,19 @@ def resolve_banks(op: dict[str, Any], subop: int, flags: int) -> dict[str, str]:
             res["s1"] = "V"
         else:
             res["s1"] = "R"
+    elif code == 0x58:  # VEC_DECIMAL_ALU
+        if subop in (3, 15):  # mul_div_r, mul_div_safe_r
+            res["s2"] = "R" if has_scalar else "V"
+            res["s3"] = "R"
+        elif subop == 4:  # mul_div_v
+            res["s2"] = "R" if has_scalar else "V"
+            res["s3"] = "V"
+        elif subop in (0, 1, 2, 5, 6):  # binary checked/safe decimal ops
+            res["s2"] = "R" if has_scalar else "V"
+            res["s3"] = "F" if has_mask else "NONE"
+        else:  # unary decimal ops (7..14)
+            res["s2"] = "NONE"
+            res["s3"] = "F" if has_mask else "NONE"
     elif code == 0x63:  # LANE_WALK
         if subop == 8:
             res["s2"] = "NONE"
@@ -983,7 +1003,7 @@ class ImpAsmV11:
                         _parse_int_or_float_bits(rem_pos.pop(0), "int", line_no) if rem_pos else 0
                     )
                     imm32 = (hi & 0xFFFF) << 16
-            elif imm_layout == "U16_PAIR":
+            elif imm_layout in ("U16_PAIR", "OPT_U16_PAIR"):
                 lo, hi = 0, 0
                 if code == 0x35:  # WALK_MORSEL: rel -> lo, end_word_offset -> hi (auto)
                     lo = _parse_int_or_float_bits(kv_tokens.pop("rel", kv_tokens.pop("lo", "0")), "int", line_no)
@@ -1155,6 +1175,11 @@ class ImpAsmV11:
                     ops_out.append(f"end_off={hi}")
                 else:
                     ops_out.append(f"lo={lo}")
+                    ops_out.append(f"hi={hi}")
+            elif imm_layout == "OPT_U16_PAIR":
+                if lo != 0:
+                    ops_out.append(f"lo={lo}")
+                if hi != 0:
                     ops_out.append(f"hi={hi}")
 
             indent = "    " if reg_in_morsel else "  "

@@ -83,7 +83,11 @@ CollectKind ::= ":frontier-ids" | ":frontier-bitset" | ":vec" | ":scalar" | ":ta
    - `(walk :rev "R" f ...)` requires `f : (frontier tgt_dom)` and yields `(frontier src_dom)`.
    - `(walk :both "R" f ...)` and transitive forms (`:transitive+`, `:transitive*`, `:hops k`) require `src_dom == tgt_dom`.
 3. **In-Domain Endomorphisms**: `set-union`, `set-intersect`, `set-diff`, `set-sym-diff`, `node-filter`, `spmv` (`:mask`), and `walk` (`:exclude`) require matching domain types on all participating frontiers/vectors.
-4. **Numeric Promotion**: Implicit `int` $\leftrightarrow$ `float` coercion is **forbidden**; compilers reject mixed integer/float operands unless explicitly cast via `(cast expr T)`.
+4. **Numeric Promotion & `DECIMAL(P, S)` Coercion**:
+   - Implicit `int` $\leftrightarrow$ `float` and `decimal` $\leftrightarrow$ `float` coercion are **forbidden**; compilers reject mixed float operands unless explicitly cast via `(cast expr T)`.
+   - `DECIMAL(P1, S1)` $\circ$ `DECIMAL(P2, S2)` auto-aligns scale at compile time (`+`/`-`/`cmp`: $S = \max(S_1, S_2)$; `*`: $S = \min(18, S_1 + S_2)$; `/`: $S = \max(6, S_1)$ capped at 18).
+   - `DECIMAL(P, S)` $\circ$ `INT` (`i8..i64`, `u8..u32`) promotes `INT` to `DECIMAL(18, 0)` (exact) before scale alignment.
+   - Rounding defaults to **half-away-from-zero** (`ROUND_HALF_UP`); overflow traps `IMPULSE_VM_ERR_ARITHMETIC_OVERFLOW` (`16`) and division by zero traps `IMPULSE_VM_ERR_DIV_BY_ZERO` (`17`) (use `safe-div` for Kleene `NULL`).
 
 ---
 

@@ -15,7 +15,7 @@ let vm_flag_zf : int = 0x0001
 let vm_flag_st : int = 0x0002
 let vm_flag_nf : int = 0x0004
 
-(** All 78 active opcodes (across 5 pillars) plus 0xFF OP_EXTENSION_PAYLOAD. *)
+(** All 80 active opcodes (across 5 pillars) plus 0xFF OP_EXTENSION_PAYLOAD. *)
 type opcode =
   | OP_HALT
   | OP_NOP
@@ -38,6 +38,7 @@ type opcode =
   | OP_CALL
   | OP_RET
   | OP_SET_MAX_DOP
+  | OP_SCALAR_DECIMAL_ALU
   | OP_FSEED
   | OP_INIT_DOMAIN_SPAN
   | OP_SET_OP
@@ -81,6 +82,7 @@ type opcode =
   | OP_MAP_KEYS_TO_DENSE
   | OP_MAP_DENSE_TO_KEYS
   | OP_COLLECT
+  | OP_VEC_DECIMAL_ALU
   | OP_LANE_INIT_SEEDS
   | OP_LANE_INIT_GROUPS
   | OP_LANE_WALK
@@ -141,6 +143,7 @@ let all_opcode_meta : opcode_meta list = [
   { op = OP_CALL; code = 0x12; name = "OP_CALL"; mnemonic = "CALL"; pillar = 1; allowed_flags = 0x0; valid_subop_mask = 0x0003; morsel_role = Morsel_forbidden };
   { op = OP_RET; code = 0x13; name = "OP_RET"; mnemonic = "RET"; pillar = 1; allowed_flags = 0x0; valid_subop_mask = 0x0001; morsel_role = Morsel_forbidden };
   { op = OP_SET_MAX_DOP; code = 0x14; name = "OP_SET_MAX_DOP"; mnemonic = "SET_MAX_DOP"; pillar = 1; allowed_flags = 0x0; valid_subop_mask = 0x0003; morsel_role = Morsel_forbidden };
+  { op = OP_SCALAR_DECIMAL_ALU; code = 0x15; name = "OP_SCALAR_DECIMAL_ALU"; mnemonic = "SCALAR_DECIMAL_ALU"; pillar = 1; allowed_flags = 0x0; valid_subop_mask = 0xFFFF; morsel_role = Morsel_forbidden };
   { op = OP_FSEED; code = 0x20; name = "OP_FSEED"; mnemonic = "FSEED"; pillar = 2; allowed_flags = 0x4; valid_subop_mask = 0x001F; morsel_role = Morsel_forbidden };
   { op = OP_INIT_DOMAIN_SPAN; code = 0x21; name = "OP_INIT_DOMAIN_SPAN"; mnemonic = "INIT_DOMAIN_SPAN"; pillar = 2; allowed_flags = 0x0; valid_subop_mask = 0x0001; morsel_role = Morsel_forbidden };
   { op = OP_SET_OP; code = 0x22; name = "OP_SET_OP"; mnemonic = "SET_OP"; pillar = 2; allowed_flags = 0x0; valid_subop_mask = 0x000F; morsel_role = Morsel_body_ok };
@@ -155,7 +158,7 @@ let all_opcode_meta : opcode_meta list = [
   { op = OP_SPMV; code = 0x34; name = "OP_SPMV"; mnemonic = "SPMV"; pillar = 3; allowed_flags = 0x7; valid_subop_mask = 0x01FF; morsel_role = Morsel_forbidden };
   { op = OP_WALK_MORSEL; code = 0x35; name = "OP_WALK_MORSEL"; mnemonic = "WALK_MORSEL"; pillar = 3; allowed_flags = 0x1; valid_subop_mask = 0x000F; morsel_role = Morsel_header };
   { op = OP_FILTER_MORSEL; code = 0x36; name = "OP_FILTER_MORSEL"; mnemonic = "FILTER_MORSEL"; pillar = 3; allowed_flags = 0x0; valid_subop_mask = 0x0001; morsel_role = Morsel_header };
-  { op = OP_MORSEL_COMMIT; code = 0x37; name = "OP_MORSEL_COMMIT"; mnemonic = "MORSEL_COMMIT"; pillar = 3; allowed_flags = 0x7; valid_subop_mask = 0x01FF; morsel_role = Morsel_commit_only };
+  { op = OP_MORSEL_COMMIT; code = 0x37; name = "OP_MORSEL_COMMIT"; mnemonic = "MORSEL_COMMIT"; pillar = 3; allowed_flags = 0x7; valid_subop_mask = 0x03FF; morsel_role = Morsel_commit_only };
   { op = OP_MORSEL_END; code = 0x38; name = "OP_MORSEL_END"; mnemonic = "MORSEL_END"; pillar = 3; allowed_flags = 0x0; valid_subop_mask = 0x0001; morsel_role = Morsel_end_only };
   { op = OP_SAMPLE_NEIGHBORS; code = 0x39; name = "OP_SAMPLE_NEIGHBORS"; mnemonic = "SAMPLE_NEIGHBORS"; pillar = 3; allowed_flags = 0x0; valid_subop_mask = 0x000F; morsel_role = Morsel_forbidden };
   { op = OP_HAS_TOPOLOGY; code = 0x3A; name = "OP_HAS_TOPOLOGY"; mnemonic = "HAS_TOPOLOGY"; pillar = 3; allowed_flags = 0x0; valid_subop_mask = 0x03FF; morsel_role = Morsel_forbidden };
@@ -178,12 +181,13 @@ let all_opcode_meta : opcode_meta list = [
   { op = OP_COALESCE; code = 0x4F; name = "OP_COALESCE"; mnemonic = "COALESCE"; pillar = 4; allowed_flags = 0x3; valid_subop_mask = 0x0001; morsel_role = Morsel_body_ok };
   { op = OP_VEC_INIT; code = 0x50; name = "OP_VEC_INIT"; mnemonic = "VEC_INIT"; pillar = 4; allowed_flags = 0x2; valid_subop_mask = 0x7F7F; morsel_role = Morsel_forbidden };
   { op = OP_VEC_POINT; code = 0x51; name = "OP_VEC_POINT"; mnemonic = "VEC_POINT"; pillar = 4; allowed_flags = 0x0; valid_subop_mask = 0x000F; morsel_role = Morsel_body_cast_only };
-  { op = OP_VEC_REDUCE; code = 0x52; name = "OP_VEC_REDUCE"; mnemonic = "VEC_REDUCE"; pillar = 4; allowed_flags = 0x1; valid_subop_mask = 0x07FF; morsel_role = Morsel_forbidden };
+  { op = OP_VEC_REDUCE; code = 0x52; name = "OP_VEC_REDUCE"; mnemonic = "VEC_REDUCE"; pillar = 4; allowed_flags = 0x1; valid_subop_mask = 0x0FFF; morsel_role = Morsel_forbidden };
   { op = OP_TOP_K; code = 0x53; name = "OP_TOP_K"; mnemonic = "TOP_K"; pillar = 4; allowed_flags = 0x3; valid_subop_mask = 0x000F; morsel_role = Morsel_forbidden };
   { op = OP_INDEX_SCAN; code = 0x54; name = "OP_INDEX_SCAN"; mnemonic = "INDEX_SCAN"; pillar = 4; allowed_flags = 0x4; valid_subop_mask = 0x007F; morsel_role = Morsel_forbidden };
   { op = OP_MAP_KEYS_TO_DENSE; code = 0x55; name = "OP_MAP_KEYS_TO_DENSE"; mnemonic = "MAP_KEYS_TO_DENSE"; pillar = 4; allowed_flags = 0x4; valid_subop_mask = 0x001F; morsel_role = Morsel_forbidden };
   { op = OP_MAP_DENSE_TO_KEYS; code = 0x56; name = "OP_MAP_DENSE_TO_KEYS"; mnemonic = "MAP_DENSE_TO_KEYS"; pillar = 4; allowed_flags = 0x0; valid_subop_mask = 0x0007; morsel_role = Morsel_forbidden };
   { op = OP_COLLECT; code = 0x57; name = "OP_COLLECT"; mnemonic = "COLLECT"; pillar = 4; allowed_flags = 0x1; valid_subop_mask = 0x001F; morsel_role = Morsel_forbidden };
+  { op = OP_VEC_DECIMAL_ALU; code = 0x58; name = "OP_VEC_DECIMAL_ALU"; mnemonic = "VEC_DECIMAL_ALU"; pillar = 4; allowed_flags = 0x3; valid_subop_mask = 0xFFFF; morsel_role = Morsel_body_ok };
   { op = OP_LANE_INIT_SEEDS; code = 0x60; name = "OP_LANE_INIT_SEEDS"; mnemonic = "LANE_INIT_SEEDS"; pillar = 5; allowed_flags = 0x0; valid_subop_mask = 0x0003; morsel_role = Morsel_forbidden };
   { op = OP_LANE_INIT_GROUPS; code = 0x61; name = "OP_LANE_INIT_GROUPS"; mnemonic = "LANE_INIT_GROUPS"; pillar = 5; allowed_flags = 0x4; valid_subop_mask = 0x0001; morsel_role = Morsel_forbidden };
   { op = OP_LANE_WALK; code = 0x63; name = "OP_LANE_WALK"; mnemonic = "LANE_WALK"; pillar = 5; allowed_flags = 0x5; valid_subop_mask = 0x03FF; morsel_role = Morsel_forbidden };
@@ -228,6 +232,7 @@ let code_of_opcode : opcode -> int = function
   | OP_CALL -> 0x12
   | OP_RET -> 0x13
   | OP_SET_MAX_DOP -> 0x14
+  | OP_SCALAR_DECIMAL_ALU -> 0x15
   | OP_FSEED -> 0x20
   | OP_INIT_DOMAIN_SPAN -> 0x21
   | OP_SET_OP -> 0x22
@@ -271,6 +276,7 @@ let code_of_opcode : opcode -> int = function
   | OP_MAP_KEYS_TO_DENSE -> 0x55
   | OP_MAP_DENSE_TO_KEYS -> 0x56
   | OP_COLLECT -> 0x57
+  | OP_VEC_DECIMAL_ALU -> 0x58
   | OP_LANE_INIT_SEEDS -> 0x60
   | OP_LANE_INIT_GROUPS -> 0x61
   | OP_LANE_WALK -> 0x63
@@ -804,6 +810,63 @@ module Subop = struct
       | _ -> None
   end
 
+  module ScalarDecimalAlu = struct
+    type t =
+      | AddChk
+      | SubChk
+      | MulChk
+      | MulDivRound
+      | DivRound
+      | Rescale
+      | BoundChk
+      | AbsChk
+      | NegChk
+      | F64ToDec
+      | DecToF64
+      | RoundScale
+      | TruncScale
+      | FloorScale
+      | CeilScale
+      | DivSafe
+
+    let to_int : t -> int = function
+      | AddChk -> 0
+      | SubChk -> 1
+      | MulChk -> 2
+      | MulDivRound -> 3
+      | DivRound -> 4
+      | Rescale -> 5
+      | BoundChk -> 6
+      | AbsChk -> 7
+      | NegChk -> 8
+      | F64ToDec -> 9
+      | DecToF64 -> 10
+      | RoundScale -> 11
+      | TruncScale -> 12
+      | FloorScale -> 13
+      | CeilScale -> 14
+      | DivSafe -> 15
+
+    let of_int : int -> t option = function
+      | 0 -> Some AddChk
+      | 1 -> Some SubChk
+      | 2 -> Some MulChk
+      | 3 -> Some MulDivRound
+      | 4 -> Some DivRound
+      | 5 -> Some Rescale
+      | 6 -> Some BoundChk
+      | 7 -> Some AbsChk
+      | 8 -> Some NegChk
+      | 9 -> Some F64ToDec
+      | 10 -> Some DecToF64
+      | 11 -> Some RoundScale
+      | 12 -> Some TruncScale
+      | 13 -> Some FloorScale
+      | 14 -> Some CeilScale
+      | 15 -> Some DivSafe
+      | _ -> None
+  end
+
   module Fseed = struct
     type t =
       | Empty
@@ -1151,6 +1214,7 @@ module Subop = struct
       | ScatterArgmin
       | ScatterArgmax
       | CountAddR
+      | ScatterAddChk
 
     let to_int : t -> int = function
       | YieldFrontier -> 0
@@ -1162,6 +1226,7 @@ module Subop = struct
       | ScatterArgmin -> 6
       | ScatterArgmax -> 7
       | CountAddR -> 8
+      | ScatterAddChk -> 9
 
     let of_int : int -> t option = function
       | 0 -> Some YieldFrontier
@@ -1173,6 +1238,7 @@ module Subop = struct
       | 6 -> Some ScatterArgmin
       | 7 -> Some ScatterArgmax
       | 8 -> Some CountAddR
+      | 9 -> Some ScatterAddChk
       | _ -> None
   end
 
@@ -1879,6 +1945,7 @@ module Subop = struct
       | Argmax
       | AnyTrue
       | AllTrue
+      | SumI64Chk
 
     let to_int : t -> int = function
       | Sum -> 0
@@ -1892,6 +1959,7 @@ module Subop = struct
       | Argmax -> 8
       | AnyTrue -> 9
       | AllTrue -> 10
+      | SumI64Chk -> 11
 
     let of_int : int -> t option = function
       | 0 -> Some Sum
@@ -1905,6 +1973,7 @@ module Subop = struct
       | 8 -> Some Argmax
       | 9 -> Some AnyTrue
       | 10 -> Some AllTrue
+      | 11 -> Some SumI64Chk
       | _ -> None
   end
 
@@ -2022,6 +2091,63 @@ module Subop = struct
       | 2 -> Some Vec
       | 3 -> Some Scalar
       | 4 -> Some TableCol
+      | _ -> None
+  end
+
+  module VecDecimalAlu = struct
+    type t =
+      | AddChk
+      | SubChk
+      | MulChk
+      | MulDivR
+      | MulDivV
+      | DivRound
+      | DivSafe
+      | Rescale
+      | BoundChk
+      | AbsChk
+      | NegChk
+      | F64ToDec
+      | DecToF64
+      | RoundScale
+      | TruncScale
+      | MulDivSafeR
+
+    let to_int : t -> int = function
+      | AddChk -> 0
+      | SubChk -> 1
+      | MulChk -> 2
+      | MulDivR -> 3
+      | MulDivV -> 4
+      | DivRound -> 5
+      | DivSafe -> 6
+      | Rescale -> 7
+      | BoundChk -> 8
+      | AbsChk -> 9
+      | NegChk -> 10
+      | F64ToDec -> 11
+      | DecToF64 -> 12
+      | RoundScale -> 13
+      | TruncScale -> 14
+      | MulDivSafeR -> 15
+
+    let of_int : int -> t option = function
+      | 0 -> Some AddChk
+      | 1 -> Some SubChk
+      | 2 -> Some MulChk
+      | 3 -> Some MulDivR
+      | 4 -> Some MulDivV
+      | 5 -> Some DivRound
+      | 6 -> Some DivSafe
+      | 7 -> Some Rescale
+      | 8 -> Some BoundChk
+      | 9 -> Some AbsChk
+      | 10 -> Some NegChk
+      | 11 -> Some F64ToDec
+      | 12 -> Some DecToF64
+      | 13 -> Some RoundScale
+      | 14 -> Some TruncScale
+      | 15 -> Some MulDivSafeR
       | _ -> None
   end
 

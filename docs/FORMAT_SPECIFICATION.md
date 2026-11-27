@@ -216,8 +216,8 @@ Every node domain attribute (following a `DomainCatalogEntry` in §3.2) and edge
 | :--- | :--- | :--- | :--- | :--- |
 | `0x0000` – `0x0003` | `NameOffset` | `uint32_t` | 4 Bytes | 0-indexed byte offset into String Table (points to null-terminated string, e.g., `"weight\0"`). |
 | `0x0004` | `TypeCode` | `uint8_t` | 1 Byte | Base Primitive Type (`Bits 0..6`) + `0x80` Nullability Flag (`Bit 7`). |
-| `0x0005` | `Reserved1` | `uint8_t` | 1 Byte | `0x00` alignment padding. |
-| `0x0006` – `0x0007` | `Reserved2` | `uint16_t` | 2 Bytes | `0x00` alignment padding. |
+| `0x0005` | `Reserved1` | `uint8_t` | 1 Byte | For `DECIMAL64` (`0x15`/`0x95`): `scale` $S \in [0, 18]$ ($S \le P$). For `VAR_STRING`/`VAR_BYTES`: bit `0` = 64-bit offsets flag. Otherwise `0x00`. |
+| `0x0006` – `0x0007` | `Reserved2` | `uint16_t` | 2 Bytes | For `DECIMAL64` (`0x15`/`0x95`): `precision` $P \in [1, 18]$. Otherwise `0x0000`. |
 | `0x0008` – `0x000B` | `Dimension` | `uint32_t` | 4 Bytes | Element dimension $D$ ($1$ for scalar, $D \ge 1$ for fixed vectors, $0$ for variable-length). |
 | `0x000C` – `0x0013` | `DataOffset` | `uint64_t` | 8 Bytes | 128B-aligned absolute file offset to attribute data array / payload blob. |
 | `0x0014` – `0x001B` | `DataBytes` | `uint64_t` | 8 Bytes | Total byte size of attribute data array / payload blob. |
@@ -274,6 +274,15 @@ bool    is_nullable = (descriptor->type_code & IMPULSE_NULLABLE_FLAG) != 0;
 | `0x0C` | `VAR_BYTES` | `0x0C` | `0x8C` | Ignored (`0`) | Variable Binary (`uint32_t offsets[]` + Data Blob) |
 | `0x0D` | `INTERVAL_SEC_32` | `0x0D` | `0x8D` | $\ge 1$ | 8 Bytes packed struct (`uint32_t start_sec`, `uint32_t duration_sec`) |
 | `0x0E` | `INTERVAL_MS_64` | `0x0E` | `0x8E` | $\ge 1$ | 16 Bytes packed struct (`uint64_t start_ms`, `uint64_t duration_ms`) |
+| `0x0F` | `BOOL` | `0x0F` | `0x8F` | $\ge 1$ | 1-bit packed `uint64_t[(K * dim + 63) / 64]` (128B-padded) |
+| `0x11` | `UINT8` | `0x11` | `0x91` | $\ge 1$ | $1 \times \text{dim}$ Bytes (unsigned `uint8_t`) |
+| `0x12` | `UINT16` | `0x12` | `0x92` | $\ge 1$ | $2 \times \text{dim}$ Bytes (unsigned `uint16_t`) |
+| `0x13` | `UINT32` | `0x13` | `0x93` | $\ge 1$ | $4 \times \text{dim}$ Bytes (unsigned `uint32_t`) |
+| `0x14` | `UINT64` | `0x14` | `0x94` | $\ge 1$ | $8 \times \text{dim}$ Bytes (unsigned `uint64_t`) |
+| `0x15` | `DECIMAL64` | `0x15` | `0x95` | $\ge 1$ | $8 \times \text{dim}$ Bytes (scaled signed `int64_t` $\times 10^S$, `Reserved1 = scale` $0..18$, `Reserved2 = precision` $1..18$, $S \le P$; Parquet `DECIMAL64` layout) |
+| `0x16` | `DECIMAL128` *(Reserved)* | `0x16` | `0x96` | $\ge 1$ | Reserved for future 16-byte signed `int128_t` ($19 \le P \le 38$) |
+
+> **Note (`0x10` Reserved & `DECIMAL64` Upfront Validation)**: Base code `0x10` is intentionally reserved to preserve `UINT* = INT* | 0x10` bit symmetry (`0x11`–`0x14`). On `.imps` open (Lifecycle 1), readers MUST validate `1 <= precision <= 18`, `scale <= precision`, and `data_bytes >= K * dim * 8` for every `DECIMAL64` attribute descriptor, failing fast with `IMPULSE_ERR_INVALID_ARGUMENT` on malformed metadata.
 
 ---
 
