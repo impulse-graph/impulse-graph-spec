@@ -34,7 +34,7 @@ from impas_assembler import (
     FLAG_EXT,
     FLAG_MASK,
     FLAG_SCALAR,
-    ImpAsmV11,
+    ImpAsm,
     MODIFIER_ORDER,
     SCALAR_3VL_COMMUTE,
     encode_word,
@@ -152,11 +152,11 @@ def _synth_instruction_source(op: dict[str, Any], subop: int, flags: int) -> str
     return f".code\n{line}\n"
 
 
-class TestV11M0Exhaustive(unittest.TestCase):
+class TestIsaM0Exhaustive(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.isa = load_isa()
-        cls.asm = ImpAsmV11()
+        cls.asm = ImpAsm()
         cls.active_ops = [op for op in cls.isa["opcodes"] if op["code"] != 0xFF]
 
     def test_01_yaml_freeze_invariants(self) -> None:

@@ -629,7 +629,7 @@ def _parse_int_or_float_bits(raw: str, mode: str, line_no: int) -> int:
         raise AsmError(f"Expected integer literal, got {raw!r}", line_no) from exc
 
 
-class ImpAsmV11:
+class ImpAsm:
     def __init__(self, isa_path: Path | str = DEFAULT_ISA_PATH):
         self.isa = load_isa(isa_path)
         self.by_code: dict[int, dict[str, Any]] = {op["code"]: op for op in self.isa["opcodes"]}
@@ -1210,7 +1210,7 @@ def main() -> int:
     p_fx.add_argument("input", type=Path)
 
     args = parser.parse_args()
-    asm = ImpAsmV11()
+    asm = ImpAsm()
 
     if args.cmd == "assemble":
         prog = asm.assemble(args.input.read_text(encoding="utf-8"))

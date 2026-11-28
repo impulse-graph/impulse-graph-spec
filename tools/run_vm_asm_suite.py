@@ -37,7 +37,7 @@ from impas_assembler import (
     FLAG_EXT,
     FLAG_MASK,
     FLAG_SCALAR,
-    ImpAsmV11,
+    ImpAsm,
     SCALAR_TYPE_NAMES,
     decode_word_fields,
 )
@@ -296,7 +296,7 @@ def main() -> int:
 
     isa = load_isa()
     by_code = {op["code"]: op for op in isa["opcodes"]}
-    asm = ImpAsmV11()
+    asm = ImpAsm()
     profiles = [p.strip() for p in args.profiles.split(",") if p.strip()]
 
     if args.pillar is not None:
