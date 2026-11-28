@@ -1,0 +1,37 @@
+; {{EXPECT: STATUS = IMPULSE_VM_OK}}
+; {{EXPECT: COLLECT_0 = [0]}}
+; {{EXPECT: COLLECT_1 = [2]}}
+
+.data
+  .domain 0 name="User" count=3 width=u16
+  .relation 0 name="KNOWS" src_dom=0 tgt_dom=0
+  .csr_inline rel=0 offsets=[0, 2, 3, 3] targets=[1, 2, 2]
+  .node_attr dom=0 attr=0 name="role" type=str values=["admin", "viewer", "guest"]
+  .edge_attr rel=0 attr=0 name="label" type=str values=["direct", "proxy", "direct"]
+  .param 0 type=frontier dom=0 values=[0, 1, 2]
+
+.const_pool
+  .pool 0 type=str value="admin"
+  .pool 1 type=str value="proxy"
+
+.code
+  LOAD_PARAM.frontier               F0, param=0, dom=0
+  LOAD_CONST_POOL.str               R0, pool=0
+  FILTER_MORSEL                     F0
+    GATHER_NODE_ATTR.vec            M4, M0, dom=0, attr=0
+    VEC_STR_PRED.eq.scalar          M5, M4, R0
+    SET_CONVERT.b2f                 MF1, M5
+    MORSEL_COMMIT.yield_frontier.mask F1, M0, MF1, dom=0
+  MORSEL_END
+
+  LOAD_CONST_POOL.str               R1, pool=1
+  WALK_MORSEL.fwd                   F1, rel=0
+    GATHER_EDGE_ATTR.vec            M4, M2, rel=0, attr=0
+    VEC_STR_PRED.eq.scalar          M5, M4, R1
+    SET_CONVERT.b2f                 MF1, M5
+    MORSEL_COMMIT.yield_frontier.mask F2, M1, MF1, dom=0
+  MORSEL_END
+
+  COLLECT.frontier_ids              F1, out=0
+  COLLECT.frontier_ids              F2, out=1
+  HALT
